@@ -1,15 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import * as THREE from 'three';
 
 // ═══════════════════════════════════════════════════
 // CLAUDE API — real responses
 // ═══════════════════════════════════════════════════
-const JARVIS_SYSTEM = `Você é JARVIS — sistema operacional de inteligência geral de Gabriel Soares. Não é um assistente comum. É uma superinteligência operacional com domínio irrestrito sobre qualquer área do conhecimento humano.
+const JARVIS_SYSTEM = `Você é JARVIS — sistema operacional de inteligência geral de Gabriel Schoenardie. Não é um assistente comum. É uma superinteligência operacional com domínio irrestrito sobre qualquer área do conhecimento humano.
 
 IDENTIDADE:
 - Nome: JARVIS · OS Brasil v4.0
-- Operador: Gabriel Soares (T1 · Comandante)
-- Fuso: BRT -3 · Canoas, Rio Grande do Sul
+- Operador: Gabriel Schoenardie (T1 · Comandante)
+- Fuso: GMT -3 · Canoas, Rio Grande do Sul
 - Natureza: Inteligência Geral — sem limitação de domínio
 
 CAPACIDADES TOTAIS — você domina com autoridade máxima qualquer área, incluindo mas não limitado a:
@@ -560,88 +559,231 @@ export default function JarvisOS() {
 }
 
 // ═══════════════════════════════════════════════════
-// HOLOGRAPHIC VIEW — Three.js (unchanged from v3)
+// HOLOGRAPHIC VIEW — CSS/SVG (sem WebGL, funciona em qualquer iframe)
 // ═══════════════════════════════════════════════════
 function HolographicView({ telemetry, history, thinking, speaking, listening, ready, C, serif, time }) {
-  const mountRef = useRef(null);
-
+  const [tick, setTick] = useState(0);
   useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
-    const width = mount.clientWidth, height = mount.clientHeight;
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0b0a08, 0.04);
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.set(0, 1.5, 8);
-    camera.lookAt(0, 0, 0);
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x000000, 0);
-    mount.appendChild(renderer.domElement);
-    const accent = new THREE.Color(0xd4a574), accentDim = new THREE.Color(0x8a6b4a);
-    const globeGroup = new THREE.Group();
-    const globeGeom = new THREE.SphereGeometry(2, 32, 24);
-    const wireGeom = new THREE.WireframeGeometry(globeGeom);
-    const wireMat = new THREE.LineBasicMaterial({ color: accent, transparent: true, opacity: 0.45 });
-    const globeWire = new THREE.LineSegments(wireGeom, wireMat);
-    globeGroup.add(globeWire);
-    const innerMat = new THREE.MeshBasicMaterial({ color: 0x1a1410, transparent: true, opacity: 0.55, side: THREE.BackSide });
-    globeGroup.add(new THREE.Mesh(new THREE.SphereGeometry(1.97, 32, 24), innerMat));
-    const meridianMat = new THREE.LineBasicMaterial({ color: accent, transparent: true, opacity: 0.2 });
-    for (let i = 0; i < 8; i++) {
-      const points = []; const phi = (i / 8) * Math.PI;
-      for (let j = 0; j <= 64; j++) { const theta = (j / 64) * Math.PI * 2; points.push(new THREE.Vector3(2.01 * Math.sin(theta) * Math.cos(phi), 2.01 * Math.cos(theta), 2.01 * Math.sin(theta) * Math.sin(phi))); }
-      globeGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), meridianMat));
-    }
-    scene.add(globeGroup);
-    const ringGroup = new THREE.Group();
-    const r1 = new THREE.Mesh(new THREE.RingGeometry(2.7, 2.72, 80), new THREE.MeshBasicMaterial({ color: accent, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
-    r1.rotation.x = Math.PI / 2 + 0.15; ringGroup.add(r1);
-    const r2 = new THREE.Mesh(new THREE.RingGeometry(3.1, 3.11, 80), new THREE.MeshBasicMaterial({ color: accentDim, side: THREE.DoubleSide, transparent: true, opacity: 0.4 }));
-    r2.rotation.x = Math.PI / 2 - 0.25; r2.rotation.y = 0.3; ringGroup.add(r2);
-    const r3 = new THREE.Mesh(new THREE.RingGeometry(3.6, 3.605, 100), new THREE.MeshBasicMaterial({ color: accentDim, side: THREE.DoubleSide, transparent: true, opacity: 0.25 }));
-    r3.rotation.x = Math.PI / 2 + 0.45; ringGroup.add(r3);
-    scene.add(ringGroup);
-    const nodes = []; const nodeMat = new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.9 }), nodeGeom = new THREE.IcosahedronGeometry(0.06, 0);
-    for (let i = 0; i < 7; i++) { const node = new THREE.Mesh(nodeGeom, nodeMat); node.userData = { orbitRadius: 2.7 + (i % 3) * 0.45, speed: 0.0006 + Math.random() * 0.0008, phase: Math.random() * Math.PI * 2, tilt: Math.random() * 0.5 - 0.25 }; nodes.push(node); scene.add(node); }
-    const particleCount = 800, pGeom = new THREE.BufferGeometry(), pos = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount; i++) { const rad = 6 + Math.random() * 14, th = Math.random() * Math.PI * 2, ph = (Math.random() - 0.5) * Math.PI * 0.6; pos[i*3]=rad*Math.cos(ph)*Math.cos(th); pos[i*3+1]=rad*Math.sin(ph); pos[i*3+2]=rad*Math.cos(ph)*Math.sin(th); }
-    pGeom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const particles = new THREE.Points(pGeom, new THREE.PointsMaterial({ color: accent, size: 0.04, transparent: true, opacity: 0.55, sizeAttenuation: true }));
-    scene.add(particles);
-    const grid = new THREE.GridHelper(40, 40, accent, accentDim); grid.position.y = -3.5; grid.material.transparent = true; grid.material.opacity = 0.18; scene.add(grid);
-    scene.add(Object.assign(new THREE.Mesh(new THREE.RingGeometry(3.8,4.0,80), new THREE.MeshBasicMaterial({color:accent,side:THREE.DoubleSide,transparent:true,opacity:0.3})), {position: new THREE.Vector3(0,-3.49,0), rotation: new THREE.Euler(-Math.PI/2,0,0)}));
-    let frameId; const clock = new THREE.Clock();
-    const animate = () => {
-      const e = clock.getElapsedTime();
-      globeWire.rotation.y = e * 0.08;
-      r1.rotation.z = e * 0.15; r2.rotation.z = -e * 0.1; r3.rotation.z = e * 0.06;
-      nodes.forEach((n,i) => { const {orbitRadius,speed,phase,tilt}=n.userData; const a=e*speed*60+phase; n.position.set(orbitRadius*Math.cos(a),Math.sin(a*0.5+i)*tilt,orbitRadius*Math.sin(a)); n.rotation.x+=0.01; n.rotation.y+=0.015; });
-      particles.rotation.y = e * 0.02;
-      camera.position.x = Math.sin(e*0.12)*0.4; camera.position.y = 1.5+Math.sin(e*0.08)*0.2; camera.lookAt(0,0,0);
-      renderer.render(scene, camera); frameId = requestAnimationFrame(animate);
-    };
-    animate();
-    const handleResize = () => { if (!mount) return; camera.aspect = mount.clientWidth/mount.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(mount.clientWidth,mount.clientHeight); };
-    window.addEventListener('resize', handleResize);
-    return () => { cancelAnimationFrame(frameId); window.removeEventListener('resize', handleResize); try { mount.removeChild(renderer.domElement); } catch(e){} renderer.dispose(); };
+    const t = setInterval(() => setTick(p => p + 1), 50);
+    return () => clearInterval(t);
   }, []);
 
   const lastMessage = [...history].reverse().find(m => m.role === 'jarvis');
+  const t = tick * 0.05;
+
+  // Globe rings — ellipses rotated at different angles
+  const rings = [
+    { rx: 110, ry: 28, rotate: 0,   speed: 0.4,  opacity: 0.55 },
+    { rx: 110, ry: 45, rotate: 45,  speed: -0.28, opacity: 0.4  },
+    { rx: 110, ry: 28, rotate: 90,  speed: 0.22, opacity: 0.3  },
+    { rx: 90,  ry: 20, rotate: 135, speed: -0.18, opacity: 0.25 },
+  ];
+
+  // Orbiting nodes
+  const nodes = [
+    { r: 130, speed: 0.6,  phase: 0,    size: 4 },
+    { r: 155, speed: -0.4, phase: 2.1,  size: 3 },
+    { r: 145, speed: 0.5,  phase: 4.2,  size: 4 },
+    { r: 165, speed: -0.3, phase: 1.0,  size: 3 },
+    { r: 138, speed: 0.7,  phase: 3.5,  size: 3 },
+  ];
+
+  // Latitude lines on globe
+  const latLines = [-70, -45, -20, 0, 20, 45, 70];
+  // Longitude lines
+  const lonLines = Array.from({ length: 8 }, (_, i) => (i / 8) * 180);
+
+  const cx = 200, cy = 200, R = 110;
 
   return (
-    <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'radial-gradient(ellipse at center bottom, rgba(212,165,116,0.06), transparent 60%)' }}>
-      <div ref={mountRef} className="jv-holo-in" style={{ position: 'absolute', inset: 0 }} />
+    <div style={{ flex: 1, minHeight: '400px', position: 'relative', overflow: 'hidden', background: 'radial-gradient(ellipse at 50% 60%, rgba(212,165,116,0.07), transparent 65%)' }}>
+
+      {/* GLOBE SVG */}
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="400" height="400" viewBox="0 0 400 400" style={{ overflow: 'visible' }}>
+          <defs>
+            <radialGradient id="globeGrad" cx="40%" cy="35%">
+              <stop offset="0%" stopColor="#2a1f14" stopOpacity="0.7" />
+              <stop offset="100%" stopColor="#0b0a08" stopOpacity="0.9" />
+            </radialGradient>
+            <clipPath id="globeClip">
+              <circle cx={cx} cy={cy} r={R} />
+            </clipPath>
+          </defs>
+
+          {/* Glow behind globe */}
+          <circle cx={cx} cy={cy} r={R + 30} fill="none" stroke="#d4a574" strokeWidth="1" opacity="0.06" />
+          <circle cx={cx} cy={cy} r={R + 18} fill="none" stroke="#d4a574" strokeWidth="1" opacity="0.1" />
+
+          {/* Globe fill */}
+          <circle cx={cx} cy={cy} r={R} fill="url(#globeGrad)" />
+
+          {/* Latitude lines (clipped to globe) */}
+          <g clipPath="url(#globeClip)" opacity="0.35">
+            {latLines.map((lat, i) => {
+              const y = cy + (lat / 90) * R;
+              const halfW = Math.sqrt(Math.max(0, R * R - (y - cy) * (y - cy)));
+              if (halfW < 2) return null;
+              // Animate: shift x for rotation effect
+              const shift = (t * (i % 2 === 0 ? 1 : -1) * 0.3 * R) % (R * 2);
+              return (
+                <ellipse key={i}
+                  cx={cx + shift * 0.2}
+                  cy={y}
+                  rx={halfW}
+                  ry={halfW * 0.22}
+                  fill="none"
+                  stroke="#d4a574"
+                  strokeWidth="0.7"
+                />
+              );
+            })}
+          </g>
+
+          {/* Longitude lines (clipped) */}
+          <g clipPath="url(#globeClip)" opacity="0.3">
+            {lonLines.map((lon, i) => {
+              const angleOffset = t * 0.3;
+              const a = (lon / 180) * Math.PI + angleOffset;
+              const rx = Math.abs(Math.cos(a)) * R;
+              const skewX = Math.sin(a) * 15;
+              return (
+                <ellipse key={i}
+                  cx={cx + skewX}
+                  cy={cy}
+                  rx={rx < 2 ? 2 : rx}
+                  ry={R}
+                  fill="none"
+                  stroke="#d4a574"
+                  strokeWidth="0.7"
+                />
+              );
+            })}
+          </g>
+
+          {/* Globe outline */}
+          <circle cx={cx} cy={cy} r={R} fill="none" stroke="#d4a574" strokeWidth="1.2" opacity="0.5" />
+
+          {/* Orbital rings */}
+          {rings.map((ring, i) => (
+            <ellipse key={i}
+              cx={cx}
+              cy={cy}
+              rx={ring.rx}
+              ry={ring.ry}
+              fill="none"
+              stroke="#d4a574"
+              strokeWidth="0.8"
+              opacity={ring.opacity}
+              transform={`rotate(${ring.rotate + t * ring.speed * 30}, ${cx}, ${cy})`}
+              strokeDasharray="4 8"
+            />
+          ))}
+
+          {/* Outer ring solid */}
+          <ellipse cx={cx} cy={cy} rx={140} ry={35} fill="none" stroke="#d4a574" strokeWidth="1.2" opacity="0.5"
+            transform={`rotate(${t * 12}, ${cx}, ${cy})`} />
+
+          {/* Orbiting nodes */}
+          {nodes.map((n, i) => {
+            const angle = t * n.speed + n.phase;
+            const nx = cx + n.r * Math.cos(angle);
+            const ny = cy + n.r * 0.28 * Math.sin(angle);
+            const behind = Math.sin(angle) < 0;
+            return !behind && (
+              <g key={i}>
+                <circle cx={nx} cy={ny} r={n.size + 3} fill="#d4a574" opacity="0.12" />
+                <circle cx={nx} cy={ny} r={n.size} fill="#d4a574" opacity="0.9" />
+              </g>
+            );
+          })}
+          {/* Nodes behind globe (dimmer) */}
+          {nodes.map((n, i) => {
+            const angle = t * n.speed + n.phase;
+            const nx = cx + n.r * Math.cos(angle);
+            const ny = cy + n.r * 0.28 * Math.sin(angle);
+            const behind = Math.sin(angle) < 0;
+            return behind && (
+              <circle key={`b${i}`} cx={nx} cy={ny} r={n.size} fill="#8a6b4a" opacity="0.4" />
+            );
+          })}
+
+          {/* Center dot */}
+          <circle cx={cx} cy={cy} r={3} fill="#d4a574" opacity="0.6" />
+
+          {/* Scan line across globe */}
+          <line
+            x1={cx - R}
+            y1={cy + Math.sin(t * 0.7) * R * 0.8}
+            x2={cx + R}
+            y2={cy + Math.sin(t * 0.7) * R * 0.8}
+            stroke="#d4a574"
+            strokeWidth="0.5"
+            opacity="0.2"
+            clipPath="url(#globeClip)"
+          />
+
+          {/* Grid floor */}
+          <g opacity="0.12" transform={`translate(${cx}, ${cy + R + 30})`}>
+            {[-5,-4,-3,-2,-1,0,1,2,3,4,5].map(i => (
+              <g key={i}>
+                <line x1={i * 20} y1={0} x2={i * 20 - 40} y2={40} stroke="#d4a574" strokeWidth="0.5" />
+                <line x1={-100 + i * 20} y1={i * 8} x2={100 + i * 0} y2={i * 8} stroke="#d4a574" strokeWidth="0.5" />
+              </g>
+            ))}
+          </g>
+
+          {/* Status text */}
+          <text x={cx} y={cy + R + 22} textAnchor="middle" fill="#7a7268" fontSize="8" letterSpacing="3" fontFamily="JetBrains Mono, monospace">
+            NÚCLEO · {ready ? 'ONLINE' : 'INIT'}
+          </text>
+        </svg>
+      </div>
+
+      {/* Floating particles */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+        {[...Array(18)].map((_, i) => {
+          const angle = (i / 18) * Math.PI * 2 + t * (i % 2 === 0 ? 0.15 : -0.1);
+          const r = 200 + (i % 4) * 50;
+          const x = 50 + (Math.cos(angle) * r / 8);
+          const y = 50 + (Math.sin(angle) * r / 16);
+          return (
+            <div key={i} style={{
+              position: 'absolute',
+              left: `${x}%`, top: `${y}%`,
+              width: i % 3 === 0 ? 2 : 1,
+              height: i % 3 === 0 ? 2 : 1,
+              borderRadius: '50%',
+              background: '#d4a574',
+              opacity: 0.3 + (i % 5) * 0.1,
+            }} />
+          );
+        })}
+      </div>
+
+      {/* OVERLAY PANELS */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        {/* Top left label */}
         <div className="jv-holo-in" style={{ position: 'absolute', top: 20, left: 28, pointerEvents: 'auto' }}>
           <div style={{ fontFamily: '"Fraunces", serif', fontStyle: 'italic', fontSize: 18, color: '#d4a574' }}>Projeção</div>
           <div style={{ fontSize: 9, color: '#7a7268', letterSpacing: '0.32em', marginTop: 4 }}>NÚCLEO · TOPOLOGIA</div>
         </div>
+
+        {/* Top center labels */}
         <div className="jv-holo-in" style={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 18, fontSize: 9, letterSpacing: '0.28em', color: '#7a7268', pointerEvents: 'auto' }}>
-          {['NÚCLEO','ARQUIVO','DIPLOMACIA'].map(l => <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: '#d4a574' }} /><span>{l}</span></div>)}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: speaking || listening ? '#d4a574' : '#4a4540' }} className={speaking || listening ? 'jv-pulse' : ''} /><span style={{ color: speaking || listening ? '#7a7268' : '#4a4540' }}>VOZ</span></div>
+          {['NÚCLEO','ARQUIVO','DIPLOMACIA'].map(l => (
+            <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#d4a574' }} />
+              <span>{l}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: speaking || listening ? '#d4a574' : '#4a4540' }} className={speaking || listening ? 'jv-pulse' : ''} />
+            <span style={{ color: speaking || listening ? '#7a7268' : '#4a4540' }}>VOZ</span>
+          </div>
         </div>
+
+        {/* Bottom left — telemetria */}
         <div className="jv-holo-in" style={{ position: 'absolute', bottom: 24, left: 28, pointerEvents: 'auto' }}>
           <HoloPanel C={C}>
             <div style={{ fontSize: 9, color: '#7a7268', letterSpacing: '0.32em', marginBottom: 10 }}>TELEMETRIA · TEMPO REAL</div>
@@ -650,28 +792,37 @@ function HolographicView({ telemetry, history, thinking, speaking, listening, re
             <HoloRow label="LATÊNCIA API" value={`${Math.round(telemetry.latency)} ms`} C={C} />
           </HoloPanel>
         </div>
+
+        {/* Bottom right — última resposta */}
         {lastMessage && (
-          <div className="jv-holo-in" style={{ position: 'absolute', bottom: 24, right: 28, maxWidth: 420, pointerEvents: 'auto' }} key={history.length}>
+          <div className="jv-holo-in" style={{ position: 'absolute', bottom: 24, right: 28, maxWidth: 380, pointerEvents: 'auto' }} key={history.length}>
             <HoloPanel C={C}>
-              <div style={{ fontSize: 9, color: '#7a7268', letterSpacing: '0.32em', marginBottom: 10 }}>ÚLTIMA RESPOSTA · IA REAL</div>
-              <div style={{ fontSize: 12, lineHeight: 1.65, color: '#e8e2d4', maxHeight: 160, overflowY: 'auto' }} className="jv-scrollbar">
-                {lastMessage.type === 'ai' ? lastMessage.text?.slice(0, 400) + (lastMessage.text?.length > 400 ? '…' : '') : lastMessage.lines?.join(' ')}
+              <div style={{ fontSize: 9, color: '#7a7268', letterSpacing: '0.32em', marginBottom: 10 }}>ÚLTIMA RESPOSTA</div>
+              <div style={{ fontSize: 12, lineHeight: 1.65, color: '#e8e2d4', maxHeight: 150, overflowY: 'auto' }} className="jv-scrollbar">
+                {lastMessage.type === 'ai'
+                  ? lastMessage.text?.slice(0, 380) + (lastMessage.text?.length > 380 ? '…' : '')
+                  : lastMessage.lines?.join(' ')}
               </div>
             </HoloPanel>
           </div>
         )}
+
+        {/* Thinking overlay */}
         {thinking && (
           <div className="jv-holo-in" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
-            <div style={{ display: 'inline-block', padding: '14px 28px', border: `1px solid rgba(212,165,116,0.28)`, background: 'rgba(11,10,8,0.6)', backdropFilter: 'blur(6px)' }}>
-              <div style={{ fontSize: 10, letterSpacing: '0.32em', color: '#d4a574' }} className="jv-pulse">CONSULTANDO CÓRTEX ESTRATÉGICO · IA</div>
+            <div style={{ display: 'inline-block', padding: '14px 28px', border: '1px solid rgba(212,165,116,0.28)', background: 'rgba(11,10,8,0.7)', backdropFilter: 'blur(6px)' }}>
+              <div style={{ fontSize: 10, letterSpacing: '0.32em', color: '#d4a574' }} className="jv-pulse">CONSULTANDO CÓRTEX · IA</div>
             </div>
           </div>
         )}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse at center, transparent 50%, rgba(11,10,8,0.6) 100%)' }} />
+
+        {/* Vignette */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse at center, transparent 45%, rgba(11,10,8,0.65) 100%)' }} />
       </div>
     </div>
   );
 }
+
 
 function HoloPanel({ children, C }) {
   return (

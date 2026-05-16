@@ -1,6 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 
 // ═══════════════════════════════════════════════════
+// CONSTANTS — defined once at module level to prevent
+// re-render cascades that restart CSS animations
+// ═══════════════════════════════════════════════════
+const C = {
+  bg: '#050a14',
+  line: 'rgba(0,212,255,0.10)',
+  lineStrong: 'rgba(0,212,255,0.26)',
+  text: '#c8e8f8',
+  muted: '#4a7a99',
+  dim: '#1e3a4a',
+  accent: '#00d4ff',
+  accentDim: '#007a99',
+  critical: '#ff3c3c',
+  warn: '#ffaa00',
+  ok: '#00ff9d',
+};
+const display = { fontFamily: '"Rajdhani", sans-serif' };
+
+// ═══════════════════════════════════════════════════
 // J.A.R.V.I.S. — Stark Industries AI Core
 // ═══════════════════════════════════════════════════
 const JARVIS_SYSTEM = `Você é J.A.R.V.I.S. — Just A Rather Very Intelligent System. IA central da Stark Industries, desenvolvida por Tony Stark e agora operando sob autoridade de Gabriel.
@@ -386,22 +405,7 @@ export default function JarvisOS() {
     { name: 'BEM-ESTAR', state: 'watch' },
   ];
 
-  const C = {
-    bg: '#050a14',
-    line: 'rgba(0,212,255,0.10)',
-    lineStrong: 'rgba(0,212,255,0.26)',
-    text: '#c8e8f8',
-    muted: '#4a7a99',
-    dim: '#1e3a4a',
-    accent: '#00d4ff',
-    accentDim: '#007a99',
-    critical: '#ff3c3c',
-    warn: '#ffaa00',
-    ok: '#00ff9d',
-  };
-
   const mono = { fontFamily: '"JetBrains Mono", ui-monospace, monospace' };
-  const display = { fontFamily: '"Rajdhani", sans-serif' };
   const speechSupported = typeof window !== 'undefined' && !!window.speechSynthesis;
   const recogSupported = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -594,7 +598,7 @@ export default function JarvisOS() {
           )}
 
           {mode === 'terminal' ? (
-            <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={history} thinking={thinking} C={C} display={display} />
+            <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={history} thinking={thinking} />
           ) : (
             <HolographicView telemetry={telemetry} history={history} thinking={thinking} speaking={speaking} listening={listening} ready={ready} C={C} display={display} time={time} />
           )}
@@ -918,16 +922,16 @@ function HoloRow({ label, value, C }) {
 // ═══════════════════════════════════════════════════
 // TERMINAL VIEW
 // ═══════════════════════════════════════════════════
-function TerminalView({ scrollRef, bootStage, history, thinking, C, display }) {
+function TerminalView({ scrollRef, bootStage, history, thinking }) {
   return (
     <div ref={scrollRef} className="jv-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '36px 56px 24px 56px' }}>
-      <BootSequence stage={bootStage} C={C} display={display} />
+      <BootSequence stage={bootStage} />
       {history.map((msg, i) => (
         <div key={i} className="jv-fade" style={{ marginBottom: 28 }}>
-          {msg.role === 'operator' ? <OperatorLine msg={msg} C={C} /> : <JarvisResponse msg={msg} C={C} display={display} />}
+          {msg.role === 'operator' ? <OperatorLine msg={msg} /> : <JarvisResponse msg={msg} />}
         </div>
       ))}
-      {thinking && <ThinkingIndicator C={C} />}
+      {thinking && <ThinkingIndicator />}
     </div>
   );
 }
@@ -968,7 +972,7 @@ function MicButton({ listening, onStart, onStop, disabled, C }) {
   );
 }
 
-function BootSequence({ stage, C, display }) {
+function BootSequence({ stage }) {
   const lines = [
     'reatores de arco · pressão nominal · OK',
     'matriz neural · sincronizada · L1·L2·L3 ativos',
@@ -1001,7 +1005,7 @@ function BootSequence({ stage, C, display }) {
   );
 }
 
-function OperatorLine({ msg, C }) {
+function OperatorLine({ msg }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
       <span style={{ color: C.dim, fontSize: 10, letterSpacing: '0.22em', minWidth: 88 }}>SIR · GABRIEL</span>
@@ -1010,7 +1014,7 @@ function OperatorLine({ msg, C }) {
   );
 }
 
-function ThinkingIndicator({ C }) {
+function ThinkingIndicator() {
   return (
     <div className="jv-fade" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
       <span style={{ color: C.accentDim, fontSize: 10, letterSpacing: '0.22em', minWidth: 88 }}>J.A.R.V.I.S.</span>
@@ -1022,7 +1026,7 @@ function ThinkingIndicator({ C }) {
   );
 }
 
-function AIText({ text, C }) {
+function AIText({ text }) {
   if (!text) return null;
   const lines = text.split('\n');
   const elements = [];
@@ -1065,31 +1069,37 @@ function AIText({ text, C }) {
   return <div>{elements}</div>;
 }
 
-function JarvisResponse({ msg, C, display }) {
-  const W = ({ children }) => (
+function JarvisLabel({ children }) {
+  return (
     <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
       <span style={{ color: C.accent, fontSize: 10, letterSpacing: '0.22em', minWidth: 88, paddingTop: 3 }}>J.A.R.V.I.S.</span>
       <div style={{ flex: 1, maxWidth: '100%', overflow: 'hidden' }}>{children}</div>
     </div>
   );
+}
 
+function JarvisResponse({ msg }) {
   if (msg.type === 'ai') {
-    return <W><AIText text={msg.text} C={C} /></W>;
+    return <JarvisLabel><AIText text={msg.text} /></JarvisLabel>;
   }
   if (msg.type === 'focus') {
-    return <W>
-      <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75 }}>
-        <div style={{ color: C.accent, marginBottom: 6 }}>◆ Modo foco ativado — {msg.topic}</div>
-        <div style={{ color: C.muted }}>Sentinelas em silêncio. Notificações suspensas.</div>
-        <div style={{ color: C.muted }}>Bloco sugerido: 90 minutos.</div>
-      </div>
-    </W>;
+    return (
+      <JarvisLabel>
+        <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75 }}>
+          <div style={{ color: C.accent, marginBottom: 6 }}>◆ Modo foco ativado — {msg.topic}</div>
+          <div style={{ color: C.muted }}>Sentinelas em silêncio. Notificações suspensas.</div>
+          <div style={{ color: C.muted }}>Bloco sugerido: 90 minutos.</div>
+        </div>
+      </JarvisLabel>
+    );
   }
-  return <W>
-    <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75 }}>
-      {(msg.lines || []).map((l, i) => <div key={i} className="jv-fade" style={{ animationDelay: `${i*120}ms`, marginBottom: 4 }}>{l}</div>)}
-    </div>
-  </W>;
+  return (
+    <JarvisLabel>
+      <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75 }}>
+        {(msg.lines || []).map((l, i) => <div key={i} className="jv-fade" style={{ animationDelay: `${i*120}ms`, marginBottom: 4 }}>{l}</div>)}
+      </div>
+    </JarvisLabel>
+  );
 }
 
 function Meter({ label, value, unit, C }) {

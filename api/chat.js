@@ -15,7 +15,7 @@ export default async function handler(req, res) {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'anthropic-version': '2024-06-01',
       },
       body: JSON.stringify(req.body),
     });
@@ -23,11 +23,13 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
+      console.error('API Error:', data);
       return res.status(response.status).json(data);
     }
 
     return res.status(200).json(data);
   } catch (err) {
+    console.error('Handler Error:', err);
     return res.status(500).json({ error: err.message });
   }
 }

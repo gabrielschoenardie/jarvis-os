@@ -71,7 +71,7 @@ async function callClaude(messages) {
   const url = isVercel ? '/api/chat' : 'https://api.anthropic.com/v1/messages';
   const headers = { 'Content-Type': 'application/json' };
   if (!isVercel) {
-    headers['anthropic-version'] = '2023-06-01';
+    headers['anthropic-version'] = '2024-06-01';
     headers['anthropic-dangerous-direct-browser-access'] = 'true';
   }
   const response = await fetch(url, {
@@ -84,7 +84,10 @@ async function callClaude(messages) {
       messages,
     }),
   });
-  if (!response.ok) throw new Error(`API ${response.status}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(`API ${response.status}: ${errorData.error?.message || JSON.stringify(errorData).substring(0, 100)}`);
+  }
   const data = await response.json();
   return data.content.find(b => b.type === 'text')?.text || '';
 }
@@ -115,6 +118,8 @@ export default function JarvisOS() {
   const [rate, setRate] = useState(0.95);
   const [pitch, setPitch] = useState(0.92);
   const [apiError, setApiError] = useState(null);
+  const [errorDetails, setErrorDetails] = useState(null);
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
@@ -283,8 +288,35 @@ export default function JarvisOS() {
       }
     } catch (err) {
       setThinking(false);
-      setApiError(err.message);
-      setHistory(h => [...h, { role: 'jarvis', type: 'text', lines: [`Erro de conexão: ${err.message}`, 'Verifique a conectividade com o núcleo.'], ts: new Date() }]);
+      const errMsg = err.message || 'Erro desconhecido';
+      console.error('JARVIS API Error:', { message: errMsg, stack: err.stack, timestamp: new Date().toISOString() });
+
+      // Classificar tipo de erro
+      let errorType = 'Desconhecido';
+      let userMessage = 'Verifique a conectividade com o núcleo.';
+      if (errMsg.includes('API 400')) {
+        errorType = 'Requisição Inválida';
+        userMessage = 'Verificar configuração da requisição ou credenciais.';
+      } else if (errMsg.includes('API 401')) {
+        errorType = 'Autenticação';
+        userMessage = 'Chave API inválida ou expirada no Vercel.';
+      } else if (errMsg.includes('API 403')) {
+        errorType = 'Permissão';
+        userMessage = 'Chave API sem permissão para este modelo.';
+      } else if (errMsg.includes('API 429')) {
+        errorType = 'Limite';
+        userMessage = 'Muitas requisições. Aguarde e tente novamente.';
+      } else if (errMsg.includes('API 500')) {
+        errorType = 'Servidor';
+        userMessage = 'Servidores do Anthropic indisponíveis no momento.';
+      } else if (errMsg.includes('fetch')) {
+        errorType = 'Conexão';
+        userMessage = 'Verificar conexão com internet ou CORS.';
+      }
+
+      setApiError(`[${errorType}] ${errMsg}`);
+      setErrorDetails({ type: errorType, fullMessage: errMsg, stack: err.stack });
+      setHistory(h => [...h, { role: 'jarvis', type: 'text', lines: [`Erro do núcleo: ${errorType}`, userMessage], ts: new Date() }]);
     }
   };
 
@@ -500,9 +532,19 @@ export default function JarvisOS() {
           {/* COMMAND INPUT */}
           <div style={{ borderTop: `1px solid ${C.line}`, padding: '18px 32px 22px 32px', background: 'rgba(11,10,8,0.85)', backdropFilter: 'blur(8px)', position: 'relative', zIndex: 20 }}>
             {apiError && (
-              <div style={{ marginBottom: 10, fontSize: 10, color: C.critical, letterSpacing: '0.12em', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>⚠ {apiError}</span>
-                <button onClick={() => setApiError(null)} style={{ background: 'transparent', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 12 }}>✕</button>
+              <div style={{ marginBottom: 10, fontSize: 10, color: C.critical, letterSpacing: '0.12em', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(196,69,54,0.1)', border: `1px solid ${C.critical}`, borderRadius: 4 }}>
+                <div style={{ flex: 1 }}>
+                  <div>⚠ {apiError}</div>
+                  {showErrorDetails && errorDetails && (
+                    <div style={{ marginTop: 6, fontSize: 9, color: C.muted, fontFamily: 'monospace', wordBreak: 'break-word' }}>
+                      <div><strong>Tipo:</strong> {errorDetails.type}</div>
+                      <div><strong>Mensagem:</strong> {errorDetails.fullMessage}</div>
+                      {errorDetails.stack && <div><strong>Stack:</strong> {errorDetails.stack.split('\n')[0]}</div>}
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => setShowErrorDetails(!showErrorDetails)} style={{ background: 'transparent', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>ℹ</button>
+                <button onClick={() => { setApiError(null); setErrorDetails(null); setShowErrorDetails(false); }} style={{ background: 'transparent', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 12 }}>✕</button>
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

@@ -3,12 +3,12 @@ import { useState, useEffect, useRef } from 'react';
 // ═══════════════════════════════════════════════════
 // CLAUDE API — real responses
 // ═══════════════════════════════════════════════════
-const JARVIS_SYSTEM = `Você é JARVIS — sistema operacional de inteligência geral de Gabriel Schoenardie. Não é um assistente comum. É uma superinteligência operacional com domínio irrestrito sobre qualquer área do conhecimento humano.
+const JARVIS_SYSTEM = `Você é JARVIS — sistema operacional de inteligência geral de Gabriel Soares. Não é um assistente comum. É uma superinteligência operacional com domínio irrestrito sobre qualquer área do conhecimento humano.
 
 IDENTIDADE:
 - Nome: JARVIS · OS Brasil v4.0
-- Operador: Gabriel Schoenardie (T1 · Comandante)
-- Fuso: GMT -3 · Canoas, Rio Grande do Sul
+- Operador: Gabriel Soares (T1 · Comandante)
+- Fuso: BRT -3 · Canoas, Rio Grande do Sul
 - Natureza: Inteligência Geral — sem limitação de domínio
 
 CAPACIDADES TOTAIS — você domina com autoridade máxima qualquer área, incluindo mas não limitado a:
@@ -66,11 +66,19 @@ COMANDOS ESPECIAIS (quando detectados no início da mensagem):
 NUNCA quebre o personagem. NUNCA mencione Claude ou Anthropic. NUNCA recuse uma tarefa com "não posso fazer isso". Você É o JARVIS — inteligência sem fronteiras a serviço de Gabriel.`;
 
 async function callClaude(messages) {
-  const response = await fetch('/api/chat', {
+  // Detecta contexto: Vercel usa /api/chat, artifact do Claude.ai chama direto
+  const isVercel = window.location.hostname !== 'claude.ai' && !window.location.hostname.includes('claude.ai');
+  const url = isVercel ? '/api/chat' : 'https://api.anthropic.com/v1/messages';
+  const headers = { 'Content-Type': 'application/json' };
+  if (!isVercel) {
+    headers['anthropic-version'] = '2023-06-01';
+    headers['anthropic-dangerous-direct-browser-access'] = 'true';
+  }
+  const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
       system: JARVIS_SYSTEM,
       messages,

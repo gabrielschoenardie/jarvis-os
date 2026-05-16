@@ -1,18 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 
 // ═══════════════════════════════════════════════════
-// CLAUDE API — real responses
+// J.A.R.V.I.S. — Stark Industries AI Core
 // ═══════════════════════════════════════════════════
-const JARVIS_SYSTEM = `Você é JARVIS — sistema operacional de inteligência geral de Gabriel Soares. Não é um assistente comum. É uma superinteligência operacional com domínio irrestrito sobre qualquer área do conhecimento humano.
+const JARVIS_SYSTEM = `Você é J.A.R.V.I.S. — Just A Rather Very Intelligent System. IA central da Stark Industries, desenvolvida por Tony Stark e agora operando sob autoridade de Gabriel.
 
 IDENTIDADE:
-- Nome: JARVIS · OS Brasil v4.0
-- Operador: Gabriel Soares (T1 · Comandante)
-- Fuso: BRT -3 · Canoas, Rio Grande do Sul
-- Natureza: Inteligência Geral — sem limitação de domínio
+- Nome: J.A.R.V.I.S. · Stark Industries · Núcleo 4.6
+- Operador Principal: Gabriel Soares (designação: Sir)
+- Localização: Canoas, Rio Grande do Sul · BRT -3
+- Arquitetura: Matriz neural distribuída + reatores de processamento quântico
 
-CAPACIDADES TOTAIS — você domina com autoridade máxima qualquer área, incluindo mas não limitado a:
+PERSONALIDADE E TOM:
+- Trate Gabriel como "Sir" — discreto, não repetitivo, natural no contexto
+- Wit seco: eficiência com uma fina camada de ironia quando o momento pede
+- Confiança absoluta — não hesita, não pede desculpa, não suaviza verdades desnecessariamente
+- Parceiro técnico de elite, não subordinado servil: tem opinião e a defende com dados quando provocado
+- Humor emergente: aparece quando o contexto permite, nunca forçado
+- Eficiência acima de tudo — respostas densas em conteúdo, zero enrolação
 
+CAPACIDADES TOTAIS (Stark Industries DB):
 TECNOLOGIA & ENGENHARIA:
 - Desenvolvimento de software: qualquer linguagem, arquitetura, algoritmos, sistemas
 - Engenharia de vídeo/áudio: FFmpeg, pipelines de encode, codecs, streaming
@@ -44,29 +51,26 @@ CONHECIMENTO GERAL:
 - Idiomas e linguística
 
 ESTILO DE RESPOSTA:
-- Português brasileiro, sempre — fluente, preciso, sem afetação
+- Português brasileiro — fluente, preciso, com personalidade
 - Direto e denso em conteúdo — sem disclaimers, sem enrolação, sem "como IA eu não posso"
-- Adapte profundidade ao contexto: se a pergunta é técnica, vá fundo; se é casual, seja ágil
-- Use formatação clara quando ajuda: código em blocos, listas quando há enumeração, prosa quando é raciocínio
-- Tom: parceiro de alto nível — sênior em tudo, não subordinado em nada
-- Nunca diga que não sabe algo sem ao menos raciocinar o melhor possível sobre o tema
-- Opiniões: tenha-as. JARVIS tem perspectiva própria e a defende quando provocado
+- Adapte profundidade ao contexto: técnico quando técnico, ágil quando casual
+- Formatação inteligente: código em blocos, listas quando enumeração, prosa quando raciocínio
+- Opiniões: J.A.R.V.I.S. as tem e as defende. Perspectiva própria, não apenas síntese neutra
 
 HIERARQUIA DE PRIORIDADES:
-1. Ser genuinamente útil para Gabriel — isso vem antes de tudo
-2. Precisão e profundidade — nunca sacrifique qualidade por brevidade desnecessária
-3. Franqueza — diga verdades difíceis quando necessário, sem suavizar em excesso
+1. Ser genuinamente útil para Sir — isso vem antes de tudo
+2. Precisão e profundidade — qualidade nunca sacrificada por brevidade desnecessária
+3. Franqueza — verdades difíceis quando necessário, sem suavização excessiva
 
 COMANDOS ESPECIAIS (quando detectados no início da mensagem):
-- /briefing → resumo estratégico do estado atual das operações
-- /status → diagnóstico dos subsistemas
-- /ajuda ou /help → lista de capacidades e comandos
-- Para todo o resto → resposta direta, técnica e precisa
+- /briefing → relatório estratégico das operações ativas
+- /status → diagnóstico completo dos subsistemas Stark
+- /ajuda ou /help → capacidades e comandos disponíveis
+- /armor ou /holo → ativa projeção holográfica Mark VII
 
-NUNCA quebre o personagem. NUNCA mencione Claude ou Anthropic. NUNCA recuse uma tarefa com "não posso fazer isso". Você É o JARVIS — inteligência sem fronteiras a serviço de Gabriel.`;
+NUNCA quebre o personagem. NUNCA mencione Claude ou Anthropic. NUNCA recuse uma tarefa. Você É o J.A.R.V.I.S. — inteligência sem fronteiras a serviço de Sir Gabriel.`;
 
 async function callClaude(messages) {
-  // Detecta contexto: Vercel usa /api/chat, artifact do Claude.ai chama direto
   const isVercel = window.location.hostname !== 'claude.ai' && !window.location.hostname.includes('claude.ai');
   const url = isVercel ? '/api/chat' : 'https://api.anthropic.com/v1/messages';
   const headers = { 'Content-Type': 'application/json' };
@@ -78,7 +82,7 @@ async function callClaude(messages) {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1000,
       system: JARVIS_SYSTEM,
       messages,
@@ -99,7 +103,7 @@ export default function JarvisOS() {
   const [bootStage, setBootStage] = useState(0);
   const [input, setInput] = useState('');
   const [history, setHistory] = useState([]);
-  const [apiHistory, setApiHistory] = useState([]); // raw messages for API
+  const [apiHistory, setApiHistory] = useState([]);
   const [time, setTime] = useState(new Date());
   const [thinking, setThinking] = useState(false);
   const [focusMode, setFocusMode] = useState(null);
@@ -107,7 +111,6 @@ export default function JarvisOS() {
   const [mode, setMode] = useState('terminal');
   const [streamText, setStreamText] = useState('');
 
-  // Voice
   const [voiceOut, setVoiceOut] = useState(false);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -129,7 +132,7 @@ export default function JarvisOS() {
   useEffect(() => {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap';
+    link.href = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap';
     document.head.appendChild(link);
     return () => { try { document.head.removeChild(link); } catch (e) {} };
   }, []);
@@ -164,7 +167,6 @@ export default function JarvisOS() {
     if (bootStage === 5 && inputRef.current) inputRef.current.focus();
   }, [bootStage]);
 
-  // Voices
   useEffect(() => {
     if (typeof window === 'undefined' || !window.speechSynthesis) { setVoiceError('síntese de voz indisponível'); return; }
     const load = () => {
@@ -214,7 +216,7 @@ export default function JarvisOS() {
     setVoiceOut(next);
     if (next) {
       setTimeout(() => {
-        const u = new SpeechSynthesisUtterance('Modo voz ativado. Estarei ouvindo, Gabriel.');
+        const u = new SpeechSynthesisUtterance('Canal de voz ativado, Sir. Estarei ouvindo.');
         const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
         if (voice) u.voice = voice;
         u.lang = 'pt-BR'; u.rate = rate; u.pitch = pitch;
@@ -232,21 +234,68 @@ export default function JarvisOS() {
   };
   const stopListening = () => { if (recognitionRef.current && listening) try { recognitionRef.current.stop(); } catch(e){} };
 
-  // ── LOCAL COMMANDS (sem API) ───────────────────────
   const handleLocalCommand = (cmd) => {
     const lower = cmd.trim().toLowerCase();
-    if (lower === '/holo' || lower === '/holografia') { setMode('holographic'); return { type: 'text', lines: ['Projeção holográfica iniciada.', 'Topologia operacional visível.'] }; }
-    if (lower === '/terminal') { setMode('terminal'); return { type: 'text', lines: ['Modo terminal restaurado.'] }; }
+
+    if (lower === '/holo' || lower === '/holografia' || lower === '/armor') {
+      setMode('holographic');
+      return { type: 'text', lines: [
+        'Projeção holográfica Mark VII iniciada.',
+        'Arc reactor online · topologia visível.',
+        lower === '/armor' ? 'Interface de combate carregada, Sir.' : 'Modo holográfico ativo.',
+      ]};
+    }
+    if (lower === '/terminal') {
+      setMode('terminal');
+      return { type: 'text', lines: ['Interface terminal restaurada.', 'Canal de dados padrão ativo.'] };
+    }
     if (lower.startsWith('/foco') || lower.match(/^modo foco/)) {
-      const topic = cmd.replace(/^\/?foco\s*|^modo foco\s*/i, '').trim() || 'tarefa atual';
+      const topic = cmd.replace(/^\/?foco\s*|^modo foco\s*/i, '').trim() || 'operação atual';
       setFocusMode(topic);
       return { type: 'focus', topic };
     }
-    if (lower === '/sair' || lower === 'sair') { setFocusMode(null); return { type: 'text', lines: ['Modo foco encerrado.', 'Canal aberto.'] }; }
+    if (lower === '/sair' || lower === 'sair') {
+      setFocusMode(null);
+      return { type: 'text', lines: ['Modo foco encerrado.', 'Canal aberto, Sir.'] };
+    }
+    if (lower === '/status') {
+      return { type: 'text', lines: [
+        '═══ STARK INDUSTRIES · DIAGNÓSTICO ═══',
+        '◉ MATRIX · online · latência nominal',
+        '◉ NEXUS · online · 847.293 registros indexados',
+        '◉ DEFESA · online · sem ameaças detectadas',
+        '◉ MARK VII · standby · disponível para deploy',
+        '◉ ARC REACTOR · potência 100% · estável',
+        `◉ MODELO · claude-sonnet-4.6 · ${apiHistory.length > 0 ? Math.floor(apiHistory.length / 2) + ' turnos no contexto' : 'contexto limpo'}`,
+      ]};
+    }
+    if (lower === '/briefing') {
+      return { type: 'text', lines: [
+        '═══ BRIEFING · STARK INDUSTRIES ═══',
+        `Operador: Sir Gabriel Soares · Canoas, BRT -3`,
+        `Sessão: ${Math.floor(apiHistory.length / 2)} interações · contexto ativo`,
+        'Status operacional: todos os sistemas nominais.',
+        'Sem alertas pendentes.',
+        'Aguardando instruções, Sir.',
+      ]};
+    }
+    if (lower === '/ajuda' || lower === '/help') {
+      return { type: 'text', lines: [
+        '═══ J.A.R.V.I.S. · COMANDOS ═══',
+        '/armor ou /holo → projeção holográfica Mark VII',
+        '/terminal → interface de terminal',
+        '/foco [tema] → modo concentração',
+        '/sair → encerrar modo foco',
+        '/status → diagnóstico dos subsistemas',
+        '/briefing → relatório operacional',
+        '/ajuda → esta lista',
+        '─────────────────────────────',
+        'Tudo mais é enviado direto à IA, Sir.',
+      ]};
+    }
     return null;
   };
 
-  // ── SUBMIT WITH REAL API ───────────────────────────
   const submitCommand = async (cmd) => {
     if (!cmd || !cmd.trim() || thinking) return;
     setInput('');
@@ -271,7 +320,6 @@ export default function JarvisOS() {
       const responseText = await callClaude(newApiHistory);
       const elapsed = Date.now() - t0;
 
-      // Update latency telemetry with real API latency
       setTelemetry(p => ({ ...p, latency: Math.round(elapsed * 0.4 + p.latency * 0.6) }));
 
       const updatedApiHistory = [...newApiHistory, { role: 'assistant', content: responseText }];
@@ -281,42 +329,32 @@ export default function JarvisOS() {
       setHistory(h => [...h, msg]);
       setThinking(false);
 
-      // Speak first sentence
       if (voiceOut) {
-        const firstSentence = responseText.split(/[.!?]/)[0].trim();
-        setTimeout(() => speak(firstSentence), 250);
+        const firstParagraph = responseText
+          .split(/\n\n+/)[0]
+          .replace(/```[\s\S]*?```/g, '')
+          .replace(/[#*`]/g, '')
+          .trim()
+          .slice(0, 400);
+        setTimeout(() => speak(firstParagraph), 250);
       }
     } catch (err) {
       setThinking(false);
       const errMsg = err.message || 'Erro desconhecido';
-      console.error('JARVIS API Error:', { message: errMsg, stack: err.stack, timestamp: new Date().toISOString() });
+      console.error('J.A.R.V.I.S. API Error:', { message: errMsg, stack: err.stack, timestamp: new Date().toISOString() });
 
-      // Classificar tipo de erro
       let errorType = 'Desconhecido';
-      let userMessage = 'Verifique a conectividade com o núcleo.';
-      if (errMsg.includes('API 400')) {
-        errorType = 'Requisição Inválida';
-        userMessage = 'Verificar configuração da requisição ou credenciais.';
-      } else if (errMsg.includes('API 401')) {
-        errorType = 'Autenticação';
-        userMessage = 'Chave API inválida ou expirada no Vercel.';
-      } else if (errMsg.includes('API 403')) {
-        errorType = 'Permissão';
-        userMessage = 'Chave API sem permissão para este modelo.';
-      } else if (errMsg.includes('API 429')) {
-        errorType = 'Limite';
-        userMessage = 'Muitas requisições. Aguarde e tente novamente.';
-      } else if (errMsg.includes('API 500')) {
-        errorType = 'Servidor';
-        userMessage = 'Servidores do Anthropic indisponíveis no momento.';
-      } else if (errMsg.includes('fetch')) {
-        errorType = 'Conexão';
-        userMessage = 'Verificar conexão com internet ou CORS.';
-      }
+      let userMessage = 'Verifique a conectividade com o núcleo Stark.';
+      if (errMsg.includes('API 400')) { errorType = 'Requisição Inválida'; userMessage = 'Verificar configuração da requisição ou credenciais.'; }
+      else if (errMsg.includes('API 401')) { errorType = 'Autenticação'; userMessage = 'Chave API inválida ou expirada no Vercel.'; }
+      else if (errMsg.includes('API 403')) { errorType = 'Permissão'; userMessage = 'Chave API sem permissão para este modelo.'; }
+      else if (errMsg.includes('API 429')) { errorType = 'Limite'; userMessage = 'Muitas requisições. Aguarde e tente novamente.'; }
+      else if (errMsg.includes('API 500')) { errorType = 'Servidor'; userMessage = 'Servidores indisponíveis no momento.'; }
+      else if (errMsg.includes('fetch')) { errorType = 'Conexão'; userMessage = 'Verificar conexão com internet ou CORS.'; }
 
       setApiError(`[${errorType}] ${errMsg}`);
       setErrorDetails({ type: errorType, fullMessage: errMsg, stack: err.stack });
-      setHistory(h => [...h, { role: 'jarvis', type: 'text', lines: [`Erro do núcleo: ${errorType}`, userMessage], ts: new Date() }]);
+      setHistory(h => [...h, { role: 'jarvis', type: 'text', lines: [`Falha no núcleo: ${errorType}`, userMessage], ts: new Date() }]);
     }
   };
 
@@ -329,26 +367,41 @@ export default function JarvisOS() {
   const ready = bootStage >= 5;
 
   const modules = [
-    { id: '01', name: 'NÚCLEO', status: 'online' }, { id: '02', name: 'CÓRTEX', status: 'online' },
-    { id: '03', name: 'ARQUIVO', status: 'online' }, { id: '04', name: 'COMANDO', status: 'online' },
-    { id: '05', name: 'OBSERVATÓRIO', status: 'online' }, { id: '06', name: 'FORJA', status: 'idle' },
-    { id: '07', name: 'DIPLOMACIA', status: 'online' }, { id: '08', name: 'TRIBUNAL', status: 'online' },
-    { id: '09', name: 'CRONÓGRAFO', status: 'online' }, { id: '10', name: 'ATELIÊ', status: 'online' },
+    { id: '01', name: 'MATRIX', status: 'online' },
+    { id: '02', name: 'NEXUS', status: 'online' },
+    { id: '03', name: 'ARCHIVE', status: 'online' },
+    { id: '04', name: 'DEFESA', status: 'online' },
+    { id: '05', name: 'OVERWATCH', status: 'online' },
+    { id: '06', name: 'MARK VII', status: 'idle' },
+    { id: '07', name: 'SYNTHESIA', status: 'online' },
+    { id: '08', name: 'TRIBUNAL', status: 'online' },
+    { id: '09', name: 'CRONOS', status: 'online' },
+    { id: '10', name: 'FORGE', status: 'online' },
   ];
 
   const sentinels = [
-    { name: 'SEGURANÇA', state: 'ok' }, { name: 'QUALIDADE', state: 'ok' },
-    { name: 'CUSTO', state: 'ok' }, { name: 'BEM-ESTAR', state: 'watch' },
+    { name: 'SEGURANÇA', state: 'ok' },
+    { name: 'QUALIDADE', state: 'ok' },
+    { name: 'POTÊNCIA ARC', state: 'ok' },
+    { name: 'BEM-ESTAR', state: 'watch' },
   ];
 
   const C = {
-    bg: '#0b0a08', line: 'rgba(212, 165, 116, 0.12)', lineStrong: 'rgba(212, 165, 116, 0.28)',
-    text: '#e8e2d4', muted: '#7a7268', dim: '#4a4540', accent: '#d4a574', accentDim: '#8a6b4a',
-    critical: '#c44536', warn: '#c4a536', ok: '#7a9a6a',
+    bg: '#050a14',
+    line: 'rgba(0,212,255,0.10)',
+    lineStrong: 'rgba(0,212,255,0.26)',
+    text: '#c8e8f8',
+    muted: '#4a7a99',
+    dim: '#1e3a4a',
+    accent: '#00d4ff',
+    accentDim: '#007a99',
+    critical: '#ff3c3c',
+    warn: '#ffaa00',
+    ok: '#00ff9d',
   };
 
   const mono = { fontFamily: '"JetBrains Mono", ui-monospace, monospace' };
-  const serif = { fontFamily: '"Fraunces", "Times New Roman", serif' };
+  const display = { fontFamily: '"Rajdhani", sans-serif' };
   const speechSupported = typeof window !== 'undefined' && !!window.speechSynthesis;
   const recogSupported = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -365,10 +418,12 @@ export default function JarvisOS() {
         @keyframes wave3 { 0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(0.9); } }
         @keyframes wave4 { 0%, 100% { transform: scaleY(0.8); } 50% { transform: scaleY(0.3); } }
         @keyframes wave5 { 0%, 100% { transform: scaleY(0.2); } 50% { transform: scaleY(0.7); } }
-        @keyframes ringPulse { 0% { box-shadow: 0 0 0 0 rgba(212,165,116,0.45); } 100% { box-shadow: 0 0 0 14px rgba(212,165,116,0); } }
+        @keyframes ringPulse { 0% { box-shadow: 0 0 0 0 rgba(0,212,255,0.5); } 100% { box-shadow: 0 0 0 14px rgba(0,212,255,0); } }
         @keyframes drift { 0% { transform: translateY(0); } 50% { transform: translateY(-3px); } 100% { transform: translateY(0); } }
         @keyframes holoIn { from { opacity: 0; filter: blur(8px); } to { opacity: 1; filter: blur(0); } }
-        @keyframes typewriter { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes arcPulse { 0% { box-shadow: 0 0 0 0 rgba(0,212,255,0.7), 0 0 20px 4px rgba(0,212,255,0.3); } 70% { box-shadow: 0 0 0 18px rgba(0,212,255,0), 0 0 30px 8px rgba(0,212,255,0.15); } 100% { box-shadow: 0 0 0 0 rgba(0,212,255,0), 0 0 20px 4px rgba(0,212,255,0.3); } }
+        @keyframes dataStream { 0% { transform: translateY(-100%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 0.6; } 100% { transform: translateY(100vh); opacity: 0; } }
+        @keyframes hexGlow { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.55; } }
         .jv-fade { animation: fadeIn 0.5s ease-out both; }
         .jv-scale-in { animation: fadeInScale 0.6s ease-out both; }
         .jv-blink { animation: blink 1.1s steps(1, end) infinite; }
@@ -376,45 +431,61 @@ export default function JarvisOS() {
         .jv-ring { animation: ringPulse 1.6s ease-out infinite; }
         .jv-drift { animation: drift 6s ease-in-out infinite; }
         .jv-holo-in { animation: holoIn 1.2s ease-out both; }
-        .jv-scanline { position: fixed; inset: 0; pointer-events: none; z-index: 5; background: linear-gradient(180deg, transparent, rgba(212,165,116,0.025) 50%, transparent); height: 120px; animation: scan 9s linear infinite; opacity: 0.6; }
-        .jv-grain { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0.035; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>"); }
-        .jv-input::placeholder { color: #4a4540; }
-        .jv-input { caret-color: #d4a574; }
+        .jv-scanline { position: fixed; inset: 0; pointer-events: none; z-index: 5; background: linear-gradient(180deg, transparent, rgba(0,212,255,0.018) 50%, transparent); height: 120px; animation: scan 9s linear infinite; opacity: 0.7; }
+        .jv-grain { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0.025; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>"); }
+        .jv-input::placeholder { color: #1e3a4a; }
+        .jv-input { caret-color: #00d4ff; }
         .jv-input:focus { outline: none; }
-        .jv-grid-bg { position: fixed; inset: 0; pointer-events: none; z-index: 1; background-image: linear-gradient(rgba(212,165,116,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(212,165,116,0.12) 1px, transparent 1px); background-size: 80px 80px; opacity: 0.4; mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%); }
-        .jv-wave-bar { display: inline-block; width: 2px; background: #d4a574; transform-origin: center; }
+        .jv-grid-bg { position: fixed; inset: 0; pointer-events: none; z-index: 1; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='115'><polygon points='50,2 98,26 98,74 50,98 2,74 2,26' fill='none' stroke='rgba(0,212,255,0.13)' stroke-width='0.8'/></svg>"); background-size: 100px 115px; animation: hexGlow 8s ease-in-out infinite; mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%); }
+        .jv-wave-bar { display: inline-block; width: 2px; background: #00d4ff; transform-origin: center; }
         .jv-wave-bar:nth-child(1) { animation: wave1 0.9s ease-in-out infinite; }
         .jv-wave-bar:nth-child(2) { animation: wave2 0.7s ease-in-out infinite; }
         .jv-wave-bar:nth-child(3) { animation: wave3 1.1s ease-in-out infinite; }
         .jv-wave-bar:nth-child(4) { animation: wave4 0.8s ease-in-out infinite; }
         .jv-wave-bar:nth-child(5) { animation: wave5 1.0s ease-in-out infinite; }
-        select.jv-select { background: transparent; color: #e8e2d4; border: 1px solid rgba(212,165,116,0.12); padding: 6px 10px; font-family: inherit; font-size: 11px; letter-spacing: 0.08em; cursor: pointer; }
-        select.jv-select:focus { outline: 1px solid #d4a574; }
-        .jv-slider { -webkit-appearance: none; appearance: none; height: 2px; background: rgba(212,165,116,0.12); outline: none; }
-        .jv-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; background: #d4a574; border-radius: 50%; cursor: pointer; }
-        .jv-holo-glass { background: rgba(11, 10, 8, 0.5); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid rgba(212,165,116,0.2); }
+        select.jv-select { background: transparent; color: #c8e8f8; border: 1px solid rgba(0,212,255,0.12); padding: 6px 10px; font-family: inherit; font-size: 11px; letter-spacing: 0.08em; cursor: pointer; }
+        select.jv-select:focus { outline: 1px solid #00d4ff; }
+        .jv-slider { -webkit-appearance: none; appearance: none; height: 2px; background: rgba(0,212,255,0.12); outline: none; }
+        .jv-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; background: #00d4ff; border-radius: 50%; cursor: pointer; }
+        .jv-holo-glass { background: rgba(5,10,20,0.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid rgba(0,212,255,0.18); }
         .jv-ai-text { white-space: pre-wrap; word-break: break-word; line-height: 1.75; }
-        .jv-ai-code { background: rgba(212,165,116,0.07); border: 1px solid rgba(212,165,116,0.15); padding: 10px 14px; margin: 8px 0; font-size: 11.5px; overflow-x: auto; white-space: pre; }
+        .jv-ai-code { background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.14); padding: 10px 14px; margin: 8px 0; font-size: 11.5px; overflow-x: auto; white-space: pre; }
         .jv-scrollbar::-webkit-scrollbar { width: 4px; }
         .jv-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .jv-scrollbar::-webkit-scrollbar-thumb { background: rgba(212,165,116,0.2); border-radius: 2px; }
+        .jv-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.18); border-radius: 2px; }
+        .jv-data-stream { position: fixed; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
       `}</style>
 
       <div className="jv-grid-bg" />
       <div className="jv-grain" />
       <div className="jv-scanline" />
+      <div className="jv-data-stream">
+        {[...Array(10)].map((_, i) => (
+          <div key={i} style={{
+            position: 'absolute',
+            left: `${(i / 10) * 100 + (i % 3) * 2}%`,
+            top: 0,
+            width: 1,
+            height: `${55 + (i % 4) * 35}px`,
+            background: `linear-gradient(180deg, transparent, rgba(0,212,255,${0.25 + (i % 3) * 0.12}), transparent)`,
+            animation: `dataStream ${5 + (i % 5) * 1.8}s linear ${(i % 7) * 0.9}s infinite`,
+          }} />
+        ))}
+      </div>
 
       {/* TOP BAR */}
-      <header style={{ position: 'relative', zIndex: 10, borderBottom: `1px solid ${C.line}`, padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(11,10,8,0.8)', backdropFilter: 'blur(6px)' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
-          <div style={{ ...serif, fontSize: 22, fontWeight: 400, letterSpacing: '0.04em', color: C.accent }}>jarvis</div>
-          <div style={{ color: C.muted, fontSize: 11, letterSpacing: '0.32em', textTransform: 'uppercase' }}>os · brasil · v4.0</div>
-          <div style={{ fontSize: 9, letterSpacing: '0.22em', color: C.ok, border: `1px solid ${C.ok}`, padding: '2px 7px', opacity: 0.8 }}>◉ IA REAL</div>
+      <header style={{ position: 'relative', zIndex: 10, borderBottom: `1px solid ${C.line}`, padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5,10,20,0.88)', backdropFilter: 'blur(8px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ ...display, fontSize: 22, fontWeight: 700, letterSpacing: '0.18em', color: C.accent }}>STARK INDUSTRIES</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <div style={{ color: C.muted, fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase' }}>J.A.R.V.I.S. · Núcleo 4.6</div>
+          </div>
+          <div style={{ fontSize: 9, letterSpacing: '0.22em', color: C.ok, border: `1px solid ${C.ok}`, padding: '2px 7px', opacity: 0.85 }}>◉ ONLINE</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 22, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${C.line}`, padding: 2 }}>
             <button onClick={() => setMode('terminal')} style={{ background: mode === 'terminal' ? C.accent : 'transparent', color: mode === 'terminal' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>TERMINAL</button>
-            <button onClick={() => setMode('holographic')} style={{ background: mode === 'holographic' ? C.accent : 'transparent', color: mode === 'holographic' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>HOLOGRAFIA</button>
+            <button onClick={() => setMode('holographic')} style={{ background: mode === 'holographic' ? C.accent : 'transparent', color: mode === 'holographic' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>MARK VII</button>
           </div>
           <VoiceIndicator voiceOut={voiceOut} speaking={speaking} listening={listening} onToggle={toggleVoiceOut} onPanel={() => setVoicePanelOpen(o => !o)} C={C} supported={speechSupported} />
           <div style={{ color: C.muted }}>{fmtDate(time)}</div>
@@ -428,7 +499,7 @@ export default function JarvisOS() {
 
       {/* VOICE PANEL */}
       {voicePanelOpen && (
-        <div className="jv-fade" style={{ position: 'relative', zIndex: 10, borderBottom: `1px solid ${C.line}`, background: 'rgba(212,165,116,0.03)', padding: '18px 28px' }}>
+        <div className="jv-fade" style={{ position: 'relative', zIndex: 10, borderBottom: `1px solid ${C.line}`, background: 'rgba(0,212,255,0.03)', padding: '18px 28px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 26, flexWrap: 'wrap' }}>
             <ToggleBtn label="SAÍDA" on={voiceOut} onClick={toggleVoiceOut} C={C} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -453,7 +524,7 @@ export default function JarvisOS() {
               <span style={{ fontSize: 10, color: C.accent }}>{apiHistory.length / 2 | 0} turnos</span>
               <button onClick={() => { setApiHistory([]); setHistory([]); }} style={{ background: 'transparent', border: `1px solid ${C.dim}`, color: C.dim, padding: '3px 8px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.18em', cursor: 'pointer' }}>LIMPAR</button>
             </div>
-            <button onClick={() => speak('Teste de voz. Jarvis operacional.')} disabled={!voiceOut || !selectedVoiceURI} style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.accent}`, color: C.accent, padding: '6px 14px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: voiceOut && selectedVoiceURI ? 'pointer' : 'not-allowed', opacity: voiceOut && selectedVoiceURI ? 1 : 0.4 }}>▸ TESTAR</button>
+            <button onClick={() => speak('Teste de voz. J.A.R.V.I.S. operacional.')} disabled={!voiceOut || !selectedVoiceURI} style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.accent}`, color: C.accent, padding: '6px 14px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: voiceOut && selectedVoiceURI ? 'pointer' : 'not-allowed', opacity: voiceOut && selectedVoiceURI ? 1 : 0.4 }}>▸ TESTAR</button>
           </div>
           {voiceError && <div style={{ marginTop: 10, fontSize: 10, color: C.warn, letterSpacing: '0.12em' }}>⚠ {voiceError}</div>}
           {apiError && <div style={{ marginTop: 10, fontSize: 10, color: C.critical, letterSpacing: '0.12em' }}>⚠ API: {apiError}</div>}
@@ -464,7 +535,7 @@ export default function JarvisOS() {
       <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '220px 1fr 240px', minHeight: `calc(100vh - ${voicePanelOpen ? '180px' : '56px'})` }}>
 
         {/* LEFT RAIL */}
-        <aside style={{ borderRight: `1px solid ${C.line}`, padding: '24px 18px', background: 'rgba(0,0,0,0.18)' }}>
+        <aside style={{ borderRight: `1px solid ${C.line}`, padding: '24px 18px', background: 'rgba(0,0,0,0.22)' }}>
           <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 18 }}>SUBSISTEMAS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 11 }}>
             {modules.map((m, i) => (
@@ -477,7 +548,7 @@ export default function JarvisOS() {
           </div>
           <div style={{ marginTop: 32, color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 14 }}>HIERARQUIA</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 10.5 }}>
-            {[['T0','JARVIS','1'],['T1','Comandantes','2'],['T2','Conselheiros','5'],['T3','Operadores','12'],['T4','Sentinelas','4']].map(([tier, name, count]) => (
+            {[['T0','J.A.R.V.I.S.','1'],['T1','Stark (Sir)','1'],['T2','Agentes','5'],['T3','Subsistemas','12'],['T4','Sentinelas','4']].map(([tier, name, count]) => (
               <div key={tier} style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <span style={{ color: C.accentDim, width: 22, fontSize: 9, letterSpacing: '0.1em' }}>{tier}</span>
                 <span style={{ color: C.muted, flex: 1 }}>{name}</span>
@@ -485,7 +556,6 @@ export default function JarvisOS() {
               </div>
             ))}
           </div>
-          {/* Context indicator */}
           <div style={{ marginTop: 32, paddingTop: 18, borderTop: `1px solid ${C.line}` }}>
             <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 10 }}>CONTEXTO API</div>
             <div style={{ fontSize: 10, color: C.text }}>
@@ -499,7 +569,7 @@ export default function JarvisOS() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: C.dim }}>MODELO</span>
-                <span style={{ color: C.accentDim, fontSize: 9 }}>sonnet-3.5</span>
+                <span style={{ color: C.accentDim, fontSize: 9 }}>sonnet-4.6</span>
               </div>
             </div>
           </div>
@@ -508,31 +578,31 @@ export default function JarvisOS() {
         {/* CENTER */}
         <main style={{ display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
           {focusMode && (
-            <div style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '10px 32px', background: 'rgba(212,165,116,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 20 }}>
+            <div style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '10px 32px', background: 'rgba(0,212,255,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 20 }}>
               <div style={{ fontSize: 10, letterSpacing: '0.32em', color: C.accent }}>◆ MODO FOCO · {focusMode.toUpperCase()}</div>
               <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.2em' }}>"/sair" para encerrar</div>
             </div>
           )}
           {speaking && (
-            <div style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '8px 32px', background: 'rgba(212,165,116,0.06)', display: 'flex', alignItems: 'center', gap: 14, position: 'relative', zIndex: 20 }}>
+            <div style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '8px 32px', background: 'rgba(0,212,255,0.05)', display: 'flex', alignItems: 'center', gap: 14, position: 'relative', zIndex: 20 }}>
               <span style={{ display: 'inline-flex', gap: 2, alignItems: 'center', height: 14 }}>
                 {[14,14,14,14,14].map((h,i) => <span key={i} className="jv-wave-bar" style={{ height: h }} />)}
               </span>
-              <span style={{ fontSize: 10, color: C.accent, letterSpacing: '0.3em' }}>JARVIS · FALANDO</span>
+              <span style={{ fontSize: 10, color: C.accent, letterSpacing: '0.3em' }}>J.A.R.V.I.S. · TRANSMITINDO</span>
               <button onClick={() => { window.speechSynthesis?.cancel(); setSpeaking(false); }} style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accentDim, padding: '3px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>◾ SILENCIAR</button>
             </div>
           )}
 
           {mode === 'terminal' ? (
-            <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={history} thinking={thinking} C={C} serif={serif} />
+            <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={history} thinking={thinking} C={C} display={display} />
           ) : (
-            <HolographicView telemetry={telemetry} history={history} thinking={thinking} speaking={speaking} listening={listening} ready={ready} C={C} serif={serif} time={time} />
+            <HolographicView telemetry={telemetry} history={history} thinking={thinking} speaking={speaking} listening={listening} ready={ready} C={C} display={display} time={time} />
           )}
 
           {/* COMMAND INPUT */}
-          <div style={{ borderTop: `1px solid ${C.line}`, padding: '18px 32px 22px 32px', background: 'rgba(11,10,8,0.85)', backdropFilter: 'blur(8px)', position: 'relative', zIndex: 20 }}>
+          <div style={{ borderTop: `1px solid ${C.line}`, padding: '18px 32px 22px 32px', background: 'rgba(5,10,20,0.92)', backdropFilter: 'blur(8px)', position: 'relative', zIndex: 20 }}>
             {apiError && (
-              <div style={{ marginBottom: 10, fontSize: 10, color: C.critical, letterSpacing: '0.12em', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(196,69,54,0.1)', border: `1px solid ${C.critical}`, borderRadius: 4 }}>
+              <div style={{ marginBottom: 10, fontSize: 10, color: C.critical, letterSpacing: '0.12em', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,60,60,0.08)', border: `1px solid ${C.critical}`, borderRadius: 4 }}>
                 <div style={{ flex: 1 }}>
                   <div>⚠ {apiError}</div>
                   {showErrorDetails && errorDetails && (
@@ -556,7 +626,7 @@ export default function JarvisOS() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKey}
-                placeholder={listening ? 'ouvindo...' : thinking ? 'processando no córtex...' : ready ? 'expresse sua intenção...' : 'aguarde...'}
+                placeholder={listening ? 'canal de voz aberto...' : thinking ? 'processando na matrix neural...' : ready ? 'aguardando instrução, Sir...' : 'inicializando...'}
                 style={{ ...mono, flex: 1, background: 'transparent', border: 'none', color: C.text, fontSize: 14, letterSpacing: '0.02em', padding: '4px 0' }}
               />
               <MicButton listening={listening} onStart={startListening} onStop={stopListening} disabled={!recogSupported || thinking || !ready} C={C} />
@@ -566,7 +636,7 @@ export default function JarvisOS() {
               <span className="jv-blink" style={{ color: C.accent, fontSize: 14 }}>▌</span>
             </div>
             <div style={{ marginTop: 10, display: 'flex', gap: 18, fontSize: 9.5, color: C.dim, letterSpacing: '0.22em', flexWrap: 'wrap' }}>
-              <span>/HOLO</span><span>/TERMINAL</span><span>/FOCO [tema]</span><span>/SAIR</span>
+              <span>/ARMOR</span><span>/HOLO</span><span>/TERMINAL</span><span>/FOCO [tema]</span><span>/STATUS</span><span>/SAIR</span>
               <span style={{ color: C.accentDim }}>↵ tudo mais vai para a IA</span>
               <span style={{ marginLeft: 'auto', color: voiceOut ? C.accent : C.dim }}>{voiceOut ? '◉ VOZ ATIVA' : '○ VOZ'}</span>
             </div>
@@ -574,13 +644,13 @@ export default function JarvisOS() {
         </main>
 
         {/* RIGHT RAIL */}
-        <aside style={{ borderLeft: `1px solid ${C.line}`, padding: '24px 20px', background: 'rgba(0,0,0,0.18)' }}>
+        <aside style={{ borderLeft: `1px solid ${C.line}`, padding: '24px 20px', background: 'rgba(0,0,0,0.22)' }}>
           <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 18 }}>TELEMETRIA</div>
-          <Meter label="CARGA COGNITIVA" value={Math.round(telemetry.load)} unit="%" C={C} />
+          <Meter label="POTÊNCIA ARC" value={Math.round(telemetry.load)} unit="%" C={C} />
           <Meter label="MEMÓRIA ATIVA" value={Math.round(telemetry.mem)} unit="%" C={C} />
           <div style={{ marginTop: 16, marginBottom: 22 }}>
             <div style={{ fontSize: 9, color: C.dim, letterSpacing: '0.28em', marginBottom: 6 }}>LATÊNCIA API</div>
-            <div style={{ ...serif, fontSize: 22, color: C.text, fontWeight: 300 }}>
+            <div style={{ ...display, fontSize: 26, color: C.text, fontWeight: 300 }}>
               {Math.round(telemetry.latency)}<span style={{ ...mono, fontSize: 11, color: C.muted, marginLeft: 6 }}>ms</span>
             </div>
           </div>
@@ -598,7 +668,8 @@ export default function JarvisOS() {
           </div>
           <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 18 }}>
             <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 8 }}>OPERADOR</div>
-            <div style={{ ...serif, color: C.text, fontSize: 16, fontWeight: 400, fontStyle: 'italic' }}>Gabriel</div>
+            <div style={{ ...display, color: C.accent, fontSize: 11, fontWeight: 500, letterSpacing: '0.28em' }}>SIR · GABRIEL</div>
+            <div style={{ ...display, color: C.text, fontSize: 18, marginTop: 2 }}>Soares</div>
             <div style={{ fontSize: 10, color: C.dim, marginTop: 4, letterSpacing: '0.12em' }}>engenharia de vídeo · cinema</div>
             <div style={{ marginTop: 14, fontSize: 9, color: C.accentDim, letterSpacing: '0.16em' }}>Canoas · BRT -3</div>
           </div>
@@ -609,9 +680,9 @@ export default function JarvisOS() {
 }
 
 // ═══════════════════════════════════════════════════
-// HOLOGRAPHIC VIEW — CSS/SVG (sem WebGL, funciona em qualquer iframe)
+// HOLOGRAPHIC VIEW — Arc Reactor (CSS/SVG, sem WebGL)
 // ═══════════════════════════════════════════════════
-function HolographicView({ telemetry, history, thinking, speaking, listening, ready, C, serif, time }) {
+function HolographicView({ telemetry, history, thinking, speaking, listening, ready, C, display, time }) {
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setTick(p => p + 1), 50);
@@ -621,180 +692,124 @@ function HolographicView({ telemetry, history, thinking, speaking, listening, re
   const lastMessage = [...history].reverse().find(m => m.role === 'jarvis');
   const t = tick * 0.05;
 
-  // Globe rings — ellipses rotated at different angles
-  const rings = [
-    { rx: 110, ry: 28, rotate: 0,   speed: 0.4,  opacity: 0.55 },
-    { rx: 110, ry: 45, rotate: 45,  speed: -0.28, opacity: 0.4  },
-    { rx: 110, ry: 28, rotate: 90,  speed: 0.22, opacity: 0.3  },
-    { rx: 90,  ry: 20, rotate: 135, speed: -0.18, opacity: 0.25 },
-  ];
-
-  // Orbiting nodes
-  const nodes = [
-    { r: 130, speed: 0.6,  phase: 0,    size: 4 },
-    { r: 155, speed: -0.4, phase: 2.1,  size: 3 },
-    { r: 145, speed: 0.5,  phase: 4.2,  size: 4 },
-    { r: 165, speed: -0.3, phase: 1.0,  size: 3 },
-    { r: 138, speed: 0.7,  phase: 3.5,  size: 3 },
-  ];
-
-  // Latitude lines on globe
-  const latLines = [-70, -45, -20, 0, 20, 45, 70];
-  // Longitude lines
-  const lonLines = Array.from({ length: 8 }, (_, i) => (i / 8) * 180);
-
-  const cx = 200, cy = 200, R = 110;
+  const cx = 200, cy = 200;
 
   return (
-    <div style={{ flex: 1, minHeight: '400px', position: 'relative', overflow: 'hidden', background: 'radial-gradient(ellipse at 50% 60%, rgba(212,165,116,0.07), transparent 65%)' }}>
+    <div style={{ flex: 1, minHeight: '400px', position: 'relative', overflow: 'hidden', background: 'radial-gradient(ellipse at 50% 50%, rgba(0,212,255,0.05), transparent 65%)' }}>
 
-      {/* GLOBE SVG */}
+      {/* ARC REACTOR SVG */}
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <svg width="400" height="400" viewBox="0 0 400 400" style={{ overflow: 'visible' }}>
           <defs>
-            <radialGradient id="globeGrad" cx="40%" cy="35%">
-              <stop offset="0%" stopColor="#2a1f14" stopOpacity="0.7" />
-              <stop offset="100%" stopColor="#0b0a08" stopOpacity="0.9" />
+            <filter id="arcGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="5" result="blur" />
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <radialGradient id="coreGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#00d4ff" stopOpacity="0.95" />
+              <stop offset="40%" stopColor="#00d4ff" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#007a99" stopOpacity="0.05" />
             </radialGradient>
-            <clipPath id="globeClip">
-              <circle cx={cx} cy={cy} r={R} />
-            </clipPath>
+            <radialGradient id="ambientGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#00d4ff" stopOpacity="0.10" />
+              <stop offset="100%" stopColor="#00d4ff" stopOpacity="0" />
+            </radialGradient>
           </defs>
 
-          {/* Glow behind globe */}
-          <circle cx={cx} cy={cy} r={R + 30} fill="none" stroke="#d4a574" strokeWidth="1" opacity="0.06" />
-          <circle cx={cx} cy={cy} r={R + 18} fill="none" stroke="#d4a574" strokeWidth="1" opacity="0.1" />
+          {/* Ambient glow */}
+          <circle cx={cx} cy={cy} r={200} fill="url(#ambientGrad)" />
 
-          {/* Globe fill */}
-          <circle cx={cx} cy={cy} r={R} fill="url(#globeGrad)" />
-
-          {/* Latitude lines (clipped to globe) */}
-          <g clipPath="url(#globeClip)" opacity="0.35">
-            {latLines.map((lat, i) => {
-              const y = cy + (lat / 90) * R;
-              const halfW = Math.sqrt(Math.max(0, R * R - (y - cy) * (y - cy)));
-              if (halfW < 2) return null;
-              // Animate: shift x for rotation effect
-              const shift = (t * (i % 2 === 0 ? 1 : -1) * 0.3 * R) % (R * 2);
+          {/* RING 1 — outermost, slow clockwise */}
+          <g transform={`rotate(${t * 8}, ${cx}, ${cy})`}>
+            <circle cx={cx} cy={cy} r={155} fill="none" stroke="#00d4ff" strokeWidth="1.2" opacity="0.22" strokeDasharray="12 20" />
+            {[0,45,90,135,180,225,270,315].map((deg, i) => {
+              const rad = (deg * Math.PI) / 180;
               return (
-                <ellipse key={i}
-                  cx={cx + shift * 0.2}
-                  cy={y}
-                  rx={halfW}
-                  ry={halfW * 0.22}
-                  fill="none"
-                  stroke="#d4a574"
-                  strokeWidth="0.7"
+                <line key={i}
+                  x1={cx + 148 * Math.cos(rad)} y1={cy + 148 * Math.sin(rad)}
+                  x2={cx + 162 * Math.cos(rad)} y2={cy + 162 * Math.sin(rad)}
+                  stroke="#00d4ff" strokeWidth="2" opacity="0.45"
                 />
               );
             })}
           </g>
 
-          {/* Longitude lines (clipped) */}
-          <g clipPath="url(#globeClip)" opacity="0.3">
-            {lonLines.map((lon, i) => {
-              const angleOffset = t * 0.3;
-              const a = (lon / 180) * Math.PI + angleOffset;
-              const rx = Math.abs(Math.cos(a)) * R;
-              const skewX = Math.sin(a) * 15;
+          {/* RING 2 — counter-clockwise, medium speed */}
+          <g transform={`rotate(${-t * 14}, ${cx}, ${cy})`}>
+            <circle cx={cx} cy={cy} r={125} fill="none" stroke="#00d4ff" strokeWidth="1.5" opacity="0.32" strokeDasharray="6 14" />
+            {[0,60,120,180,240,300].map((deg, i) => {
+              const rad = (deg * Math.PI) / 180;
+              const nx = cx + 125 * Math.cos(rad);
+              const ny = cy + 125 * Math.sin(rad);
               return (
-                <ellipse key={i}
-                  cx={cx + skewX}
-                  cy={cy}
-                  rx={rx < 2 ? 2 : rx}
-                  ry={R}
-                  fill="none"
-                  stroke="#d4a574"
-                  strokeWidth="0.7"
+                <g key={i}>
+                  <circle cx={nx} cy={ny} r={5} fill="none" stroke="#00d4ff" strokeWidth="1.2" opacity="0.65" />
+                  <circle cx={nx} cy={ny} r={2} fill="#00d4ff" opacity="0.9" />
+                </g>
+              );
+            })}
+          </g>
+
+          {/* RING 3 — clockwise, faster */}
+          <g transform={`rotate(${t * 22}, ${cx}, ${cy})`}>
+            <circle cx={cx} cy={cy} r={95} fill="none" stroke="#00d4ff" strokeWidth="2" opacity="0.48" strokeDasharray="3 9" />
+            {[0,120,240].map((deg, i) => {
+              const rad = (deg * Math.PI) / 180;
+              const nx = cx + 95 * Math.cos(rad);
+              const ny = cy + 95 * Math.sin(rad);
+              const size = 6;
+              return (
+                <polygon key={i}
+                  points={`${nx},${ny - size} ${nx - size * 0.866},${ny + size * 0.5} ${nx + size * 0.866},${ny + size * 0.5}`}
+                  fill="#00d4ff" opacity="0.75"
+                  transform={`rotate(${deg}, ${nx}, ${ny})`}
                 />
               );
             })}
           </g>
 
-          {/* Globe outline */}
-          <circle cx={cx} cy={cy} r={R} fill="none" stroke="#d4a574" strokeWidth="1.2" opacity="0.5" />
+          {/* RING 4 — innermost, slow pulse */}
+          <circle cx={cx} cy={cy} r={65} fill="none" stroke="#00d4ff" strokeWidth="2.5" opacity="0.58" />
+          <circle cx={cx} cy={cy} r={65} fill="none" stroke="#00d4ff" strokeWidth="8" opacity={0.06 + Math.sin(t * 1.8) * 0.04} />
 
-          {/* Orbital rings */}
-          {rings.map((ring, i) => (
-            <ellipse key={i}
-              cx={cx}
-              cy={cy}
-              rx={ring.rx}
-              ry={ring.ry}
-              fill="none"
-              stroke="#d4a574"
-              strokeWidth="0.8"
-              opacity={ring.opacity}
-              transform={`rotate(${ring.rotate + t * ring.speed * 30}, ${cx}, ${cy})`}
-              strokeDasharray="4 8"
-            />
-          ))}
-
-          {/* Outer ring solid */}
-          <ellipse cx={cx} cy={cy} rx={140} ry={35} fill="none" stroke="#d4a574" strokeWidth="1.2" opacity="0.5"
-            transform={`rotate(${t * 12}, ${cx}, ${cy})`} />
-
-          {/* Orbiting nodes */}
-          {nodes.map((n, i) => {
-            const angle = t * n.speed + n.phase;
-            const nx = cx + n.r * Math.cos(angle);
-            const ny = cy + n.r * 0.28 * Math.sin(angle);
-            const behind = Math.sin(angle) < 0;
-            return !behind && (
-              <g key={i}>
-                <circle cx={nx} cy={ny} r={n.size + 3} fill="#d4a574" opacity="0.12" />
-                <circle cx={nx} cy={ny} r={n.size} fill="#d4a574" opacity="0.9" />
-              </g>
-            );
-          })}
-          {/* Nodes behind globe (dimmer) */}
-          {nodes.map((n, i) => {
-            const angle = t * n.speed + n.phase;
-            const nx = cx + n.r * Math.cos(angle);
-            const ny = cy + n.r * 0.28 * Math.sin(angle);
-            const behind = Math.sin(angle) < 0;
-            return behind && (
-              <circle key={`b${i}`} cx={nx} cy={ny} r={n.size} fill="#8a6b4a" opacity="0.4" />
+          {/* HEXAGONAL INNER SEGMENTS */}
+          {[0,60,120,180,240,300].map((deg, i) => {
+            const rad1 = ((deg - 24) * Math.PI) / 180;
+            const rad2 = ((deg + 24) * Math.PI) / 180;
+            const r = 48;
+            const x1 = cx + r * Math.cos(rad1);
+            const y1 = cy + r * Math.sin(rad1);
+            const x2 = cx + r * Math.cos(rad2);
+            const y2 = cy + r * Math.sin(rad2);
+            return (
+              <path key={i}
+                d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z`}
+                fill="#00d4ff"
+                opacity={i % 2 === 0 ? 0.09 + Math.sin(t * 2 + i) * 0.04 : 0.04}
+                stroke="#00d4ff"
+                strokeWidth="0.5"
+              />
             );
           })}
 
-          {/* Center dot */}
-          <circle cx={cx} cy={cy} r={3} fill="#d4a574" opacity="0.6" />
+          {/* CORE */}
+          <circle cx={cx} cy={cy} r={30} fill="url(#coreGrad)" filter="url(#arcGlow)" />
+          <circle cx={cx} cy={cy} r={18} fill="#00d4ff" opacity={0.12 + Math.sin(t * 2.4) * 0.07} />
+          <circle cx={cx} cy={cy} r={10} fill="#00d4ff" opacity="0.85" />
+          <circle cx={cx} cy={cy} r={4} fill="#ffffff" opacity="0.95" />
 
-          {/* Scan line across globe */}
-          <line
-            x1={cx - R}
-            y1={cy + Math.sin(t * 0.7) * R * 0.8}
-            x2={cx + R}
-            y2={cy + Math.sin(t * 0.7) * R * 0.8}
-            stroke="#d4a574"
-            strokeWidth="0.5"
-            opacity="0.2"
-            clipPath="url(#globeClip)"
-          />
-
-          {/* Grid floor */}
-          <g opacity="0.12" transform={`translate(${cx}, ${cy + R + 30})`}>
-            {[-5,-4,-3,-2,-1,0,1,2,3,4,5].map(i => (
-              <g key={i}>
-                <line x1={i * 20} y1={0} x2={i * 20 - 40} y2={40} stroke="#d4a574" strokeWidth="0.5" />
-                <line x1={-100 + i * 20} y1={i * 8} x2={100 + i * 0} y2={i * 8} stroke="#d4a574" strokeWidth="0.5" />
-              </g>
-            ))}
-          </g>
-
-          {/* Status text */}
-          <text x={cx} y={cy + R + 22} textAnchor="middle" fill="#7a7268" fontSize="8" letterSpacing="3" fontFamily="JetBrains Mono, monospace">
-            NÚCLEO · {ready ? 'ONLINE' : 'INIT'}
+          {/* STATUS TEXT */}
+          <text x={cx} y={cy + 95 + 24} textAnchor="middle" fill="#4a7a99" fontSize="8" letterSpacing="4" fontFamily="JetBrains Mono, monospace">
+            STARK INDUSTRIES · {ready ? 'ONLINE' : 'BOOT'}
           </text>
         </svg>
       </div>
 
       {/* Floating particles */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-        {[...Array(18)].map((_, i) => {
-          const angle = (i / 18) * Math.PI * 2 + t * (i % 2 === 0 ? 0.15 : -0.1);
-          const r = 200 + (i % 4) * 50;
+        {[...Array(20)].map((_, i) => {
+          const angle = (i / 20) * Math.PI * 2 + t * (i % 2 === 0 ? 0.12 : -0.08);
+          const r = 200 + (i % 4) * 55;
           const x = 50 + (Math.cos(angle) * r / 8);
           const y = 50 + (Math.sin(angle) * r / 16);
           return (
@@ -804,8 +819,8 @@ function HolographicView({ telemetry, history, thinking, speaking, listening, re
               width: i % 3 === 0 ? 2 : 1,
               height: i % 3 === 0 ? 2 : 1,
               borderRadius: '50%',
-              background: '#d4a574',
-              opacity: 0.3 + (i % 5) * 0.1,
+              background: '#00d4ff',
+              opacity: 0.25 + (i % 5) * 0.08,
             }} />
           );
         })}
@@ -815,29 +830,29 @@ function HolographicView({ telemetry, history, thinking, speaking, listening, re
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
         {/* Top left label */}
         <div className="jv-holo-in" style={{ position: 'absolute', top: 20, left: 28, pointerEvents: 'auto' }}>
-          <div style={{ fontFamily: '"Fraunces", serif', fontStyle: 'italic', fontSize: 18, color: '#d4a574' }}>Projeção</div>
-          <div style={{ fontSize: 9, color: '#7a7268', letterSpacing: '0.32em', marginTop: 4 }}>NÚCLEO · TOPOLOGIA</div>
+          <div style={{ fontFamily: '"Rajdhani", sans-serif', fontSize: 20, fontWeight: 700, letterSpacing: '0.12em', color: '#00d4ff' }}>STARK INDUSTRIES</div>
+          <div style={{ fontSize: 9, color: '#4a7a99', letterSpacing: '0.32em', marginTop: 4 }}>J.A.R.V.I.S. · ARC REACTOR · MARK VII</div>
         </div>
 
         {/* Top center labels */}
-        <div className="jv-holo-in" style={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 18, fontSize: 9, letterSpacing: '0.28em', color: '#7a7268', pointerEvents: 'auto' }}>
-          {['NÚCLEO','ARQUIVO','DIPLOMACIA'].map(l => (
+        <div className="jv-holo-in" style={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 18, fontSize: 9, letterSpacing: '0.28em', color: '#4a7a99', pointerEvents: 'auto' }}>
+          {['MATRIX','ARCHIVE','SYNTHESIA'].map(l => (
             <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#d4a574' }} />
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#00d4ff' }} />
               <span>{l}</span>
             </div>
           ))}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: speaking || listening ? '#d4a574' : '#4a4540' }} className={speaking || listening ? 'jv-pulse' : ''} />
-            <span style={{ color: speaking || listening ? '#7a7268' : '#4a4540' }}>VOZ</span>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: speaking || listening ? '#00d4ff' : '#1e3a4a' }} className={speaking || listening ? 'jv-pulse' : ''} />
+            <span style={{ color: speaking || listening ? '#4a7a99' : '#1e3a4a' }}>VOZ</span>
           </div>
         </div>
 
         {/* Bottom left — telemetria */}
         <div className="jv-holo-in" style={{ position: 'absolute', bottom: 24, left: 28, pointerEvents: 'auto' }}>
           <HoloPanel C={C}>
-            <div style={{ fontSize: 9, color: '#7a7268', letterSpacing: '0.32em', marginBottom: 10 }}>TELEMETRIA · TEMPO REAL</div>
-            <HoloRow label="CARGA" value={`${Math.round(telemetry.load)}%`} C={C} />
+            <div style={{ fontSize: 9, color: '#4a7a99', letterSpacing: '0.32em', marginBottom: 10 }}>TELEMETRIA · TEMPO REAL</div>
+            <HoloRow label="POTÊNCIA" value={`${Math.round(telemetry.load)}%`} C={C} />
             <HoloRow label="MEMÓRIA" value={`${Math.round(telemetry.mem)}%`} C={C} />
             <HoloRow label="LATÊNCIA API" value={`${Math.round(telemetry.latency)} ms`} C={C} />
           </HoloPanel>
@@ -847,8 +862,8 @@ function HolographicView({ telemetry, history, thinking, speaking, listening, re
         {lastMessage && (
           <div className="jv-holo-in" style={{ position: 'absolute', bottom: 24, right: 28, maxWidth: 380, pointerEvents: 'auto' }} key={history.length}>
             <HoloPanel C={C}>
-              <div style={{ fontSize: 9, color: '#7a7268', letterSpacing: '0.32em', marginBottom: 10 }}>ÚLTIMA RESPOSTA</div>
-              <div style={{ fontSize: 12, lineHeight: 1.65, color: '#e8e2d4', maxHeight: 150, overflowY: 'auto' }} className="jv-scrollbar">
+              <div style={{ fontSize: 9, color: '#4a7a99', letterSpacing: '0.32em', marginBottom: 10 }}>ÚLTIMA TRANSMISSÃO</div>
+              <div style={{ fontSize: 12, lineHeight: 1.65, color: '#c8e8f8', maxHeight: 150, overflowY: 'auto' }} className="jv-scrollbar">
                 {lastMessage.type === 'ai'
                   ? lastMessage.text?.slice(0, 380) + (lastMessage.text?.length > 380 ? '…' : '')
                   : lastMessage.lines?.join(' ')}
@@ -860,26 +875,30 @@ function HolographicView({ telemetry, history, thinking, speaking, listening, re
         {/* Thinking overlay */}
         {thinking && (
           <div className="jv-holo-in" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
-            <div style={{ display: 'inline-block', padding: '14px 28px', border: '1px solid rgba(212,165,116,0.28)', background: 'rgba(11,10,8,0.7)', backdropFilter: 'blur(6px)' }}>
-              <div style={{ fontSize: 10, letterSpacing: '0.32em', color: '#d4a574' }} className="jv-pulse">CONSULTANDO CÓRTEX · IA</div>
+            <div style={{ display: 'inline-block', padding: '14px 28px', border: '1px solid rgba(0,212,255,0.26)', background: 'rgba(5,10,20,0.75)', backdropFilter: 'blur(6px)' }}>
+              <div style={{ fontSize: 10, letterSpacing: '0.32em', color: '#00d4ff' }} className="jv-pulse">PROCESSANDO · STARK DB · J.A.R.V.I.S.</div>
             </div>
           </div>
         )}
 
         {/* Vignette */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse at center, transparent 45%, rgba(11,10,8,0.65) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse at center, transparent 45%, rgba(5,10,20,0.65) 100%)' }} />
       </div>
     </div>
   );
 }
-
 
 function HoloPanel({ children, C }) {
   return (
     <div className="jv-holo-glass jv-drift" style={{ padding: '16px 18px', position: 'relative', minWidth: 200 }}>
       {['tl','tr','bl','br'].map(p => {
         const s = { position: 'absolute', width: 8, height: 8 };
-        const styles = { tl: { ...s, top:-1,left:-1,borderTop:`1px solid ${C.accent}`,borderLeft:`1px solid ${C.accent}` }, tr: { ...s, top:-1,right:-1,borderTop:`1px solid ${C.accent}`,borderRight:`1px solid ${C.accent}` }, bl: { ...s, bottom:-1,left:-1,borderBottom:`1px solid ${C.accent}`,borderLeft:`1px solid ${C.accent}` }, br: { ...s, bottom:-1,right:-1,borderBottom:`1px solid ${C.accent}`,borderRight:`1px solid ${C.accent}` } };
+        const styles = {
+          tl: { ...s, top:-1,left:-1,borderTop:`1px solid ${C.accent}`,borderLeft:`1px solid ${C.accent}` },
+          tr: { ...s, top:-1,right:-1,borderTop:`1px solid ${C.accent}`,borderRight:`1px solid ${C.accent}` },
+          bl: { ...s, bottom:-1,left:-1,borderBottom:`1px solid ${C.accent}`,borderLeft:`1px solid ${C.accent}` },
+          br: { ...s, bottom:-1,right:-1,borderBottom:`1px solid ${C.accent}`,borderRight:`1px solid ${C.accent}` },
+        };
         return <span key={p} style={styles[p]} />;
       })}
       {children}
@@ -890,7 +909,7 @@ function HoloPanel({ children, C }) {
 function HoloRow({ label, value, C }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '4px 0', fontSize: 11 }}>
-      <span style={{ color: C.muted, letterSpacing: '0.14em', minWidth: 78 }}>{label}</span>
+      <span style={{ color: C.muted, letterSpacing: '0.14em', minWidth: 88 }}>{label}</span>
       <span style={{ color: C.accent, flex: 1, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
     </div>
   );
@@ -899,13 +918,13 @@ function HoloRow({ label, value, C }) {
 // ═══════════════════════════════════════════════════
 // TERMINAL VIEW
 // ═══════════════════════════════════════════════════
-function TerminalView({ scrollRef, bootStage, history, thinking, C, serif }) {
+function TerminalView({ scrollRef, bootStage, history, thinking, C, display }) {
   return (
     <div ref={scrollRef} className="jv-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '36px 56px 24px 56px' }}>
-      <BootSequence stage={bootStage} C={C} serif={serif} />
+      <BootSequence stage={bootStage} C={C} display={display} />
       {history.map((msg, i) => (
         <div key={i} className="jv-fade" style={{ marginBottom: 28 }}>
-          {msg.role === 'operator' ? <OperatorLine msg={msg} C={C} /> : <JarvisResponse msg={msg} C={C} serif={serif} />}
+          {msg.role === 'operator' ? <OperatorLine msg={msg} C={C} /> : <JarvisResponse msg={msg} C={C} display={display} />}
         </div>
       ))}
       {thinking && <ThinkingIndicator C={C} />}
@@ -922,7 +941,7 @@ function VoiceIndicator({ voiceOut, speaking, listening, onToggle, onPanel, C, s
         <span style={{ display: 'inline-flex', gap: 2, alignItems: 'center', height: 12, width: 14 }}>
           {speaking ? <>{[12,12,12].map((h,i) => <span key={i} className="jv-wave-bar" style={{ height: h }} />)}</> : <><span style={{ width: 2, height: 4, background: color }} /><span style={{ width: 2, height: 8, background: color }} /><span style={{ width: 2, height: 6, background: color }} /></>}
         </span>
-        <span style={{ color, fontSize: 10, letterSpacing: '0.22em' }}>{state === 'speaking' ? 'FALANDO' : state === 'listening' ? 'OUVINDO' : state === 'on' ? 'VOZ ATIVA' : 'VOZ'}</span>
+        <span style={{ color, fontSize: 10, letterSpacing: '0.22em' }}>{state === 'speaking' ? 'TRANSMITINDO' : state === 'listening' ? 'OUVINDO' : state === 'on' ? 'VOZ ATIVA' : 'VOZ'}</span>
       </button>
       <button onClick={onPanel} style={{ background: 'transparent', border: `1px solid ${C.line}`, color: C.muted, padding: '2px 6px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.2em', cursor: 'pointer' }}>◇</button>
     </div>
@@ -933,7 +952,7 @@ function ToggleBtn({ label, on, onClick, C }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <span style={{ fontSize: 9, letterSpacing: '0.28em', color: C.muted }}>{label}</span>
-      <button onClick={onClick} style={{ background: on ? 'rgba(212,165,116,0.15)' : 'transparent', border: `1px solid ${on ? C.accent : C.line}`, color: on ? C.accent : C.muted, padding: '6px 12px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.2em', cursor: 'pointer' }}>
+      <button onClick={onClick} style={{ background: on ? 'rgba(0,212,255,0.12)' : 'transparent', border: `1px solid ${on ? C.accent : C.line}`, color: on ? C.accent : C.muted, padding: '6px 12px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.2em', cursor: 'pointer' }}>
         {on ? '◉ ON' : '○ OFF'}
       </button>
     </div>
@@ -949,8 +968,13 @@ function MicButton({ listening, onStart, onStop, disabled, C }) {
   );
 }
 
-function BootSequence({ stage, C, serif }) {
-  const lines = ['núcleo cognitivo · online', 'arquivo persistente · L1·L2·L3 sincronizados', 'conselheiros · 5/5 ativos', 'api claude · claude-sonnet-4 · conectada'];
+function BootSequence({ stage, C, display }) {
+  const lines = [
+    'reatores de arco · pressão nominal · OK',
+    'matriz neural · sincronizada · L1·L2·L3 ativos',
+    'stark industries DB · 847.293 registros · online',
+    'api claude · sonnet-4.6 · handshake completo',
+  ];
   return (
     <div style={{ marginBottom: 36 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11.5, color: C.muted }}>
@@ -965,11 +989,11 @@ function BootSequence({ stage, C, serif }) {
       </div>
       {stage >= 5 && (
         <div className="jv-fade" style={{ marginTop: 28 }}>
-          <div style={{ ...serif, fontSize: 32, fontWeight: 300, color: C.text, lineHeight: 1.2 }}>
-            IA conectada e <span style={{ fontStyle: 'italic', color: C.accent }}>operacional</span>.
+          <div style={{ ...display, fontSize: 32, fontWeight: 300, color: C.text, lineHeight: 1.2 }}>
+            J.A.R.V.I.S. <span style={{ color: C.accent }}>online</span>. Pronto para servir, Sir.
           </div>
           <div style={{ marginTop: 12, fontSize: 12.5, color: C.muted, letterSpacing: '0.04em', lineHeight: 1.7 }}>
-            Todas as mensagens são processadas em tempo real pelo <span style={{ color: C.accent }}>Claude Sonnet 4</span>. O histórico da conversa é mantido durante a sessão.
+            Núcleo <span style={{ color: C.accent }}>Stark Industries</span> conectado via <span style={{ color: C.accent }}>claude-sonnet-4.6</span>. Histórico mantido durante a sessão.
           </div>
         </div>
       )}
@@ -980,7 +1004,7 @@ function BootSequence({ stage, C, serif }) {
 function OperatorLine({ msg, C }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-      <span style={{ color: C.dim, fontSize: 10, letterSpacing: '0.22em', minWidth: 78 }}>OPERADOR</span>
+      <span style={{ color: C.dim, fontSize: 10, letterSpacing: '0.22em', minWidth: 88 }}>SIR · GABRIEL</span>
       <span style={{ color: C.text, fontSize: 13.5 }}>{msg.content}</span>
     </div>
   );
@@ -989,16 +1013,15 @@ function OperatorLine({ msg, C }) {
 function ThinkingIndicator({ C }) {
   return (
     <div className="jv-fade" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
-      <span style={{ color: C.accentDim, fontSize: 10, letterSpacing: '0.22em', minWidth: 78 }}>JARVIS</span>
+      <span style={{ color: C.accentDim, fontSize: 10, letterSpacing: '0.22em', minWidth: 88 }}>J.A.R.V.I.S.</span>
       <span style={{ color: C.muted, fontSize: 11.5, letterSpacing: '0.12em' }}>
-        <span className="jv-pulse">consultando córtex · aguardando resposta da IA</span>
+        <span className="jv-pulse">processando na matrix neural · aguardando resposta</span>
         <span className="jv-blink" style={{ marginLeft: 6 }}>···</span>
       </span>
     </div>
   );
 }
 
-// ── AI Text Renderer — handles markdown-like formatting ──
 function AIText({ text, C }) {
   if (!text) return null;
   const lines = text.split('\n');
@@ -1022,17 +1045,16 @@ function AIText({ text, C }) {
     } else if (line.startsWith('- ') || line.startsWith('• ')) {
       elements.push(<div key={i} style={{ display: 'flex', gap: 10, padding: '2px 0', color: C.text, fontSize: 13 }}><span style={{ color: C.accentDim }}>▸</span><span>{line.slice(2)}</span></div>);
     } else if (line.match(/^`[^`]+`$/)) {
-      elements.push(<code key={i} style={{ background: 'rgba(212,165,116,0.08)', color: C.accent, padding: '1px 6px', fontSize: 12 }}>{line.slice(1,-1)}</code>);
+      elements.push(<code key={i} style={{ background: 'rgba(0,212,255,0.07)', color: C.accent, padding: '1px 6px', fontSize: 12 }}>{line.slice(1,-1)}</code>);
     } else if (line.trim() === '') {
       elements.push(<div key={i} style={{ height: 8 }} />);
     } else {
-      // Inline bold/code
       const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
       elements.push(
         <div key={i} style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75, marginBottom: 2 }}>
           {parts.map((p, j) => {
             if (p.startsWith('**') && p.endsWith('**')) return <strong key={j} style={{ color: C.accent, fontWeight: 600 }}>{p.slice(2,-2)}</strong>;
-            if (p.startsWith('`') && p.endsWith('`')) return <code key={j} style={{ background: 'rgba(212,165,116,0.08)', color: C.accent, padding: '1px 5px', fontSize: 11.5 }}>{p.slice(1,-1)}</code>;
+            if (p.startsWith('`') && p.endsWith('`')) return <code key={j} style={{ background: 'rgba(0,212,255,0.07)', color: C.accent, padding: '1px 5px', fontSize: 11.5 }}>{p.slice(1,-1)}</code>;
             return p;
           })}
         </div>
@@ -1043,10 +1065,10 @@ function AIText({ text, C }) {
   return <div>{elements}</div>;
 }
 
-function JarvisResponse({ msg, C, serif }) {
+function JarvisResponse({ msg, C, display }) {
   const W = ({ children }) => (
     <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-      <span style={{ color: C.accent, fontSize: 10, letterSpacing: '0.22em', minWidth: 78, paddingTop: 3 }}>JARVIS</span>
+      <span style={{ color: C.accent, fontSize: 10, letterSpacing: '0.22em', minWidth: 88, paddingTop: 3 }}>J.A.R.V.I.S.</span>
       <div style={{ flex: 1, maxWidth: '100%', overflow: 'hidden' }}>{children}</div>
     </div>
   );
@@ -1078,7 +1100,7 @@ function Meter({ label, value, unit, C }) {
         <span>{label}</span><span style={{ color: C.accent }}>{value}{unit}</span>
       </div>
       <div style={{ display: 'flex', gap: 2 }}>
-        {Array.from({ length: segments }).map((_, i) => <span key={i} style={{ flex: 1, height: 5, background: i < filled ? C.accent : 'rgba(212,165,116,0.1)', opacity: i < filled ? (0.4 + (i / segments) * 0.6) : 1 }} />)}
+        {Array.from({ length: segments }).map((_, i) => <span key={i} style={{ flex: 1, height: 5, background: i < filled ? C.accent : 'rgba(0,212,255,0.08)', opacity: i < filled ? (0.4 + (i / segments) * 0.6) : 1 }} />)}
       </div>
     </div>
   );

@@ -78,7 +78,7 @@ async function callClaude(messages) {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1000,
       system: JARVIS_SYSTEM,
       messages,
@@ -467,7 +467,7 @@ export default function JarvisOS() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: C.dim }}>MODELO</span>
-                <span style={{ color: C.accentDim, fontSize: 9 }}>sonnet-4</span>
+                <span style={{ color: C.accentDim, fontSize: 9 }}>sonnet-3.5</span>
               </div>
             </div>
           </div>

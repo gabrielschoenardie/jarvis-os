@@ -147,5 +147,6 @@ export function useSpeech({ onTranscriptReady }) {
     elStyle: elevenLabs.elStyle,
     setElStyle: elevenLabs.setElStyle,
     fallbackActive: elevenLabs.fallbackActive,
+    elError: elevenLabs.elError,
   };
 }

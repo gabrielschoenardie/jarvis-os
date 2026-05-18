@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchVoicesList } from '../lib/elevenlabs.js';
 
+// Adam — deep/authoritative, excellent PT-BR support via Multilingual v2
+const DEFAULT_VOICE_ID = 'pNInz6obpgDQGcFmaJgB';
+
 export function useElevenLabsTTS({ webSpeakSingle }) {
   const [elVoices, setElVoices] = useState([]);
-  const [selectedVoiceId, setSelectedVoiceId] = useState('');
+  const [selectedVoiceId, setSelectedVoiceId] = useState(DEFAULT_VOICE_ID);
   const [stability, setStability] = useState(0.5);
   const [similarityBoost, setSimilarityBoost] = useState(0.75);
   const [elStyle, setElStyle] = useState(0.0);
   const [elState, setElState] = useState('idle');
   const [fallbackActive, setFallbackActive] = useState(false);
+  const [elError, setElError] = useState(null);
 
   // Stable refs — read inside async callbacks without stale closure
-  const paramsRef = useRef({ voiceId: '', stability: 0.5, similarityBoost: 0.75, style: 0.0 });
+  const paramsRef = useRef({ voiceId: DEFAULT_VOICE_ID, stability: 0.5, similarityBoost: 0.75, style: 0.0 });
   const queueRef = useRef([]);
   const isSpeakingRef = useRef(false);
   const abortRef = useRef(null);
@@ -30,9 +34,16 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
       .then(data => {
         const voices = data.voices || [];
         setElVoices(voices);
-        if (voices.length > 0) setSelectedVoiceId(v => v || voices[0].voice_id);
+        // Keep default if already set; replace only if still at factory default and a better match exists
+        if (voices.length > 0) {
+          setSelectedVoiceId(v => {
+            if (v !== DEFAULT_VOICE_ID) return v; // user already changed it
+            const match = voices.find(x => x.voice_id === DEFAULT_VOICE_ID);
+            return match ? v : voices[0].voice_id;
+          });
+        }
       })
-      .catch(() => {});
+      .catch(e => setElError('falha ao carregar vozes · ' + e.message));
   }, []);
 
   // playNext is held in a ref so recursive calls always reach the latest version
@@ -49,15 +60,6 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
     const { text, resolve } = queueRef.current.shift();
     const { voiceId, stability: stab, similarityBoost: sim, style: sty } = paramsRef.current;
 
-    if (!voiceId) {
-      // No voice ID yet — fall back and continue queue
-      setFallbackActive(true);
-      webSpeakRef.current?.(text);
-      resolve();
-      playNextRef.current();
-      return;
-    }
-
     try {
       abortRef.current = new AbortController();
       const res = await fetch('/api/tts', {
@@ -68,10 +70,12 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
       });
 
       if (!res.ok) {
-        if (res.status === 429 || res.status === 401) {
-          setFallbackActive(true);
-          webSpeakRef.current?.(text);
-        }
+        // Any HTTP error falls back to Web Speech and shows a specific message
+        if (res.status === 401) setElError('chave de API inválida · verifique ELEVENLABS_API_KEY');
+        else if (res.status === 429) setElError('limite de requisições atingido · aguarde');
+        else setElError(`erro ElevenLabs ${res.status}`);
+        setFallbackActive(true);
+        webSpeakRef.current?.(text);
         resolve();
         playNextRef.current();
         return;
@@ -93,6 +97,7 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
       sourceRef.current = source;
       source.onended = () => {
         setFallbackActive(false);
+        setElError(null);
         resolve();
         playNextRef.current();
       };
@@ -104,6 +109,7 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
         setElState('idle');
         return;
       }
+      setElError('erro de rede · ' + e.message);
       setFallbackActive(true);
       webSpeakRef.current?.(text);
       resolve();
@@ -132,7 +138,7 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
     stability, setStability,
     similarityBoost, setSimilarityBoost,
     elStyle, setElStyle,
-    elState, fallbackActive,
+    elState, fallbackActive, elError,
     speak, stop,
   };
 }

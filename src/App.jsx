@@ -184,6 +184,13 @@ export default function JarvisOS() {
         <VoicePanel
           voiceOut={speech.voiceOut}
           toggleVoiceOut={speech.toggleVoiceOut}
+          elVoices={speech.elVoices}
+          selectedVoiceId={speech.selectedVoiceId}
+          setSelectedVoiceId={speech.setSelectedVoiceId}
+          stability={speech.stability} setStability={speech.setStability}
+          similarityBoost={speech.similarityBoost} setSimilarityBoost={speech.setSimilarityBoost}
+          elStyle={speech.elStyle} setElStyle={speech.setElStyle}
+          fallbackActive={speech.fallbackActive}
           voices={speech.voices}
           selectedVoiceURI={speech.selectedVoiceURI}
           setSelectedVoiceURI={speech.setSelectedVoiceURI}

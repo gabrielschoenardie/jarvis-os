@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useElevenLabsTTS } from './useElevenLabsTTS.js';
 
 export function useSpeech({ onTranscriptReady }) {
   const [voiceOut, setVoiceOut] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
+  const [webSpeaking, setWebSpeaking] = useState(false);
   const [listening, setListening] = useState(false);
   const [voices, setVoices] = useState([]);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState(null);
@@ -16,26 +17,60 @@ export function useSpeech({ onTranscriptReady }) {
   const onTranscriptReadyRef = useRef(onTranscriptReady);
   useEffect(() => { onTranscriptReadyRef.current = onTranscriptReady; }, [onTranscriptReady]);
 
+  // Web Speech params ref — read inside ElevenLabs fallback without stale closure
+  const wsParamsRef = useRef({ voices: [], selectedVoiceURI: null, rate: 0.95, pitch: 0.92 });
+  useEffect(() => {
+    wsParamsRef.current = { voices, selectedVoiceURI, rate, pitch };
+  }, [voices, selectedVoiceURI, rate, pitch]);
+
   const speechSupported = typeof window !== 'undefined' && !!window.speechSynthesis;
   const recogSupported = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
+  // Web Speech single utterance — used as ElevenLabs fallback
+  const webSpeakSingle = useCallback((text) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const { voices: vs, selectedVoiceURI: uri, rate: r, pitch: p } = wsParamsRef.current;
+    const voice = vs.find(v => v.voiceURI === uri);
+    if (voice) u.voice = voice;
+    u.lang = 'pt-BR'; u.rate = r; u.pitch = p;
+    u.onstart = () => setWebSpeaking(true);
+    u.onend = () => setWebSpeaking(false);
+    u.onerror = () => setWebSpeaking(false);
+    window.speechSynthesis.speak(u);
+  }, []);
+
+  const elevenLabs = useElevenLabsTTS({ webSpeakSingle });
+
+  // Combined speaking: ElevenLabs primary + Web Speech fallback
+  const speaking = elevenLabs.elState === 'speaking' || webSpeaking;
+
+  // Load Web Speech voices (for fallback selector in VoicePanel)
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) { setVoiceError('síntese de voz indisponível'); return; }
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      setVoiceError('síntese de voz indisponível');
+      return;
+    }
     const load = () => {
       const all = window.speechSynthesis.getVoices() || [];
       const pt = all.filter(v => v.lang.startsWith('pt'));
       const final = pt.length > 0 ? pt : all;
       setVoices(final);
       if (!selectedVoiceURI && final.length > 0) {
-        const preferred = final.find(v => v.lang === 'pt-BR' && /felipe|daniel|male|masc/i.test(v.name)) || final.find(v => v.lang === 'pt-BR') || final[0];
+        const preferred =
+          final.find(v => v.lang === 'pt-BR' && /felipe|daniel|male|masc/i.test(v.name)) ||
+          final.find(v => v.lang === 'pt-BR') ||
+          final[0];
         setSelectedVoiceURI(preferred?.voiceURI);
       }
     };
     load();
     window.speechSynthesis.onvoiceschanged = load;
     return () => { if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = null; };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Speech recognition setup
   useEffect(() => {
     const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
     if (!SR) return;
@@ -54,64 +89,44 @@ export function useSpeech({ onTranscriptReady }) {
     recognitionRef.current = r;
   }, []);
 
+  // Public speak API — delegates to ElevenLabs
   const speak = (text) => {
-    if (!voiceOut || !text || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
-    if (voice) u.voice = voice;
-    u.lang = 'pt-BR'; u.rate = rate; u.pitch = pitch;
-    u.onstart = () => setSpeaking(true);
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(u);
+    if (!voiceOut || !text) return;
+    elevenLabs.speak(text);
   };
 
   const speakChunks = (chunks) => {
-    if (!voiceOut || !window.speechSynthesis || !chunks.length) return;
-    window.speechSynthesis.cancel();
-    let i = 0;
-    const next = () => {
-      if (i >= chunks.length) { setSpeaking(false); return; }
-      const u = new SpeechSynthesisUtterance(chunks[i++]);
-      const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
-      if (voice) u.voice = voice;
-      u.lang = 'pt-BR'; u.rate = rate; u.pitch = pitch;
-      u.onstart = () => setSpeaking(true);
-      u.onend = next;
-      u.onerror = () => setSpeaking(false);
-      window.speechSynthesis.speak(u);
-    };
-    next();
+    if (!voiceOut || !chunks.length) return;
+    chunks.forEach(chunk => elevenLabs.speak(chunk));
   };
 
   const toggleVoiceOut = () => {
     const next = !voiceOut;
     setVoiceOut(next);
     if (next) {
-      setTimeout(() => {
-        const u = new SpeechSynthesisUtterance('Canal de voz ativado, Sir. Estarei ouvindo.');
-        const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
-        if (voice) u.voice = voice;
-        u.lang = 'pt-BR'; u.rate = rate; u.pitch = pitch;
-        u.onstart = () => setSpeaking(true);
-        u.onend = () => setSpeaking(false);
-        window.speechSynthesis.speak(u);
-      }, 100);
-    } else { window.speechSynthesis?.cancel(); setSpeaking(false); }
+      setTimeout(() => elevenLabs.speak('Canal de voz ativado, Sir. Estarei ouvindo.'), 100);
+    } else {
+      elevenLabs.stop();
+      window.speechSynthesis?.cancel();
+      setWebSpeaking(false);
+    }
+  };
+
+  const stopSpeaking = () => {
+    elevenLabs.stop();
+    window.speechSynthesis?.cancel();
+    setWebSpeaking(false);
   };
 
   const startListening = () => {
     if (!recognitionRef.current || listening) return;
     try { setVoiceError(null); setListening(true); recognitionRef.current.start(); }
-    catch (e) { setListening(false); setVoiceError('falha ao iniciar microfone'); }
+    catch (_) { setListening(false); setVoiceError('falha ao iniciar microfone'); }
   };
 
   const stopListening = () => {
-    if (recognitionRef.current && listening) try { recognitionRef.current.stop(); } catch (e) {}
+    if (recognitionRef.current && listening) try { recognitionRef.current.stop(); } catch (_) {}
   };
-
-  const stopSpeaking = () => { window.speechSynthesis?.cancel(); setSpeaking(false); };
 
   return {
     voiceOut, speaking, listening,
@@ -121,5 +136,16 @@ export function useSpeech({ onTranscriptReady }) {
     speechSupported, recogSupported,
     speak, speakChunks, toggleVoiceOut,
     startListening, stopListening, stopSpeaking,
+    // ElevenLabs
+    elVoices: elevenLabs.elVoices,
+    selectedVoiceId: elevenLabs.selectedVoiceId,
+    setSelectedVoiceId: elevenLabs.setSelectedVoiceId,
+    stability: elevenLabs.stability,
+    setStability: elevenLabs.setStability,
+    similarityBoost: elevenLabs.similarityBoost,
+    setSimilarityBoost: elevenLabs.setSimilarityBoost,
+    elStyle: elevenLabs.elStyle,
+    setElStyle: elevenLabs.setElStyle,
+    fallbackActive: elevenLabs.fallbackActive,
   };
 }

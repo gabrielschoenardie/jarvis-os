@@ -191,6 +191,7 @@ export default function JarvisOS() {
           similarityBoost={speech.similarityBoost} setSimilarityBoost={speech.setSimilarityBoost}
           elStyle={speech.elStyle} setElStyle={speech.setElStyle}
           fallbackActive={speech.fallbackActive}
+          elError={speech.elError}
           voices={speech.voices}
           selectedVoiceURI={speech.selectedVoiceURI}
           setSelectedVoiceURI={speech.setSelectedVoiceURI}

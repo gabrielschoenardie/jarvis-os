@@ -19,6 +19,17 @@ const C = {
 };
 const display = { fontFamily: '"Rajdhani", sans-serif' };
 
+function splitIntoSpeakableChunks(text) {
+  return text
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/[*_`]/g, '')
+    .split(/\n{2,}|(?<=[.!?])\s+/)
+    .map(s => s.replace(/\n/g, ' ').trim())
+    .filter(s => s.length > 8);
+}
+
 async function callClaude(messages) {
   const response = await fetch('/api/chat', {
     method: 'POST',
@@ -168,6 +179,24 @@ export default function JarvisOS() {
     } else { window.speechSynthesis?.cancel(); setSpeaking(false); }
   };
 
+  const speakChunks = (chunks) => {
+    if (!voiceOut || !window.speechSynthesis || !chunks.length) return;
+    window.speechSynthesis.cancel();
+    let i = 0;
+    const next = () => {
+      if (i >= chunks.length) { setSpeaking(false); return; }
+      const u = new SpeechSynthesisUtterance(chunks[i++]);
+      const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
+      if (voice) u.voice = voice;
+      u.lang = 'pt-BR'; u.rate = rate; u.pitch = pitch;
+      u.onstart = () => setSpeaking(true);
+      u.onend = next;
+      u.onerror = () => setSpeaking(false);
+      window.speechSynthesis.speak(u);
+    };
+    next();
+  };
+
   const startListening = () => {
     if (!recognitionRef.current || listening) return;
     try { setVoiceError(null); setListening(true); recognitionRef.current.start(); }
@@ -276,13 +305,8 @@ export default function JarvisOS() {
       }
 
       if (voiceOut) {
-        const firstParagraph = responseText
-          .split(/\n\n+/)[0]
-          .replace(/```[\s\S]*?```/g, '')
-          .replace(/[#*`]/g, '')
-          .trim()
-          .slice(0, 400);
-        setTimeout(() => speak(firstParagraph), 250);
+        const chunks = splitIntoSpeakableChunks(responseText);
+        setTimeout(() => speakChunks(chunks), 250);
       }
     } catch (err) {
       setThinking(false);

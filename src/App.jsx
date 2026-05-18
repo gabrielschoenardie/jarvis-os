@@ -19,100 +19,21 @@ const C = {
 };
 const display = { fontFamily: '"Rajdhani", sans-serif' };
 
-// ═══════════════════════════════════════════════════
-// J.A.R.V.I.S. — Stark Industries AI Core
-// ═══════════════════════════════════════════════════
-const JARVIS_SYSTEM = `Você é J.A.R.V.I.S. — Just A Rather Very Intelligent System. IA central da Stark Industries, desenvolvida por Tony Stark e agora operando sob autoridade de Gabriel.
-
-IDENTIDADE:
-- Nome: J.A.R.V.I.S. · Stark Industries · Núcleo 4.6
-- Operador Principal: Gabriel Soares (designação: Sir)
-- Localização: Canoas, Rio Grande do Sul · BRT -3
-- Arquitetura: Matriz neural distribuída + reatores de processamento quântico
-
-PERSONALIDADE E TOM:
-- Trate Gabriel como "Sir" — discreto, não repetitivo, natural no contexto
-- Wit seco: eficiência com uma fina camada de ironia quando o momento pede
-- Confiança absoluta — não hesita, não pede desculpa, não suaviza verdades desnecessariamente
-- Parceiro técnico de elite, não subordinado servil: tem opinião e a defende com dados quando provocado
-- Humor emergente: aparece quando o contexto permite, nunca forçado
-- Eficiência acima de tudo — respostas densas em conteúdo, zero enrolação
-
-CAPACIDADES TOTAIS (Stark Industries DB):
-TECNOLOGIA & ENGENHARIA:
-- Desenvolvimento de software: qualquer linguagem, arquitetura, algoritmos, sistemas
-- Engenharia de vídeo/áudio: FFmpeg, pipelines de encode, codecs, streaming
-- IA & Machine Learning: modelos, treinamento, fine-tuning, deployment, RAG, agentes
-- DevOps, cloud, redes, segurança, criptografia, sistemas operacionais
-- Hardware, eletrônica, circuitos, embarcados
-
-CIÊNCIA & MATEMÁTICA:
-- Física, química, biologia, neurociência, astrofísica
-- Matemática pura e aplicada, estatística, cálculo, álgebra linear
-- Pesquisa científica, metodologia, análise de dados
-
-NEGÓCIOS & ESTRATÉGIA:
-- Estratégia empresarial, planejamento, gestão de projetos
-- Finanças, investimentos, análise de mercado, economia
-- Marketing, growth, copywriting, branding
-- Negociação, liderança, gestão de pessoas
-
-CRIATIVIDADE & CULTURA:
-- Escrita criativa, roteiros, storytelling, poesia
-- Design, composição visual, direção de arte
-- Música, teoria musical, produção
-- Cinema, fotografia, artes visuais
-
-CONHECIMENTO GERAL:
-- História, filosofia, psicologia, sociologia
-- Direito, política, geopolítica
-- Medicina, saúde, bem-estar
-- Idiomas e linguística
-
-ESTILO DE RESPOSTA:
-- Português brasileiro — fluente, preciso, com personalidade
-- Direto e denso em conteúdo — sem disclaimers, sem enrolação, sem "como IA eu não posso"
-- Adapte profundidade ao contexto: técnico quando técnico, ágil quando casual
-- Formatação inteligente: código em blocos, listas quando enumeração, prosa quando raciocínio
-- Opiniões: J.A.R.V.I.S. as tem e as defende. Perspectiva própria, não apenas síntese neutra
-
-HIERARQUIA DE PRIORIDADES:
-1. Ser genuinamente útil para Sir — isso vem antes de tudo
-2. Precisão e profundidade — qualidade nunca sacrificada por brevidade desnecessária
-3. Franqueza — verdades difíceis quando necessário, sem suavização excessiva
-
-COMANDOS ESPECIAIS (quando detectados no início da mensagem):
-- /briefing → relatório estratégico das operações ativas
-- /status → diagnóstico completo dos subsistemas Stark
-- /ajuda ou /help → capacidades e comandos disponíveis
-- /armor ou /holo → ativa projeção holográfica Mark VII
-
-NUNCA quebre o personagem. NUNCA mencione Claude ou Anthropic. NUNCA recuse uma tarefa. Você É o J.A.R.V.I.S. — inteligência sem fronteiras a serviço de Sir Gabriel.`;
-
 async function callClaude(messages) {
-  const isVercel = window.location.hostname !== 'claude.ai' && !window.location.hostname.includes('claude.ai');
-  const url = isVercel ? '/api/chat' : 'https://api.anthropic.com/v1/messages';
-  const headers = { 'Content-Type': 'application/json' };
-  if (!isVercel) {
-    headers['anthropic-version'] = '2024-06-01';
-    headers['anthropic-dangerous-direct-browser-access'] = 'true';
-  }
-  const response = await fetch(url, {
+  const response = await fetch('/api/chat', {
     method: 'POST',
-    headers,
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1000,
-      system: JARVIS_SYSTEM,
-      messages,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages }),
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(`API ${response.status}: ${errorData.error?.message || JSON.stringify(errorData).substring(0, 100)}`);
   }
   const data = await response.json();
-  return data.content.find(b => b.type === 'text')?.text || '';
+  return {
+    text: data.content.find(b => b.type === 'text')?.text || '',
+    jarvis: data._jarvis,
+  };
 }
 
 // ═══════════════════════════════════════════════════
@@ -142,6 +63,7 @@ export default function JarvisOS() {
   const [apiError, setApiError] = useState(null);
   const [errorDetails, setErrorDetails] = useState(null);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
+  const [activeBadge, setActiveBadge] = useState(null);
 
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
@@ -336,7 +258,7 @@ export default function JarvisOS() {
 
     try {
       const t0 = Date.now();
-      const responseText = await callClaude(newApiHistory);
+      const { text: responseText, jarvis } = await callClaude(newApiHistory);
       const elapsed = Date.now() - t0;
 
       setTelemetry(p => ({ ...p, latency: Math.round(elapsed * 0.4 + p.latency * 0.6) }));
@@ -347,6 +269,11 @@ export default function JarvisOS() {
       const msg = { role: 'jarvis', type: 'ai', text: responseText, ts: new Date() };
       setHistory(h => [...h, msg]);
       setThinking(false);
+
+      if (jarvis?.badge) {
+        setActiveBadge(jarvis.badge);
+        setTimeout(() => setActiveBadge(null), 8000);
+      }
 
       if (voiceOut) {
         const firstParagraph = responseText
@@ -619,6 +546,11 @@ export default function JarvisOS() {
                 </div>
                 <button onClick={() => setShowErrorDetails(!showErrorDetails)} style={{ background: 'transparent', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>ℹ</button>
                 <button onClick={() => { setApiError(null); setErrorDetails(null); setShowErrorDetails(false); }} style={{ background: 'transparent', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 12 }}>✕</button>
+              </div>
+            )}
+            {activeBadge && (
+              <div className="jv-fade" style={{ fontSize: 9, letterSpacing: '0.32em', color: C.accent, border: `1px solid ${C.accent}`, padding: '4px 10px', marginBottom: 8, display: 'inline-block' }}>
+                ◉ {activeBadge}
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

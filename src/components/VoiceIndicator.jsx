@@ -16,11 +16,11 @@ export function VoiceIndicator({ voiceOut, speaking, listening, onToggle, onPane
   );
 }
 
-export function ToggleBtn({ label, on, onClick }) {
+export function ToggleBtn({ label, on, onClick, disabled }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: disabled ? 0.4 : 1 }}>
       <span style={{ fontSize: 9, letterSpacing: '0.28em', color: C.muted }}>{label}</span>
-      <button onClick={onClick} style={{ background: on ? 'rgba(0,212,255,0.12)' : 'transparent', border: `1px solid ${on ? C.accent : C.line}`, color: on ? C.accent : C.muted, padding: '6px 12px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.2em', cursor: 'pointer' }}>
+      <button onClick={disabled ? undefined : onClick} style={{ background: on ? 'rgba(0,212,255,0.12)' : 'transparent', border: `1px solid ${on ? C.accent : C.line}`, color: on ? C.accent : C.muted, padding: '6px 12px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.2em', cursor: disabled ? 'not-allowed' : 'pointer' }}>
         {on ? '◉ ON' : '○ OFF'}
       </button>
     </div>

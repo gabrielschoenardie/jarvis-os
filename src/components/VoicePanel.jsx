@@ -9,13 +9,15 @@ export function VoicePanel({
   fallbackActive, elError,
   // Web Speech (fallback controls)
   voices, selectedVoiceURI, setSelectedVoiceURI, rate, setRate, pitch, setPitch,
-  speak, voiceError, apiError,
+  speak, voiceError, sttError, apiError,
+  conversationMode, setConversationMode,
   apiHistoryLength, onClearHistory,
 }) {
   return (
     <div className="jv-fade" style={{ position: 'relative', zIndex: 10, borderBottom: `1px solid ${C.line}`, background: 'rgba(0,212,255,0.03)', padding: '18px 28px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 26, flexWrap: 'wrap' }}>
         <ToggleBtn label="SAÍDA" on={voiceOut} onClick={toggleVoiceOut} />
+        <ToggleBtn label="CONVERSA" on={conversationMode} onClick={() => setConversationMode(v => !v)} />
 
         {/* ElevenLabs voice selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -96,8 +98,9 @@ export function VoicePanel({
 
       {fallbackActive && <div style={{ marginTop: 8, fontSize: 10, color: C.warn, letterSpacing: '0.12em' }}>⚠ voz premium indisponível · usando fallback</div>}
       {elError && <div style={{ marginTop: 4, fontSize: 10, color: C.critical, letterSpacing: '0.12em' }}>⚠ EL: {elError}</div>}
-      {voiceError && <div style={{ marginTop: 8, fontSize: 10, color: C.warn, letterSpacing: '0.12em' }}>⚠ {voiceError}</div>}
-      {apiError && <div style={{ marginTop: 8, fontSize: 10, color: C.critical, letterSpacing: '0.12em' }}>⚠ API: {apiError}</div>}
+      {sttError && <div style={{ marginTop: 4, fontSize: 10, color: C.warn, letterSpacing: '0.12em' }}>⚠ STT: {sttError}</div>}
+      {voiceError && <div style={{ marginTop: 4, fontSize: 10, color: C.warn, letterSpacing: '0.12em' }}>⚠ {voiceError}</div>}
+      {apiError && <div style={{ marginTop: 4, fontSize: 10, color: C.critical, letterSpacing: '0.12em' }}>⚠ API: {apiError}</div>}
     </div>
   );
 }

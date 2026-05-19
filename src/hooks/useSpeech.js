@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useElevenLabsTTS } from './useElevenLabsTTS.js';
+import { useSpeechInput } from './useSpeechInput.js';
 
-export function useSpeech({ onTranscriptReady }) {
+export function useSpeech({ onTranscriptReady, setInput }) {
   const [voiceOut, setVoiceOut] = useState(false);
   const [webSpeaking, setWebSpeaking] = useState(false);
-  const [listening, setListening] = useState(false);
   const [voices, setVoices] = useState([]);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState(null);
   const [voiceError, setVoiceError] = useState(null);
@@ -12,21 +12,21 @@ export function useSpeech({ onTranscriptReady }) {
   const [rate, setRate] = useState(0.95);
   const [pitch, setPitch] = useState(0.92);
 
-  const recognitionRef = useRef(null);
-  const pendingSubmitRef = useRef(null);
   const onTranscriptReadyRef = useRef(onTranscriptReady);
   useEffect(() => { onTranscriptReadyRef.current = onTranscriptReady; }, [onTranscriptReady]);
 
-  // Web Speech params ref — read inside ElevenLabs fallback without stale closure
+  const setInputRef = useRef(setInput);
+  useEffect(() => { setInputRef.current = setInput; }, [setInput]);
+
+  // Web Speech params ref — for ElevenLabs TTS fallback
   const wsParamsRef = useRef({ voices: [], selectedVoiceURI: null, rate: 0.95, pitch: 0.92 });
   useEffect(() => {
     wsParamsRef.current = { voices, selectedVoiceURI, rate, pitch };
   }, [voices, selectedVoiceURI, rate, pitch]);
 
   const speechSupported = typeof window !== 'undefined' && !!window.speechSynthesis;
-  const recogSupported = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
-  // Web Speech single utterance — used as ElevenLabs fallback
+  // Web Speech single utterance — ElevenLabs TTS fallback
   const webSpeakSingle = useCallback((text) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
@@ -43,7 +43,15 @@ export function useSpeech({ onTranscriptReady }) {
 
   const elevenLabs = useElevenLabsTTS({ webSpeakSingle });
 
-  // Combined speaking: ElevenLabs primary + Web Speech fallback
+  const speechInput = useSpeechInput({
+    onFinalTranscript: (text) => {
+      setInputRef.current?.(text);
+      onTranscriptReadyRef.current?.(text);
+    },
+    onInterrupt: () => elevenLabs.stop(),
+    elState: elevenLabs.elState,
+  });
+
   const speaking = elevenLabs.elState === 'speaking' || webSpeaking;
 
   // Load Web Speech voices (for fallback selector in VoicePanel)
@@ -70,26 +78,6 @@ export function useSpeech({ onTranscriptReady }) {
     return () => { if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = null; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Speech recognition setup
-  useEffect(() => {
-    const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    if (!SR) return;
-    const r = new SR();
-    r.lang = 'pt-BR'; r.continuous = false; r.interimResults = false;
-    r.onresult = (e) => { const t = e.results[0][0].transcript; pendingSubmitRef.current = t; };
-    r.onerror = (e) => { setVoiceError(`reconhecimento · ${e.error}`); setListening(false); };
-    r.onend = () => {
-      setListening(false);
-      if (pendingSubmitRef.current) {
-        const cmd = pendingSubmitRef.current;
-        pendingSubmitRef.current = null;
-        setTimeout(() => onTranscriptReadyRef.current?.(cmd), 200);
-      }
-    };
-    recognitionRef.current = r;
-  }, []);
-
-  // Public speak API — delegates to ElevenLabs
   const speak = (text) => {
     if (!voiceOut || !text) return;
     elevenLabs.speak(text);
@@ -118,24 +106,21 @@ export function useSpeech({ onTranscriptReady }) {
     setWebSpeaking(false);
   };
 
-  const startListening = () => {
-    if (!recognitionRef.current || listening) return;
-    try { setVoiceError(null); setListening(true); recognitionRef.current.start(); }
-    catch (_) { setListening(false); setVoiceError('falha ao iniciar microfone'); }
-  };
-
-  const stopListening = () => {
-    if (recognitionRef.current && listening) try { recognitionRef.current.stop(); } catch (_) {}
-  };
-
   return {
-    voiceOut, speaking, listening,
+    voiceOut, speaking,
+    listening: speechInput.listening,
     voices, selectedVoiceURI, setSelectedVoiceURI,
     voiceError, voicePanelOpen, setVoicePanelOpen,
     rate, setRate, pitch, setPitch,
-    speechSupported, recogSupported,
-    speak, speakChunks, toggleVoiceOut,
-    startListening, stopListening, stopSpeaking,
+    speechSupported,
+    recogSupported: speechInput.deepgramSupported,
+    speak, speakChunks, toggleVoiceOut, stopSpeaking,
+    startListening: speechInput.startListening,
+    stopListening: speechInput.stopListening,
+    partialTranscript: speechInput.partialTranscript,
+    sttError: speechInput.sttError,
+    conversationMode: speechInput.conversationMode,
+    setConversationMode: speechInput.setConversationMode,
     // ElevenLabs
     elVoices: elevenLabs.elVoices,
     selectedVoiceId: elevenLabs.selectedVoiceId,

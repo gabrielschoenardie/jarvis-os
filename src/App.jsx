@@ -46,9 +46,9 @@ export default function JarvisOS() {
 
   const speech = useSpeech({
     onTranscriptReady: (text) => {
-      setInput(text);
       submitCommandRef.current?.(text, { onModeChange: setMode, onFocusChange: setFocusMode });
     },
+    setInput,
   });
 
   const chat = useChat({
@@ -199,6 +199,9 @@ export default function JarvisOS() {
           pitch={speech.pitch} setPitch={speech.setPitch}
           speak={speech.speak}
           voiceError={speech.voiceError}
+          sttError={speech.sttError}
+          conversationMode={speech.conversationMode}
+          setConversationMode={speech.setConversationMode}
           apiError={chat.apiError}
           apiHistoryLength={apiHistoryRef.current.length / 2 | 0}
           onClearHistory={chat.clearHistory}
@@ -305,15 +308,20 @@ export default function JarvisOS() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKey}
-                placeholder={speech.listening ? 'canal de voz aberto...' : chat.thinking ? 'processando na matrix neural...' : ready ? 'aguardando instrução, Sir...' : 'inicializando...'}
+                placeholder={speech.partialTranscript ? 'ouvindo...' : speech.listening ? 'canal de voz aberto...' : chat.thinking ? 'processando na matrix neural...' : ready ? 'aguardando instrução, Sir...' : 'inicializando...'}
                 style={{ ...mono, flex: 1, background: 'transparent', border: 'none', color: C.text, fontSize: 14, letterSpacing: '0.02em', padding: '4px 0' }}
               />
-              <MicButton listening={speech.listening} onStart={speech.startListening} onStop={speech.stopListening} disabled={!speech.recogSupported || chat.thinking || !ready} />
+              <MicButton listening={speech.listening} onStart={speech.startListening} onStop={speech.stopListening} disabled={!speech.recogSupported || chat.thinking || !ready || !!speech.partialTranscript} />
               <button onClick={handleSubmit} disabled={!ready || chat.thinking || !input.trim()} style={{ background: 'transparent', border: `1px solid ${input.trim() ? C.accentDim : C.dim}`, color: input.trim() ? C.accent : C.dim, padding: '6px 14px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: input.trim() && !chat.thinking ? 'pointer' : 'not-allowed' }}>
                 ▸ ENVIAR
               </button>
               <span className="jv-blink" style={{ color: C.accent, fontSize: 14 }}>▌</span>
             </div>
+            {speech.partialTranscript && (
+              <div className="jv-fade" style={{ marginTop: 6, fontSize: 12, color: C.muted, letterSpacing: '0.04em', fontStyle: 'italic' }}>
+                ◎ {speech.partialTranscript}
+              </div>
+            )}
             <div style={{ marginTop: 10, display: 'flex', gap: 18, fontSize: 9.5, color: C.dim, letterSpacing: '0.22em', flexWrap: 'wrap' }}>
               <span>/ARMOR</span><span>/HOLO</span><span>/TERMINAL</span><span>/FOCO [tema]</span><span>/STATUS</span><span>/SAIR</span>
               <span style={{ color: C.accentDim }}>↵ tudo mais vai para a IA</span>

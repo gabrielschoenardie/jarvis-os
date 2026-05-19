@@ -6,6 +6,16 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@ricky0123/vad-react', '@ricky0123/vad-web', 'onnxruntime-web'],
   },
+  build: {
+    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          porcupine: ['@picovoice/porcupine-react', '@picovoice/porcupine-web'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     headers: {

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useElevenLabsTTS } from './useElevenLabsTTS.js';
 import { useSpeechInput } from './useSpeechInput.js';
+import { useWakeWord } from './useWakeWord.js';
 
 export function useSpeech({ onTranscriptReady, setInput }) {
   const [voiceOut, setVoiceOut] = useState(false);
+  const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   const [webSpeaking, setWebSpeaking] = useState(false);
   const [voices, setVoices] = useState([]);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState(null);
@@ -50,6 +52,11 @@ export function useSpeech({ onTranscriptReady, setInput }) {
     },
     onInterrupt: () => elevenLabs.stop(),
     elState: elevenLabs.elState,
+  });
+
+  const wakeWord = useWakeWord({
+    enabled: wakeWordEnabled && !speechInput.conversationMode,
+    onWakeWord: speechInput.startListening,
   });
 
   const speaking = elevenLabs.elState === 'speaking' || webSpeaking;
@@ -121,6 +128,10 @@ export function useSpeech({ onTranscriptReady, setInput }) {
     sttError: speechInput.sttError,
     conversationMode: speechInput.conversationMode,
     setConversationMode: speechInput.setConversationMode,
+    wakeWordEnabled,
+    setWakeWordEnabled,
+    wakeWordReady: wakeWord.wakeWordReady,
+    wakeWordError: wakeWord.wakeWordError,
     // ElevenLabs
     elVoices: elevenLabs.elVoices,
     selectedVoiceId: elevenLabs.selectedVoiceId,

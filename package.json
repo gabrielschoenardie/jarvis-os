@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "porcupine:setup": "node scripts/download-porcupine-model.mjs"
+    "porcupine:setup": "node scripts/download-porcupine-model.mjs",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@picovoice/porcupine-react": "^4.0.0",

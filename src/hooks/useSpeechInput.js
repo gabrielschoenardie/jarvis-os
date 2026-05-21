@@ -83,6 +83,8 @@ export function useSpeechInput({ onFinalTranscript, onInterrupt, elState }) {
 
   const vad = useMicVAD({
     startOnLoad: conversationMode,
+    baseAssetPath: '/',
+    onnxWASMBasePath: '/',
     additionalAudioConstraints: {
       echoCancellation: true,
       noiseSuppression: true,

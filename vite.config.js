@@ -7,10 +7,10 @@ export default defineConfig({
     react(),
     viteStaticCopy({
       targets: [
-        { src: 'node_modules/@ricky0123/vad-web/dist/vad.worklet.bundle.min.js', dest: '.', rename: { stripBase: true } },
-        { src: 'node_modules/@ricky0123/vad-web/dist/silero_vad_legacy.onnx', dest: '.', rename: { stripBase: true } },
-        { src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm', dest: '.', rename: { stripBase: true } },
-        { src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm', dest: '.', rename: { stripBase: true } },
+        { src: 'node_modules/@ricky0123/vad-web/dist/vad.worklet.bundle.min.js', dest: '.' },
+        { src: 'node_modules/@ricky0123/vad-web/dist/silero_vad_legacy.onnx', dest: '.' },
+        { src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm', dest: '.' },
+        { src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm', dest: '.' },
       ],
     }),
   ],

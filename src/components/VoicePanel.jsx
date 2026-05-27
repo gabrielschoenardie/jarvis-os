@@ -12,7 +12,6 @@ export function VoicePanel({
   speak, voiceError, sttError, apiError,
   conversationMode, setConversationMode,
   vadLoading,
-  wakeWordEnabled, setWakeWordEnabled, wakeWordReady, wakeWordError,
   apiHistoryLength, onClearHistory,
 }) {
   return (
@@ -20,12 +19,6 @@ export function VoicePanel({
       <div style={{ display: 'flex', alignItems: 'center', gap: 26, flexWrap: 'wrap' }}>
         <ToggleBtn label="SAÍDA" on={voiceOut} onClick={toggleVoiceOut} />
         <ToggleBtn label="CONVERSA" on={conversationMode} onClick={() => setConversationMode(v => !v)} />
-        <ToggleBtn
-          label="WAKE WORD"
-          on={wakeWordEnabled}
-          onClick={() => setWakeWordEnabled(v => !v)}
-          disabled={conversationMode}
-        />
 
         {/* ElevenLabs voice selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -109,10 +102,6 @@ export function VoicePanel({
       )}
       {fallbackActive && <div style={{ marginTop: 8, fontSize: 10, color: C.warn, letterSpacing: '0.12em' }}>⚠ voz premium indisponível · usando fallback</div>}
       {elError && <div style={{ marginTop: 4, fontSize: 10, color: C.critical, letterSpacing: '0.12em' }}>⚠ EL: {elError}</div>}
-      {wakeWordEnabled && wakeWordReady && !conversationMode && (
-        <div className="jv-fade" style={{ marginTop: 4, fontSize: 9, color: C.dim, letterSpacing: '0.22em' }}>◉ AGUARDANDO "JARVIS"</div>
-      )}
-      {wakeWordError && <div style={{ marginTop: 4, fontSize: 10, color: C.warn, letterSpacing: '0.12em' }}>⚠ WAKE: {wakeWordError?.message || String(wakeWordError)}</div>}
       {sttError && <div style={{ marginTop: 4, fontSize: 10, color: C.warn, letterSpacing: '0.12em' }}>⚠ STT: {sttError}</div>}
       {voiceError && <div style={{ marginTop: 4, fontSize: 10, color: C.warn, letterSpacing: '0.12em' }}>⚠ {voiceError}</div>}
       {apiError && <div style={{ marginTop: 4, fontSize: 10, color: C.critical, letterSpacing: '0.12em' }}>⚠ API: {apiError}</div>}

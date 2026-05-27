@@ -292,6 +292,9 @@ export default function JarvisOS() {
                   )}
                 </div>
                 <button onClick={() => chat.setShowErrorDetails(!chat.showErrorDetails)} style={{ background: 'transparent', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>ℹ</button>
+                {chat.lastFailedCmd && (
+                  <button onClick={() => { chat.setApiError(null); chat.setErrorDetails(null); chat.setShowErrorDetails(false); chat.retryLastCommand(); }} style={{ background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accent, padding: '2px 8px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.18em', cursor: 'pointer', whiteSpace: 'nowrap' }}>↺ RETRY</button>
+                )}
                 <button onClick={() => { chat.setApiError(null); chat.setErrorDetails(null); chat.setShowErrorDetails(false); }} style={{ background: 'transparent', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 12 }}>✕</button>
               </div>
             )}

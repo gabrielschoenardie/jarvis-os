@@ -41,6 +41,11 @@ export default async function handler(req) {
       // memoryContext: null — Fase 5
     });
 
+    const MAX_TURNS = 20;
+    const truncated = cleanedMessages.length > MAX_TURNS * 2
+      ? cleanedMessages.slice(-MAX_TURNS * 2)
+      : cleanedMessages;
+
     const upstreamResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -53,7 +58,7 @@ export default async function handler(req) {
         model: cmdConfig.model,
         max_tokens: 4096,
         system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-        messages: cleanedMessages,
+        messages: truncated,
         stream,
       }),
     });

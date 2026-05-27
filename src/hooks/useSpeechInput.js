@@ -46,7 +46,7 @@ export function useSpeechInput({ onFinalTranscript, onInterrupt, elState }) {
       }
       const { key } = await res.json();
 
-      const ws = new WebSocket(`wss://api.elevenlabs.io/v1/speech-to-text/realtime?token=${key}`);
+      const ws = new WebSocket(`wss://api.elevenlabs.io/v1/speech-to-text/realtime?token=${key}&language_code=pt`);
       ws.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);

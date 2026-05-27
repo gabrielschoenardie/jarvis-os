@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { callClaude, splitIntoSpeakableChunks } from '../lib/anthropic.js';
 
 export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
@@ -10,6 +10,32 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
   const [errorDetails, setErrorDetails] = useState(null);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [activeBadge, setActiveBadge] = useState(null);
+
+  // Fase 10: restaurar histórico no mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('jarvis-history');
+      if (saved) {
+        const { api, ui } = JSON.parse(saved);
+        const restoredApi = api || [];
+        setApiHistory(restoredApi);
+        if (apiHistoryRef) apiHistoryRef.current = restoredApi;
+        setHistory(ui || []);
+      }
+    } catch (_) {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fase 10: persistir histórico a cada mudança
+  useEffect(() => {
+    if (history.length === 0 && apiHistory.length === 0) return;
+    try {
+      const MAX_TURNS = 20;
+      localStorage.setItem('jarvis-history', JSON.stringify({
+        api: apiHistory.slice(-MAX_TURNS * 2),
+        ui: history.slice(-60),
+      }));
+    } catch (_) {}
+  }, [history, apiHistory]);
 
   const handleLocalCommand = (cmd, currentApiHistory) => {
     const lower = cmd.trim().toLowerCase();
@@ -164,6 +190,7 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
     setApiHistory([]);
     setHistory([]);
     if (apiHistoryRef) apiHistoryRef.current = [];
+    localStorage.removeItem('jarvis-history');
   };
 
   return {

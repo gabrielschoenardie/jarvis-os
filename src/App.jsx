@@ -89,6 +89,13 @@ export default function JarvisOS() {
     context: Math.round(chat.apiHistory.length / 2 / 20 * 100),
   };
 
+  const memLabel = telemetry.memType === 'heap' ? 'HEAP JS'
+    : telemetry.memType === 'device' ? 'RAM DEVICE'
+    : 'MEMÓRIA';
+  const memUnit = telemetry.memType === 'heap' ? '%'
+    : telemetry.memType === 'device' ? 'GB'
+    : '';
+
   const handleSubmit = () => {
     if (!ready || !input.trim()) return;
     const cmd = input;
@@ -343,7 +350,7 @@ export default function JarvisOS() {
         <aside style={{ borderLeft: `1px solid ${C.line}`, padding: '24px 20px', background: 'rgba(0,0,0,0.22)' }}>
           <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 18 }}>TELEMETRIA</div>
           <Meter label="CONTEXTO IA" value={enrichedTelemetry.context} unit="%" />
-          <Meter label="HEAP JS" value={enrichedTelemetry.mem ?? '—'} unit={enrichedTelemetry.mem != null ? '%' : ''} />
+          <Meter label={memLabel} value={enrichedTelemetry.mem ?? '—'} unit={enrichedTelemetry.mem != null ? memUnit : ''} />
           <div style={{ marginTop: 16, marginBottom: 22 }}>
             <div style={{ fontSize: 9, color: C.dim, letterSpacing: '0.28em', marginBottom: 6 }}>LATÊNCIA API</div>
             <div style={{ ...display, fontSize: 26, color: C.text, fontWeight: 300 }}>

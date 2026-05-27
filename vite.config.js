@@ -19,13 +19,6 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 2000,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          porcupine: ['@picovoice/porcupine-react', '@picovoice/porcupine-web'],
-        },
-      },
-    },
   },
   server: {
     port: 5173,

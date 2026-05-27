@@ -203,10 +203,6 @@ export default function JarvisOS() {
           conversationMode={speech.conversationMode}
           setConversationMode={speech.setConversationMode}
           vadLoading={speech.vadLoading}
-          wakeWordEnabled={speech.wakeWordEnabled}
-          setWakeWordEnabled={speech.setWakeWordEnabled}
-          wakeWordReady={speech.wakeWordReady}
-          wakeWordError={speech.wakeWordError}
           apiError={chat.apiError}
           apiHistoryLength={apiHistoryRef.current.length / 2 | 0}
           onClearHistory={chat.clearHistory}
@@ -330,9 +326,6 @@ export default function JarvisOS() {
             <div style={{ marginTop: 10, display: 'flex', gap: 18, fontSize: 9.5, color: C.dim, letterSpacing: '0.22em', flexWrap: 'wrap' }}>
               <span>/ARMOR</span><span>/HOLO</span><span>/TERMINAL</span><span>/FOCO [tema]</span><span>/STATUS</span><span>/SAIR</span>
               <span style={{ color: C.accentDim }}>↵ tudo mais vai para a IA</span>
-              {speech.wakeWordEnabled && speech.wakeWordReady && !speech.conversationMode && (
-                <span style={{ color: C.dim }}>◉ WAKE</span>
-              )}
               <span style={{ marginLeft: 'auto', color: speech.voiceOut ? C.accent : C.dim }}>{speech.voiceOut ? '◉ VOZ ATIVA' : '○ VOZ'}</span>
             </div>
           </div>

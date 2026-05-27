@@ -118,9 +118,44 @@ export function useSpeechInput({ onFinalTranscript, onInterrupt, elState }) {
     },
   });
 
+  // Fix 1: React to conversation mode toggle
+  useEffect(() => {
+    if (conversationMode) {
+      if (!vad.loading) {
+        setSttError(null);
+        vad.start?.();
+      }
+      // If still loading, Fix 2 (below) will auto-start when ready
+    } else {
+      vad.pause?.();
+      closeWS();
+      setListening(false);
+      setPartialTranscript('');
+    }
+  }, [conversationMode, vad.loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fix 2: Auto-start when VAD finishes loading and conversation mode is already ON
+  useEffect(() => {
+    if (!vad.loading && conversationMode) {
+      setSttError(null);
+      vad.start?.();
+    }
+  }, [vad.loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fix 3: Surface VAD initialization errors
+  useEffect(() => {
+    if (vad.errored) {
+      setSttError('VAD: ' + (typeof vad.errored === 'string' ? vad.errored : vad.errored?.message || 'falha ao inicializar'));
+    }
+  }, [vad.errored]);
+
   // Manual start/stop for non-conversation mode
   const startListening = useCallback(() => {
     if (conversationMode) return;
+    if (vad.loading) {
+      setSttError('aguarde: inicializando VAD...');
+      return;
+    }
     setSttError(null);
     vad.start?.();
   }, [conversationMode, vad]);
@@ -147,5 +182,6 @@ export function useSpeechInput({ onFinalTranscript, onInterrupt, elState }) {
     startListening,
     stopListening,
     deepgramSupported: typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia,
+    vadLoading: vad.loading,
   };
 }

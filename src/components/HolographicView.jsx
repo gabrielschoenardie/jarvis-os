@@ -141,8 +141,8 @@ export function HolographicView({ telemetry, history, thinking, speaking, listen
         <div className="jv-holo-in" style={{ position: 'absolute', bottom: 24, left: 28, pointerEvents: 'auto' }}>
           <HoloPanel>
             <div style={{ fontSize: 9, color: '#4a7a99', letterSpacing: '0.32em', marginBottom: 10 }}>TELEMETRIA · TEMPO REAL</div>
-            <HoloRow label="POTÊNCIA" value={`${Math.round(telemetry.load)}%`} />
-            <HoloRow label="MEMÓRIA" value={`${Math.round(telemetry.mem)}%`} />
+            <HoloRow label="CONTEXTO IA" value={`${telemetry.context}%`} />
+            <HoloRow label="HEAP JS" value={telemetry.mem != null ? `${telemetry.mem}%` : '—'} />
             <HoloRow label="LATÊNCIA API" value={`${Math.round(telemetry.latency)} ms`} />
           </HoloPanel>
         </div>

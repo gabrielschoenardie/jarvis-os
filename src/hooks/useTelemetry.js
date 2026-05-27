@@ -2,7 +2,16 @@ import { useState, useEffect } from 'react';
 
 export function useTelemetry() {
   const [time, setTime] = useState(new Date());
-  const [telemetry, setTelemetry] = useState({ latency: 0, mem: null });
+  const [telemetry, setTelemetry] = useState(() => {
+    const memType = performance.memory ? 'heap'
+      : navigator.deviceMemory ? 'device'
+      : null;
+    return {
+      latency: 0,
+      mem: memType === 'device' ? navigator.deviceMemory : null,
+      memType,
+    };
+  });
 
   useEffect(() => {
     const t = setInterval(() => {

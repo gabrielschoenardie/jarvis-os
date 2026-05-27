@@ -85,6 +85,7 @@ export default async function handler(req) {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
           'Connection': 'keep-alive',
+          'X-Jarvis-Meta': JSON.stringify({ command, badge: cmdConfig.badge, model: cmdConfig.model }),
         },
       });
     }

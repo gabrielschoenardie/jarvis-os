@@ -5,6 +5,7 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
   const [history, setHistory] = useState([]);
   const [apiHistory, setApiHistory] = useState([]);
   const [thinking, setThinking] = useState(false);
+  const [streamText, setStreamText] = useState('');
   const [apiError, setApiError] = useState(null);
   const [errorDetails, setErrorDetails] = useState(null);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
@@ -93,8 +94,29 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
 
     try {
       const t0 = Date.now();
-      const { text: responseText, jarvis } = await callClaude(newApiHistory);
+      let ttsBuffer = '';
+
+      const { text: responseText, jarvis } = await callClaude(newApiHistory, {
+        onChunk: (_chunk, fullText) => {
+          setStreamText(fullText);
+          if (speakChunks) {
+            const lastBoundary = Math.max(
+              fullText.lastIndexOf('. '),
+              fullText.lastIndexOf('! '),
+              fullText.lastIndexOf('? ')
+            );
+            if (lastBoundary >= ttsBuffer.length) {
+              const toSpeak = fullText.slice(ttsBuffer.length, lastBoundary + 2);
+              ttsBuffer = fullText.slice(0, lastBoundary + 2);
+              const chunks = splitIntoSpeakableChunks(toSpeak);
+              if (chunks.length) speakChunks(chunks);
+            }
+          }
+        },
+      });
+
       const elapsed = Date.now() - t0;
+      setStreamText('');
 
       setTelemetry(p => ({ ...p, latency: Math.round(elapsed * 0.4 + p.latency * 0.6) }));
 
@@ -111,10 +133,14 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
       }
 
       if (speakChunks) {
-        const chunks = splitIntoSpeakableChunks(responseText);
-        setTimeout(() => speakChunks(chunks), 250);
+        const remaining = responseText.slice(ttsBuffer.length).trim();
+        if (remaining) {
+          const chunks = splitIntoSpeakableChunks(remaining);
+          setTimeout(() => speakChunks(chunks), 250);
+        }
       }
     } catch (err) {
+      setStreamText('');
       setThinking(false);
       const errMsg = err.message || 'Erro desconhecido';
       console.error('J.A.R.V.I.S. API Error:', { message: errMsg, stack: err.stack, timestamp: new Date().toISOString() });
@@ -142,7 +168,7 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
 
   return {
     history, apiHistory,
-    thinking, activeBadge,
+    thinking, streamText, activeBadge,
     apiError, errorDetails, showErrorDetails,
     setShowErrorDetails, setApiError, setErrorDetails,
     submitCommand, clearHistory,

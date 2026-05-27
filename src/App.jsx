@@ -76,7 +76,7 @@ export default function JarvisOS() {
 
   useEffect(() => {
     if (scrollRef.current && mode === 'terminal') scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [chat.history, chat.thinking, bootStage, mode]);
+  }, [chat.history, chat.thinking, chat.streamText, bootStage, mode]);
 
   useEffect(() => {
     if (bootStage === 5 && inputRef.current) inputRef.current.focus();
@@ -272,7 +272,7 @@ export default function JarvisOS() {
           )}
 
           {mode === 'terminal' ? (
-            <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={chat.history} thinking={chat.thinking} />
+            <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={chat.history} thinking={chat.thinking} streamText={chat.streamText} />
           ) : (
             <HolographicView telemetry={telemetry} history={chat.history} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} ready={ready} time={time} />
           )}

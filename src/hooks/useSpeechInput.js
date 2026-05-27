@@ -1,12 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
 
-function float32ToInt16(float32) {
+function float32ToBase64PCM(float32) {
   const int16 = new Int16Array(float32.length);
   for (let i = 0; i < float32.length; i++) {
     int16[i] = Math.max(-32768, Math.min(32767, float32[i] * 32768));
   }
-  return int16;
+  const bytes = new Uint8Array(int16.buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i += 8192) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  }
+  return btoa(binary);
 }
 
 export function useSpeechInput({ onFinalTranscript, onInterrupt, elState }) {
@@ -25,10 +30,10 @@ export function useSpeechInput({ onFinalTranscript, onInterrupt, elState }) {
   useEffect(() => { elStateRef.current = elState; }, [elState]);
 
   const closeWS = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      try { wsRef.current.send(JSON.stringify({ type: 'CloseStream' })); } catch (_) {}
+    if (wsRef.current) {
+      try { wsRef.current.close(); } catch (_) {}
+      wsRef.current = null;
     }
-    wsRef.current = null;
   }, []);
 
   const openWebSocket = useCallback(async () => {
@@ -41,42 +46,30 @@ export function useSpeechInput({ onFinalTranscript, onInterrupt, elState }) {
       }
       const { key } = await res.json();
 
-      const params = new URLSearchParams({
-        model: 'nova-3',
-        language: 'pt-BR',
-        punctuate: 'true',
-        interim_results: 'true',
-        encoding: 'linear16',
-        sample_rate: '16000',
-        channels: '1',
-        access_token: key,
-      });
-
-      const ws = new WebSocket(`wss://api.deepgram.com/v1/listen?${params}`);
+      const ws = new WebSocket(`wss://api.elevenlabs.io/v1/speech-to-text/realtime?token=${key}`);
       ws.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
-          const alt = data?.channel?.alternatives?.[0];
-          const transcript = alt?.transcript?.trim();
+          const transcript = data?.text?.trim();
           if (!transcript) return;
 
-          if (data.is_final) {
+          if (data.message_type === 'committed_transcript') {
             setPartialTranscript('');
             setListening(false);
             onFinalRef.current?.(transcript);
-          } else {
+          } else if (data.message_type === 'partial_transcript') {
             setPartialTranscript(transcript);
           }
         } catch (_) {}
       };
-      ws.onerror = () => setSttError('erro WebSocket Deepgram');
+      ws.onerror = () => setSttError('erro WebSocket ElevenLabs Scribe');
       ws.onclose = () => {
         if (wsRef.current === ws) wsRef.current = null;
       };
       wsRef.current = ws;
       return ws;
     } catch (e) {
-      setSttError('falha ao conectar Deepgram · ' + e.message);
+      setSttError('falha ao conectar Scribe · ' + e.message);
       return null;
     }
   }, []);
@@ -106,9 +99,12 @@ export function useSpeechInput({ onFinalTranscript, onInterrupt, elState }) {
         setPartialTranscript('');
         return;
       }
-      const int16 = float32ToInt16(audio);
-      ws.send(int16.buffer);
-      ws.send(JSON.stringify({ type: 'CloseStream' }));
+      ws.send(JSON.stringify({
+        message_type: 'input_audio_chunk',
+        audio_base_64: float32ToBase64PCM(audio),
+        commit: true,
+        sample_rate: 16000,
+      }));
       wsRef.current = null;
     },
     onVADMisfire: () => {

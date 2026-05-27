@@ -11,6 +11,8 @@ export default defineConfig({
         { src: 'node_modules/@ricky0123/vad-web/dist/silero_vad_legacy.onnx', dest: '.' },
         { src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm', dest: '.' },
         { src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm', dest: '.' },
+        { src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs', dest: '.' },
+        { src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs', dest: '.' },
       ],
     }),
   ],

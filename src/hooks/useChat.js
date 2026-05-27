@@ -39,7 +39,7 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
         '◉ DEFESA · online · sem ameaças detectadas',
         '◉ MARK VII · standby · disponível para deploy',
         '◉ ARC REACTOR · potência 100% · estável',
-        `◉ MODELO · claude-sonnet-4.6 · ${currentApiHistory.length > 0 ? Math.floor(currentApiHistory.length / 2) + ' turnos no contexto' : 'contexto limpo'}`,
+        `◉ MODELO · claude-sonnet-4.6 · ${currentApiHistory.length > 0 ? Math.min(Math.floor(currentApiHistory.length / 2), 20) + ' / 20 turnos' : 'contexto limpo'}`,
       ]};
     }
     if (lower === '/briefing') {

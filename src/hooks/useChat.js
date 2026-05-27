@@ -14,6 +14,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
   const [activeBadge, setActiveBadge] = useState(null);
   const [lastFailedCmd, setLastFailedCmd] = useState(null);
   const [lastFailedCallbacks, setLastFailedCallbacks] = useState(null);
+  const [sessionTokens, setSessionTokens] = useState(0);
 
   // Fase 10: restaurar histórico no mount
   useEffect(() => {
@@ -129,6 +130,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
       let attempt = 0;
       let responseText = '';
       let jarvis = null;
+      let tokenUsage = null;
 
       const onChunk = (_chunk, fullText) => {
         setStreamText(fullText);
@@ -152,7 +154,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
         try {
           startTimer?.();
           const apiT0 = Date.now();
-          ({ text: responseText, jarvis } = await callClaude(newApiHistory, { onChunk }));
+          ({ text: responseText, jarvis, tokenUsage } = await callClaude(newApiHistory, { onChunk }));
           stopTimer?.(Date.now() - apiT0);
           break;
         } catch (err) {
@@ -178,6 +180,10 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
 
       setHistory(h => [...h, { role: 'jarvis', type: 'ai', text: responseText, ts: new Date() }]);
       setThinking(false);
+
+      if (tokenUsage) {
+        setSessionTokens(t => t + tokenUsage.input + tokenUsage.output);
+      }
 
       if (jarvis?.badge) {
         setActiveBadge(jarvis.badge);
@@ -229,6 +235,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
   const clearHistory = () => {
     setApiHistory([]);
     setHistory([]);
+    setSessionTokens(0);
     if (apiHistoryRef) apiHistoryRef.current = [];
     localStorage.removeItem('jarvis-history');
   };
@@ -237,7 +244,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
     history, apiHistory,
     thinking, streamText, activeBadge,
     apiError, errorDetails, showErrorDetails,
-    lastFailedCmd,
+    lastFailedCmd, sessionTokens,
     setShowErrorDetails, setApiError, setErrorDetails,
     submitCommand, retryLastCommand, clearHistory,
   };

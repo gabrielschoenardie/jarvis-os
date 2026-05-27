@@ -142,10 +142,7 @@ export function HolographicView({ telemetry, history, thinking, speaking, listen
           <HoloPanel>
             <div style={{ fontSize: 9, color: '#4a7a99', letterSpacing: '0.32em', marginBottom: 10 }}>TELEMETRIA · TEMPO REAL</div>
             <HoloRow label="CONTEXTO IA" value={`${telemetry.context}%`} />
-            <HoloRow
-              label={telemetry.memType === 'heap' ? 'HEAP JS' : telemetry.memType === 'device' ? 'RAM DEVICE' : 'MEMÓRIA'}
-              value={telemetry.mem != null ? `${telemetry.mem}${telemetry.memType === 'heap' ? '%' : ' GB'}` : '—'}
-            />
+            <HoloRow label="TOKENS SESSÃO" value={`${telemetry.tokens ?? 0} tk`} />
             <HoloRow label="LATÊNCIA API" value={`${Math.round(telemetry.latency)} ms`} />
           </HoloPanel>
         </div>

@@ -85,7 +85,45 @@ export default async function handler(req) {
         command,
         ttfb_ms: Date.now() - t0,
       }));
-      return new Response(upstreamResponse.body, {
+
+      let inputTokens = 0, outputTokens = 0;
+      let sseLineBuffer = '';
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+
+      const { readable, writable } = new TransformStream({
+        transform(chunk, controller) {
+          sseLineBuffer += decoder.decode(chunk, { stream: true });
+          const lines = sseLineBuffer.split('\n');
+          sseLineBuffer = lines.pop();
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const json = line.slice(6).trim();
+              if (json !== '[DONE]') {
+                try {
+                  const ev = JSON.parse(json);
+                  if (ev.type === 'message_start') {
+                    inputTokens = ev.message?.usage?.input_tokens ?? 0;
+                  } else if (ev.type === 'message_delta' && ev.usage) {
+                    outputTokens = ev.usage.output_tokens ?? 0;
+                  }
+                } catch (_) {}
+              }
+            }
+            controller.enqueue(encoder.encode(line + '\n'));
+          }
+        },
+        flush(controller) {
+          if (sseLineBuffer) controller.enqueue(encoder.encode(sseLineBuffer + '\n'));
+          controller.enqueue(encoder.encode(
+            `data: ${JSON.stringify({ type: 'jarvis_tokens', input: inputTokens, output: outputTokens })}\n\n`
+          ));
+        },
+      });
+
+      upstreamResponse.body.pipeTo(writable);
+
+      return new Response(readable, {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',

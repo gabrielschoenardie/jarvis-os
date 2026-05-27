@@ -35,6 +35,7 @@ export async function callClaude(messages, { onChunk } = {}) {
   const decoder = new TextDecoder();
   let fullText = '';
   let buffer = '';
+  let tokenUsage = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -51,10 +52,12 @@ export async function callClaude(messages, { onChunk } = {}) {
         if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
           fullText += ev.delta.text;
           onChunk(ev.delta.text, fullText);
+        } else if (ev.type === 'jarvis_tokens') {
+          tokenUsage = { input: ev.input, output: ev.output };
         }
       } catch (_) {}
     }
   }
 
-  return { text: fullText, jarvis };
+  return { text: fullText, jarvis, tokenUsage };
 }

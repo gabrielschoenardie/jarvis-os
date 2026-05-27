@@ -130,7 +130,7 @@ function BootSequence({ stage }) {
   );
 }
 
-export function TerminalView({ scrollRef, bootStage, history, thinking }) {
+export function TerminalView({ scrollRef, bootStage, history, thinking, streamText }) {
   return (
     <div ref={scrollRef} className="jv-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '36px 56px 24px 56px' }}>
       <BootSequence stage={bootStage} />
@@ -139,7 +139,15 @@ export function TerminalView({ scrollRef, bootStage, history, thinking }) {
           {msg.role === 'operator' ? <OperatorLine msg={msg} /> : <JarvisResponse msg={msg} />}
         </div>
       ))}
-      {thinking && <ThinkingIndicator />}
+      {thinking && !streamText && <ThinkingIndicator />}
+      {thinking && streamText && (
+        <div style={{ marginBottom: 28 }}>
+          <JarvisLabel>
+            <AIText text={streamText} />
+            <span className="jv-blink" style={{ color: C.accent, fontSize: 13 }}>▌</span>
+          </JarvisLabel>
+        </div>
+      )}
     </div>
   );
 }

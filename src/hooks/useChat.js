@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { callClaude, splitIntoSpeakableChunks } from '../lib/anthropic.js';
 
+const BACKOFF_MS = [2000, 4000, 8000];
+
 export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
   const [history, setHistory] = useState([]);
   const [apiHistory, setApiHistory] = useState([]);
@@ -10,6 +12,8 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
   const [errorDetails, setErrorDetails] = useState(null);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [activeBadge, setActiveBadge] = useState(null);
+  const [lastFailedCmd, setLastFailedCmd] = useState(null);
+  const [lastFailedCallbacks, setLastFailedCallbacks] = useState(null);
 
   // Fase 10: restaurar histórico no mount
   useEffect(() => {
@@ -98,6 +102,8 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
   const submitCommand = async (cmd, { onModeChange, onFocusChange } = {}) => {
     if (!cmd || !cmd.trim() || thinking) return;
     setApiError(null);
+    setLastFailedCmd(null);
+    setLastFailedCallbacks(null);
 
     const currentApiHistory = apiHistoryRef ? apiHistoryRef.current : [];
     const localResult = handleLocalCommand(cmd, currentApiHistory);
@@ -121,25 +127,45 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
     try {
       const t0 = Date.now();
       let ttsBuffer = '';
+      let attempt = 0;
+      let responseText = '';
+      let jarvis = null;
 
-      const { text: responseText, jarvis } = await callClaude(newApiHistory, {
-        onChunk: (_chunk, fullText) => {
-          setStreamText(fullText);
-          if (speakChunks) {
-            const lastBoundary = Math.max(
-              fullText.lastIndexOf('. '),
-              fullText.lastIndexOf('! '),
-              fullText.lastIndexOf('? ')
-            );
-            if (lastBoundary >= ttsBuffer.length) {
-              const toSpeak = fullText.slice(ttsBuffer.length, lastBoundary + 2);
-              ttsBuffer = fullText.slice(0, lastBoundary + 2);
-              const chunks = splitIntoSpeakableChunks(toSpeak);
-              if (chunks.length) speakChunks(chunks);
-            }
+      const onChunk = (_chunk, fullText) => {
+        setStreamText(fullText);
+        if (speakChunks) {
+          const lastBoundary = Math.max(
+            fullText.lastIndexOf('. '),
+            fullText.lastIndexOf('! '),
+            fullText.lastIndexOf('? ')
+          );
+          if (lastBoundary >= ttsBuffer.length) {
+            const toSpeak = fullText.slice(ttsBuffer.length, lastBoundary + 2);
+            ttsBuffer = fullText.slice(0, lastBoundary + 2);
+            const chunks = splitIntoSpeakableChunks(toSpeak);
+            if (chunks.length) speakChunks(chunks);
           }
-        },
-      });
+        }
+      };
+
+      // Fix 2: exponential backoff para 429
+      while (true) {
+        try {
+          ({ text: responseText, jarvis } = await callClaude(newApiHistory, { onChunk }));
+          break;
+        } catch (err) {
+          if (err.message.includes('API 429') && attempt < BACKOFF_MS.length) {
+            const wait = BACKOFF_MS[attempt];
+            ttsBuffer = '';
+            setStreamText(`⟳ aguardando ${wait / 1000}s · tentativa ${attempt + 1}/${BACKOFF_MS.length}...`);
+            await new Promise(r => setTimeout(r, wait));
+            setStreamText('');
+            attempt++;
+          } else {
+            throw err;
+          }
+        }
+      }
 
       const elapsed = Date.now() - t0;
       setStreamText('');
@@ -176,14 +202,27 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
       if (errMsg.includes('API 400')) { errorType = 'Requisição Inválida'; userMessage = 'Verificar configuração da requisição ou credenciais.'; }
       else if (errMsg.includes('API 401')) { errorType = 'Autenticação'; userMessage = 'Chave API inválida ou expirada no Vercel.'; }
       else if (errMsg.includes('API 403')) { errorType = 'Permissão'; userMessage = 'Chave API sem permissão para este modelo.'; }
-      else if (errMsg.includes('API 429')) { errorType = 'Limite'; userMessage = 'Muitas requisições. Aguarde e tente novamente.'; }
+      else if (errMsg.includes('API 429')) { errorType = 'Limite'; userMessage = 'Limite excedido após retentativas. Aguarde e tente novamente.'; }
       else if (errMsg.includes('API 500')) { errorType = 'Servidor'; userMessage = 'Servidores indisponíveis no momento.'; }
       else if (errMsg.includes('fetch')) { errorType = 'Conexão'; userMessage = 'Verificar conexão com internet ou CORS.'; }
 
+      // Fix 1: armazenar último comando para retry
+      setLastFailedCmd(cmd);
+      setLastFailedCallbacks({ onModeChange, onFocusChange });
       setApiError(`[${errorType}] ${errMsg}`);
       setErrorDetails({ type: errorType, fullMessage: errMsg, stack: err.stack });
       setHistory(h => [...h, { role: 'jarvis', type: 'text', lines: [`Falha no núcleo: ${errorType}`, userMessage], ts: new Date() }]);
     }
+  };
+
+  // Fix 1: retentar último comando com um clique
+  const retryLastCommand = () => {
+    if (!lastFailedCmd) return;
+    const cmd = lastFailedCmd;
+    const callbacks = lastFailedCallbacks || {};
+    setLastFailedCmd(null);
+    setLastFailedCallbacks(null);
+    submitCommand(cmd, callbacks);
   };
 
   const clearHistory = () => {
@@ -197,7 +236,8 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
     history, apiHistory,
     thinking, streamText, activeBadge,
     apiError, errorDetails, showErrorDetails,
+    lastFailedCmd,
     setShowErrorDetails, setApiError, setErrorDetails,
-    submitCommand, clearHistory,
+    submitCommand, retryLastCommand, clearHistory,
   };
 }

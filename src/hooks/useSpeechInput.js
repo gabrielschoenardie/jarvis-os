@@ -92,13 +92,29 @@ export function useSpeechInput({ onFinalTranscript, onInterrupt, elState }) {
       }
       openWebSocket();
     },
-    onSpeechEnd: (audio) => {
-      const ws = wsRef.current;
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        setListening(false);
-        setPartialTranscript('');
-        return;
+    onSpeechEnd: async (audio) => {
+      let ws = wsRef.current;
+
+      // Fix 3: se WS ainda conectando, aguardar até OPEN (máx 3s)
+      if (ws && ws.readyState === WebSocket.CONNECTING) {
+        await new Promise((resolve) => {
+          const t = setTimeout(resolve, 3000);
+          ws.addEventListener('open', () => { clearTimeout(t); resolve(); }, { once: true });
+          ws.addEventListener('error', () => { clearTimeout(t); resolve(); }, { once: true });
+        });
       }
+
+      // Fix 3: se WS não está OPEN, tentar reconectar uma vez
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        ws = await openWebSocket();
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          setListening(false);
+          setPartialTranscript('');
+          setSttError('reconexão falhou · fale novamente');
+          return;
+        }
+      }
+
       ws.send(JSON.stringify({
         message_type: 'input_audio_chunk',
         audio_base_64: float32ToBase64PCM(audio),

@@ -39,7 +39,7 @@ export default function JarvisOS() {
   const inputRef = useRef(null);
   const apiHistoryRef = useRef([]);
 
-  const { time, telemetry, setTelemetry } = useTelemetry();
+  const { time, telemetry, setTelemetry, startTimer, stopTimer } = useTelemetry();
 
   // Refs break the circular dependency between useSpeech ↔ useChat
   const submitCommandRef = useRef(null);
@@ -53,6 +53,8 @@ export default function JarvisOS() {
 
   const chat = useChat({
     setTelemetry,
+    startTimer,
+    stopTimer,
     apiHistoryRef,
     speakChunks: speech.speakChunks,
   });

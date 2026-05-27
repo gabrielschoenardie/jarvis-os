@@ -84,6 +84,11 @@ export default function JarvisOS() {
 
   const ready = bootStage >= 5;
 
+  const enrichedTelemetry = {
+    ...telemetry,
+    context: Math.round(chat.apiHistory.length / 2 / 20 * 100),
+  };
+
   const handleSubmit = () => {
     if (!ready || !input.trim()) return;
     const cmd = input;
@@ -274,7 +279,7 @@ export default function JarvisOS() {
           {mode === 'terminal' ? (
             <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={chat.history} thinking={chat.thinking} streamText={chat.streamText} />
           ) : (
-            <HolographicView telemetry={telemetry} history={chat.history} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} ready={ready} time={time} />
+            <HolographicView telemetry={enrichedTelemetry} history={chat.history} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} ready={ready} time={time} />
           )}
 
           {/* COMMAND INPUT */}
@@ -337,8 +342,8 @@ export default function JarvisOS() {
         {/* RIGHT RAIL */}
         <aside style={{ borderLeft: `1px solid ${C.line}`, padding: '24px 20px', background: 'rgba(0,0,0,0.22)' }}>
           <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 18 }}>TELEMETRIA</div>
-          <Meter label="POTÊNCIA ARC" value={Math.round(telemetry.load)} unit="%" />
-          <Meter label="MEMÓRIA ATIVA" value={Math.round(telemetry.mem)} unit="%" />
+          <Meter label="CONTEXTO IA" value={enrichedTelemetry.context} unit="%" />
+          <Meter label="HEAP JS" value={enrichedTelemetry.mem ?? '—'} unit={enrichedTelemetry.mem != null ? '%' : ''} />
           <div style={{ marginTop: 16, marginBottom: 22 }}>
             <div style={{ fontSize: 9, color: C.dim, letterSpacing: '0.28em', marginBottom: 6 }}>LATÊNCIA API</div>
             <div style={{ ...display, fontSize: 26, color: C.text, fontWeight: 300 }}>

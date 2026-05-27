@@ -3,7 +3,7 @@ import { callClaude, splitIntoSpeakableChunks } from '../lib/anthropic.js';
 
 const BACKOFF_MS = [2000, 4000, 8000];
 
-export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
+export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiHistoryRef }) {
   const [history, setHistory] = useState([]);
   const [apiHistory, setApiHistory] = useState([]);
   const [thinking, setThinking] = useState(false);
@@ -125,7 +125,6 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
     if (apiHistoryRef) apiHistoryRef.current = newApiHistory;
 
     try {
-      const t0 = Date.now();
       let ttsBuffer = '';
       let attempt = 0;
       let responseText = '';
@@ -148,12 +147,16 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
         }
       };
 
-      // Fix 2: exponential backoff para 429
+      // Backoff para 429; apiT0 resetado a cada tentativa para medir só o tempo real da API
       while (true) {
         try {
+          startTimer?.();
+          const apiT0 = Date.now();
           ({ text: responseText, jarvis } = await callClaude(newApiHistory, { onChunk }));
+          stopTimer?.(Date.now() - apiT0);
           break;
         } catch (err) {
+          stopTimer?.(0);
           if (err.message.includes('API 429') && attempt < BACKOFF_MS.length) {
             const wait = BACKOFF_MS[attempt];
             ttsBuffer = '';
@@ -167,10 +170,7 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
         }
       }
 
-      const elapsed = Date.now() - t0;
       setStreamText('');
-
-      setTelemetry(p => ({ ...p, latency: Math.round(elapsed * 0.4 + p.latency * 0.6) }));
 
       const updatedApiHistory = [...newApiHistory, { role: 'assistant', content: responseText }];
       setApiHistory(updatedApiHistory);
@@ -194,6 +194,7 @@ export function useChat({ speakChunks, setTelemetry, apiHistoryRef }) {
     } catch (err) {
       setStreamText('');
       setThinking(false);
+      stopTimer?.(0);
       const errMsg = err.message || 'Erro desconhecido';
       console.error('J.A.R.V.I.S. API Error:', { message: errMsg, stack: err.stack, timestamp: new Date().toISOString() });
 

@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchVoicesList } from '../lib/elevenlabs.js';
 
-// Adam — deep/authoritative, excellent PT-BR support via Multilingual v2
-const DEFAULT_VOICE_ID = 'pNInz6obpgDQGcFmaJgB';
+const DEFAULT_VOICE_NAME = 'IA JARVIS';
 
 export function useElevenLabsTTS({ webSpeakSingle }) {
   const [elVoices, setElVoices] = useState([]);
-  const [selectedVoiceId, setSelectedVoiceId] = useState(DEFAULT_VOICE_ID);
+  const [selectedVoiceId, setSelectedVoiceId] = useState('');
   const [stability, setStability] = useState(0.5);
   const [similarityBoost, setSimilarityBoost] = useState(0.75);
   const [elStyle, setElStyle] = useState(0.0);
@@ -15,7 +14,7 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
   const [elError, setElError] = useState(null);
 
   // Stable refs — read inside async callbacks without stale closure
-  const paramsRef = useRef({ voiceId: DEFAULT_VOICE_ID, stability: 0.5, similarityBoost: 0.75, style: 0.0 });
+  const paramsRef = useRef({ voiceId: '', stability: 0.5, similarityBoost: 0.75, style: 0.0 });
   const queueRef = useRef([]);
   const isSpeakingRef = useRef(false);
   const abortRef = useRef(null);
@@ -34,12 +33,11 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
       .then(data => {
         const voices = data.voices || [];
         setElVoices(voices);
-        // Keep default if already set; replace only if still at factory default and a better match exists
         if (voices.length > 0) {
           setSelectedVoiceId(v => {
-            if (v !== DEFAULT_VOICE_ID) return v; // user already changed it
-            const match = voices.find(x => x.voice_id === DEFAULT_VOICE_ID);
-            return match ? v : voices[0].voice_id;
+            if (v !== '') return v; // user already chose manually
+            const match = voices.find(x => x.name.trim().toLowerCase() === DEFAULT_VOICE_NAME.toLowerCase());
+            return match ? match.voice_id : voices[0].voice_id;
           });
         }
       })

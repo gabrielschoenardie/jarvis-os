@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useElevenLabsTTS } from './useElevenLabsTTS.js';
 import { useSpeechInput } from './useSpeechInput.js';
 export function useSpeech({ onTranscriptReady, setInput }) {
-  const [voiceOut, setVoiceOut] = useState(false);
+  const [voiceOut, setVoiceOut] = useState(true);
   const [webSpeaking, setWebSpeaking] = useState(false);
   const [voices, setVoices] = useState([]);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState(null);

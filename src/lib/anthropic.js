@@ -4,6 +4,12 @@ export function splitIntoSpeakableChunks(text) {
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/[*_`]/g, '')
+    // "10°C" é mostrado corretamente na tela, mas o TTS lê o símbolo de grau de
+    // forma estranha (ex: "10 degres") — converte pra forma falada em PT-BR antes
+    // de chegar no ElevenLabs/Web Speech.
+    .replace(/(-)?(\d+(?:[.,]\d+)?)\s*°\s*C\b/gi, (_, neg, num) => `${neg ? 'menos ' : ''}${num} graus Celsius`)
+    .replace(/(-)?(\d+(?:[.,]\d+)?)\s*°\s*F\b/gi, (_, neg, num) => `${neg ? 'menos ' : ''}${num} graus Fahrenheit`)
+    .replace(/(-)?(\d+(?:[.,]\d+)?)\s*°/g, (_, neg, num) => `${neg ? 'menos ' : ''}${num} graus`)
     .split(/\n{2,}|(?<=[.!?])\s+/)
     .map(s => s.replace(/\n/g, ' ').trim())
     .filter(s => s.length > 0);

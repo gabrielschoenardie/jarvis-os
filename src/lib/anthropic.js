@@ -6,7 +6,7 @@ export function splitIntoSpeakableChunks(text) {
     .replace(/[*_`]/g, '')
     .split(/\n{2,}|(?<=[.!?])\s+/)
     .map(s => s.replace(/\n/g, ' ').trim())
-    .filter(s => s.length > 8);
+    .filter(s => s.length > 0);
 }
 
 export async function callClaude(messages, { onChunk } = {}) {

@@ -32,13 +32,14 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
     fetchVoicesList()
       .then(data => {
         const voices = data.voices || [];
-        setElVoices(voices);
-        if (voices.length > 0) {
-          setSelectedVoiceId(v => {
-            if (v !== '') return v; // user already chose manually
-            const match = voices.find(x => x.name.trim().toLowerCase() === DEFAULT_VOICE_NAME.toLowerCase());
-            return match ? match.voice_id : voices[0].voice_id;
-          });
+        const match = voices.find(x => x.name.trim().toLowerCase() === DEFAULT_VOICE_NAME.toLowerCase());
+        if (match) {
+          setElVoices([match]);
+          setSelectedVoiceId(v => v || match.voice_id);
+        } else {
+          setElVoices(voices);
+          setElError(`voz "${DEFAULT_VOICE_NAME}" não encontrada na conta`);
+          setSelectedVoiceId(v => v || (voices[0]?.voice_id ?? ''));
         }
       })
       .catch(e => setElError('falha ao carregar vozes · ' + e.message));

@@ -55,6 +55,8 @@ All API keys (`ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`) live server-side only �
 
 `api/chat.js` gates on `isWeatherQuery(cleanMessage)` from `src/lib/weather.js` (keyword/phrase match, PT-BR). When matched, it reads Vercel's IP-geolocation headers (`x-vercel-ip-latitude`, `x-vercel-ip-longitude`, `x-vercel-ip-city`, `x-vercel-ip-country` — auto-injected on every Edge request in Production/Preview, absent in local `vite dev`) and calls `fetchWeather()` (Open-Meteo, no API key, `AbortController` timeout ~2.5s). Result is appended as a **second, uncached** `system` block (`JARVIS_WEATHER_INTRO` + `formatWeatherContext(...)`) so the existing cached identity/domain block isn't invalidated on weather turns. If no weather block is present, a `JARVIS_GUARDRAILS` line instructs JARVIS to say it has no real-time access rather than invent a forecast.
 
+**Visual forecast card**: on weather turns, `useChat` also fires a parallel client-side GET to `api/weather.js` (Edge, same geo headers, `fetchForecast()` — 7-day daily + 48h hourly). When it resolves, a `{ type: 'weather', forecast }` history entry is appended after the AI response; `TerminalView` renders it as `WeatherCard.jsx` (hand-rolled interactive SVG: temperature curve with crosshair tooltip, rain/wind bar tabs, 7-day strip). Endpoint failure is silent — no card, spoken answer still covers it.
+
 ### History & context limits
 
 - API history truncated to last 40 messages (20 turns) in `api/chat.js` before sending to Anthropic.

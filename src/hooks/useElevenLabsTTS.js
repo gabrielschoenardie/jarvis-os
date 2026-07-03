@@ -45,9 +45,19 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
       .catch(e => setElError('falha ao carregar vozes · ' + e.message));
   }, []);
 
-  // Síntese (fetch + decode) de um item — disparada assim que ele entra na fila,
-  // não quando é a vez dele tocar. Isso permite que a síntese da frase N+1 ocorra
-  // em paralelo com o playback da frase N, eliminando o gap de rede entre frases.
+  // Só sintetiza com antecedência o item na cabeça da fila (no máximo 1 à frente
+  // do que está tocando) — nunca a fila inteira de uma vez. Isso evita disparar N
+  // requisições concorrentes ao ElevenLabs quando várias frases são enfileiradas
+  // em rajada (ex: fim do streaming), o que estourava o limite de requisições
+  // concorrentes da conta e derrubava frases individuais pro fallback Web Speech.
+  function maybeStartPrefetch() {
+    const next = queueRef.current[0];
+    if (next && !next.bufferPromise) {
+      next.bufferPromise = synthesize(next, paramsRef.current);
+    }
+  }
+
+  // Síntese (fetch + decode) de um item.
   async function synthesize(item, params) {
     const { voiceId, stability: stab, similarityBoost: sim, style: sty } = params;
     item.abortController = new AbortController();
@@ -96,6 +106,10 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
     setElState('speaking');
     const item = queueRef.current.shift();
     currentItemRef.current = item;
+    if (!item.bufferPromise) item.bufferPromise = synthesize(item, paramsRef.current);
+    // Assim que este item vira "o atual", a cabeça da fila (o próximo depois dele)
+    // pode começar a sintetizar em paralelo — mantém no máx. 2 requisições em voo.
+    maybeStartPrefetch();
 
     const buffer = await item.bufferPromise;
 
@@ -137,9 +151,9 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
   const speak = useCallback((text) => {
     if (!text?.trim()) return Promise.resolve();
     return new Promise(resolve => {
-      const item = { text, resolve };
-      item.bufferPromise = synthesize(item, paramsRef.current);
+      const item = { text, resolve, bufferPromise: null };
       queueRef.current.push(item);
+      maybeStartPrefetch();
       if (!isSpeakingRef.current) playNextRef.current();
     });
   }, []);

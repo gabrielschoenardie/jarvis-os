@@ -16,8 +16,8 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
   // Stable refs — read inside async callbacks without stale closure
   const paramsRef = useRef({ voiceId: '', stability: 0.5, similarityBoost: 0.75, style: 0.0 });
   const queueRef = useRef([]);
+  const currentItemRef = useRef(null);
   const isSpeakingRef = useRef(false);
-  const abortRef = useRef(null);
   const audioCtxRef = useRef(null);
   const sourceRef = useRef(null);
   const webSpeakRef = useRef(webSpeakSingle);
@@ -45,39 +45,24 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
       .catch(e => setElError('falha ao carregar vozes · ' + e.message));
   }, []);
 
-  // playNext is held in a ref so recursive calls always reach the latest version
-  const playNextRef = useRef(null);
-  playNextRef.current = async function playNext() {
-    if (queueRef.current.length === 0) {
-      isSpeakingRef.current = false;
-      setElState('idle');
-      return;
-    }
-
-    isSpeakingRef.current = true;
-    setElState('speaking');
-    const { text, resolve } = queueRef.current.shift();
-    const { voiceId, stability: stab, similarityBoost: sim, style: sty } = paramsRef.current;
+  // Síntese (fetch + decode) de um item — disparada assim que ele entra na fila,
+  // não quando é a vez dele tocar. Isso permite que a síntese da frase N+1 ocorra
+  // em paralelo com o playback da frase N, eliminando o gap de rede entre frases.
+  async function synthesize(item, params) {
+    const { voiceId, stability: stab, similarityBoost: sim, style: sty } = params;
+    item.abortController = new AbortController();
 
     try {
-      abortRef.current = new AbortController();
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voiceId, stability: stab, similarityBoost: sim, style: sty }),
-        signal: abortRef.current.signal,
+        body: JSON.stringify({ text: item.text, voiceId, stability: stab, similarityBoost: sim, style: sty }),
+        signal: item.abortController.signal,
       });
 
       if (!res.ok) {
-        // Any HTTP error falls back to Web Speech and shows a specific message
-        if (res.status === 401) setElError('chave de API inválida · verifique ELEVENLABS_API_KEY');
-        else if (res.status === 429) setElError('limite de requisições atingido · aguarde');
-        else setElError(`erro ElevenLabs ${res.status}`);
-        setFallbackActive(true);
-        webSpeakRef.current?.(text);
-        resolve();
-        playNextRef.current();
-        return;
+        item.httpStatus = res.status;
+        return null;
       }
 
       const arrayBuffer = await res.arrayBuffer();
@@ -89,45 +74,82 @@ export function useElevenLabsTTS({ webSpeakSingle }) {
         await audioCtxRef.current.resume();
       }
 
-      const decoded = await audioCtxRef.current.decodeAudioData(arrayBuffer);
-      const source = audioCtxRef.current.createBufferSource();
-      source.buffer = decoded;
-      source.connect(audioCtxRef.current.destination);
-      sourceRef.current = source;
-      source.onended = () => {
-        setFallbackActive(false);
-        setElError(null);
-        resolve();
-        playNextRef.current();
-      };
-      source.start();
+      return await audioCtxRef.current.decodeAudioData(arrayBuffer);
     } catch (e) {
-      if (e.name === 'AbortError') {
-        resolve();
-        isSpeakingRef.current = false;
-        setElState('idle');
-        return;
-      }
-      setElError('erro de rede · ' + e.message);
-      setFallbackActive(true);
-      webSpeakRef.current?.(text);
-      resolve();
-      playNextRef.current();
+      if (e.name === 'AbortError') { item.aborted = true; return null; }
+      item.fetchError = e;
+      return null;
     }
+  }
+
+  // playNext is held in a ref so recursive calls always reach the latest version
+  const playNextRef = useRef(null);
+  playNextRef.current = async function playNext() {
+    if (queueRef.current.length === 0) {
+      currentItemRef.current = null;
+      isSpeakingRef.current = false;
+      setElState('idle');
+      return;
+    }
+
+    isSpeakingRef.current = true;
+    setElState('speaking');
+    const item = queueRef.current.shift();
+    currentItemRef.current = item;
+
+    const buffer = await item.bufferPromise;
+
+    if (item.aborted) {
+      // stop() cancelou este item enquanto ele ainda sintetizava — não cai no
+      // fallback Web Speech, apenas encerra silenciosamente.
+      item.resolve();
+      currentItemRef.current = null;
+      isSpeakingRef.current = false;
+      setElState('idle');
+      return;
+    }
+
+    if (!buffer) {
+      if (item.httpStatus === 401) setElError('chave de API inválida · verifique ELEVENLABS_API_KEY');
+      else if (item.httpStatus === 429) setElError('limite de requisições atingido · aguarde');
+      else if (item.httpStatus) setElError(`erro ElevenLabs ${item.httpStatus}`);
+      else if (item.fetchError) setElError('erro de rede · ' + item.fetchError.message);
+      setFallbackActive(true);
+      webSpeakRef.current?.(item.text);
+      item.resolve();
+      playNextRef.current();
+      return;
+    }
+
+    const source = audioCtxRef.current.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtxRef.current.destination);
+    sourceRef.current = source;
+    source.onended = () => {
+      setFallbackActive(false);
+      setElError(null);
+      item.resolve();
+      playNextRef.current();
+    };
+    source.start();
   };
 
   const speak = useCallback((text) => {
     if (!text?.trim()) return Promise.resolve();
     return new Promise(resolve => {
-      queueRef.current.push({ text, resolve });
+      const item = { text, resolve };
+      item.bufferPromise = synthesize(item, paramsRef.current);
+      queueRef.current.push(item);
       if (!isSpeakingRef.current) playNextRef.current();
     });
   }, []);
 
   const stop = useCallback(() => {
-    abortRef.current?.abort();
+    currentItemRef.current?.abortController?.abort();
+    queueRef.current.forEach(item => item.abortController?.abort());
     try { sourceRef.current?.stop(); } catch (_) {}
     queueRef.current = [];
+    currentItemRef.current = null;
     isSpeakingRef.current = false;
     setElState('idle');
   }, []);

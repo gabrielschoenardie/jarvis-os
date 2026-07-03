@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { callClaude, splitIntoSpeakableChunks } from '../lib/anthropic.js';
+import { isWeatherQuery } from '../lib/weather.js';
 
 const BACKOFF_MS = [2000, 4000, 8000];
 
@@ -121,6 +122,13 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
     setHistory(h => [...h, { role: 'operator', content: cmd, ts: new Date() }]);
     setThinking(true);
 
+    // Pergunta sobre clima → busca o forecast de 7 dias em paralelo com o chat
+    // (sem await — não atrasa a resposta). Falha silenciosa: sem card, a resposta
+    // falada já cobre via injeção de prompt no /api/chat.
+    const weatherPromise = isWeatherQuery(cmd)
+      ? fetch('/api/weather').then(r => r.ok ? r.json() : null).catch(() => null)
+      : null;
+
     const newApiHistory = [...currentApiHistory, { role: 'user', content: cmd }];
     setApiHistory(newApiHistory);
     if (apiHistoryRef) apiHistoryRef.current = newApiHistory;
@@ -180,6 +188,14 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
 
       setHistory(h => [...h, { role: 'jarvis', type: 'ai', text: responseText, ts: new Date() }]);
       setThinking(false);
+
+      // Card visual de forecast: anexado após a resposta da IA, quando o fetch
+      // paralelo resolver com dados válidos.
+      weatherPromise?.then(forecast => {
+        if (forecast?.daily?.length) {
+          setHistory(h => [...h, { role: 'jarvis', type: 'weather', forecast, ts: new Date() }]);
+        }
+      });
 
       if (tokenUsage) {
         setSessionTokens(t => t + tokenUsage.input + tokenUsage.output);

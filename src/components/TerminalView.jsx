@@ -1,4 +1,5 @@
 import { C, display } from '../lib/constants.js';
+import { WeatherCard } from './WeatherCard.jsx';
 
 function AIText({ text }) {
   if (!text) return null;
@@ -55,6 +56,9 @@ function JarvisLabel({ children }) {
 function JarvisResponse({ msg }) {
   if (msg.type === 'ai') {
     return <JarvisLabel><AIText text={msg.text} /></JarvisLabel>;
+  }
+  if (msg.type === 'weather') {
+    return <JarvisLabel><WeatherCard forecast={msg.forecast} /></JarvisLabel>;
   }
   if (msg.type === 'focus') {
     return (

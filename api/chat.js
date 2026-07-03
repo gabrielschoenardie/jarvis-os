@@ -1,4 +1,5 @@
-import { buildSystemPrompt, detectCommand, resolveCommandConfig } from '../src/lib/jarvis-prompts.js';
+import { buildSystemPrompt, detectCommand, resolveCommandConfig, JARVIS_WEATHER_INTRO } from '../src/lib/jarvis-prompts.js';
+import { isWeatherQuery, fetchWeather, formatWeatherContext } from '../src/lib/weather.js';
 
 export const config = { runtime: 'edge' };
 
@@ -35,11 +36,33 @@ export default async function handler(req) {
       return m;
     });
 
+    let weatherBlockText = null;
+    if (isWeatherQuery(cleanMessage)) {
+      const lat = req.headers.get('x-vercel-ip-latitude');
+      const lon = req.headers.get('x-vercel-ip-longitude');
+      const city = req.headers.get('x-vercel-ip-city');
+      const country = req.headers.get('x-vercel-ip-country');
+      if (lat && lon) {
+        try {
+          const weatherData = await fetchWeather({ lat, lon });
+          if (weatherData) {
+            weatherBlockText = JARVIS_WEATHER_INTRO + '\n\n' + formatWeatherContext(weatherData, {
+              city: city ? decodeURIComponent(city) : null,
+              country,
+            });
+          }
+        } catch (_) { /* silencioso — cai no guardrail de "sem acesso em tempo real" */ }
+      }
+    }
+
     const system = buildSystemPrompt({
       deep: cmdConfig.deep,
       // tools: [] — Fase 4
       // memoryContext: null — Fase 5
     });
+
+    const systemBlocks = [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }];
+    if (weatherBlockText) systemBlocks.push({ type: 'text', text: weatherBlockText });
 
     const MAX_TURNS = 20;
     const truncated = cleanedMessages.length > MAX_TURNS * 2
@@ -57,7 +80,7 @@ export default async function handler(req) {
       body: JSON.stringify({
         model: cmdConfig.model,
         max_tokens: 4096,
-        system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+        system: systemBlocks,
         messages: truncated,
         stream,
       }),

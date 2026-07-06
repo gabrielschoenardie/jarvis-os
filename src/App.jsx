@@ -332,7 +332,7 @@ export default function JarvisOS() {
           )}
 
           {mode === 'terminal' ? (
-            <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={chat.history} thinking={chat.thinking} streamText={chat.streamText} />
+            <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={chat.history} thinking={chat.thinking} streamText={chat.streamText} toolStatus={chat.toolStatus} />
           ) : (
             <HolographicView telemetry={enrichedTelemetry} history={chat.history} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} ready={ready} time={time} />
           )}

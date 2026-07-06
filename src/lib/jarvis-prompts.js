@@ -227,6 +227,22 @@ PRINCÍPIOS DE USO:
 
 
 // ───────────────────────────────────────────────────────────────────────────
+// BLOCO 8b · CATÁLOGO DE TOOLS
+// Incluído junto com JARVIS_TOOLS_INTRO. Descreve QUANDO usar cada ferramenta —
+// as definições formais (JSON schema) vivem em jarvis-tools.js e vão no campo
+// `tools` da API, não aqui.
+// ───────────────────────────────────────────────────────────────────────────
+
+export const JARVIS_TOOLS_CATALOG = `CATÁLOGO:
+
+web_search — busca na web em tempo real. Use para qualquer informação atual ou pós-corte de conhecimento: notícias, preços, versões de software, documentação recente, releases. Sintetize os resultados em PT-BR na sua voz — cite as fontes com naturalidade ("segundo a doc oficial do FFmpeg..."), nunca despeje resultados crus. Não busque o que você já sabe com segurança.
+
+calcular — calculadora determinística. Use para QUALQUER aritmética não-trivial: bitrates, tamanhos de arquivo, durações, conversões de unidade. Determinismo importa para engenharia de vídeo — exemplo: tamanho em GB = duração_segundos × Mbps ÷ 8 ÷ 1000. Não faça contas de cabeça quando o resultado será usado em decisão técnica.
+
+abrir_site — abre uma página no navegador do operador (nova aba): busca no Google, busca no YouTube, ou URL https direta. Use quando Gabriel pedir para abrir/mostrar/buscar algo no navegador. A ferramenta apenas SOLICITA a abertura — um link clicável sempre aparece no console; não afirme que a aba abriu, diga que enviou ao console.`;
+
+
+// ───────────────────────────────────────────────────────────────────────────
 // BLOCO 9 · INTRODUÇÃO A MEMÓRIA (Fase 5)
 // Incluído quando memoryContext está presente. Apresenta contexto recuperado.
 // ───────────────────────────────────────────────────────────────────────────
@@ -319,7 +335,7 @@ export function buildSystemPrompt({
 
   if (tools && tools.length > 0) {
     blocks.push(JARVIS_TOOLS_INTRO);
-    // Em Fase 4, aqui também serão adicionadas as definições específicas de cada tool
+    blocks.push(JARVIS_TOOLS_CATALOG);
   }
 
   if (memoryContext && memoryContext.trim().length > 0) {
@@ -425,6 +441,7 @@ export default {
     commands: JARVIS_COMMANDS,
     deepMode: JARVIS_DEEP_MODE,
     toolsIntro: JARVIS_TOOLS_INTRO,
+    toolsCatalog: JARVIS_TOOLS_CATALOG,
     memoryIntro: JARVIS_MEMORY_INTRO,
     weatherIntro: JARVIS_WEATHER_INTRO,
     guardrails: JARVIS_GUARDRAILS,

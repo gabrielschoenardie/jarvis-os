@@ -60,6 +60,23 @@ function JarvisResponse({ msg }) {
   if (msg.type === 'weather') {
     return <JarvisLabel><WeatherCard forecast={msg.forecast} /></JarvisLabel>;
   }
+  if (msg.type === 'action') {
+    return (
+      <JarvisLabel>
+        <a
+          href={msg.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-block', fontSize: 10, color: C.accent, letterSpacing: '0.18em',
+            border: `1px solid ${C.accentDim}`, padding: '5px 12px', textDecoration: 'none',
+          }}
+        >
+          ▸ ABRIR · {msg.label}
+        </a>
+      </JarvisLabel>
+    );
+  }
   if (msg.type === 'focus') {
     return (
       <JarvisLabel>
@@ -94,12 +111,14 @@ function OperatorLine({ msg }) {
   );
 }
 
-function ThinkingIndicator() {
+function ThinkingIndicator({ toolStatus }) {
   return (
     <div className="jv-fade" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
       <span style={{ color: C.accentDim, fontSize: 10, letterSpacing: '0.22em', minWidth: 88 }}>J.A.R.V.I.S.</span>
-      <span style={{ color: C.muted, fontSize: 11.5, letterSpacing: '0.12em' }}>
-        <span className="jv-pulse">processando na matrix neural · aguardando resposta</span>
+      <span style={{ color: toolStatus ? C.accent : C.muted, fontSize: 11.5, letterSpacing: '0.12em' }}>
+        <span className="jv-pulse">
+          {toolStatus ? `▸ EXECUTANDO · ${toolStatus}` : 'processando na matrix neural · aguardando resposta'}
+        </span>
         <span className="jv-blink" style={{ marginLeft: 6 }}>···</span>
       </span>
     </div>
@@ -139,7 +158,7 @@ function BootSequence({ stage }) {
   );
 }
 
-export function TerminalView({ scrollRef, bootStage, history, thinking, streamText }) {
+export function TerminalView({ scrollRef, bootStage, history, thinking, streamText, toolStatus }) {
   return (
     <div ref={scrollRef} className="jv-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '36px 56px 24px 56px' }}>
       <BootSequence stage={bootStage} />
@@ -148,12 +167,17 @@ export function TerminalView({ scrollRef, bootStage, history, thinking, streamTe
           {msg.role === 'operator' ? <OperatorLine msg={msg} /> : <JarvisResponse msg={msg} />}
         </div>
       ))}
-      {thinking && !streamText && <ThinkingIndicator />}
+      {thinking && !streamText && <ThinkingIndicator toolStatus={toolStatus} />}
       {thinking && streamText && (
         <div style={{ marginBottom: 28 }}>
           <JarvisLabel>
             <AIText text={streamText} />
             <span className="jv-blink" style={{ color: C.accent, fontSize: 13 }}>▌</span>
+            {toolStatus && (
+              <div className="jv-pulse" style={{ marginTop: 8, fontSize: 10, color: C.accent, letterSpacing: '0.18em' }}>
+                ▸ EXECUTANDO · {toolStatus}
+              </div>
+            )}
           </JarvisLabel>
         </div>
       )}

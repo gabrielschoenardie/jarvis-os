@@ -5,6 +5,8 @@ import { stripImageAttachment } from '../lib/attachments.js';
 
 const BACKOFF_MS = [2000, 4000, 8000];
 
+const TOOL_LABELS = { web_search: 'BUSCA WEB', calcular: 'CÁLCULO', abrir_site: 'NAVEGADOR' };
+
 export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiHistoryRef }) {
   const [history, setHistory] = useState([]);
   const [apiHistory, setApiHistory] = useState([]);
@@ -17,6 +19,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
   const [lastFailedCmd, setLastFailedCmd] = useState(null);
   const [lastFailedCallbacks, setLastFailedCallbacks] = useState(null);
   const [sessionTokens, setSessionTokens] = useState(0);
+  const [toolStatus, setToolStatus] = useState(null);
 
   // Fase 10: restaurar histórico no mount
   useEffect(() => {
@@ -177,16 +180,30 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
         }
       };
 
+      const onToolStatus = ev => {
+        setToolStatus(ev.status === 'start' ? (TOOL_LABELS[ev.name] || ev.name.toUpperCase()) : null);
+      };
+
+      const onAction = ev => {
+        if (ev.action !== 'open_url') return;
+        // Best-effort: popup blockers barram window.open fora de gesto de
+        // usuário (submits por voz não têm gesto) — o chip clicável abaixo é
+        // o caminho garantido, e fica registrado no histórico.
+        try { window.open(ev.url, '_blank', 'noopener,noreferrer'); } catch (_) {}
+        setHistory(h => [...h, { role: 'jarvis', type: 'action', url: ev.url, label: ev.label, ts: new Date() }]);
+      };
+
       // Backoff para 429; apiT0 resetado a cada tentativa para medir só o tempo real da API
       while (true) {
         try {
           startTimer?.();
           const apiT0 = Date.now();
-          ({ text: responseText, jarvis, tokenUsage } = await callClaude(newApiHistory, { onChunk }));
+          ({ text: responseText, jarvis, tokenUsage } = await callClaude(newApiHistory, { onChunk, onAction, onToolStatus }));
           stopTimer?.(Date.now() - apiT0);
           break;
         } catch (err) {
           stopTimer?.(0);
+          setToolStatus(null);
           if (err.message.includes('API 429') && attempt < BACKOFF_MS.length) {
             const wait = BACKOFF_MS[attempt];
             ttsBuffer = '';
@@ -201,6 +218,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
       }
 
       setStreamText('');
+      setToolStatus(null);
 
       const updatedApiHistory = [...newApiHistory, { role: 'assistant', content: responseText }];
       setApiHistory(updatedApiHistory);
@@ -235,6 +253,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
       }
     } catch (err) {
       setStreamText('');
+      setToolStatus(null);
       setThinking(false);
       stopTimer?.(0);
       const errMsg = err.message || 'Erro desconhecido';
@@ -278,7 +297,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
 
   return {
     history, apiHistory,
-    thinking, streamText, activeBadge,
+    thinking, streamText, activeBadge, toolStatus,
     apiError, errorDetails, showErrorDetails,
     lastFailedCmd, sessionTokens,
     setShowErrorDetails, setApiError, setErrorDetails,

@@ -15,7 +15,7 @@ export function splitIntoSpeakableChunks(text) {
     .filter(s => s.length > 0);
 }
 
-export async function callClaude(messages, { onChunk } = {}) {
+export async function callClaude(messages, { onChunk, onAction, onToolStatus } = {}) {
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -28,9 +28,12 @@ export async function callClaude(messages, { onChunk } = {}) {
 
   if (!onChunk) {
     const data = await response.json();
+    const actions = data._jarvis?.actions || [];
+    actions.forEach(a => onAction?.(a));
     return {
       text: data.content.find(b => b.type === 'text')?.text || '',
       jarvis: data._jarvis,
+      actions,
     };
   }
 
@@ -42,6 +45,8 @@ export async function callClaude(messages, { onChunk } = {}) {
   let fullText = '';
   let buffer = '';
   let tokenUsage = null;
+  let streamError = null;
+  const actions = [];
 
   while (true) {
     const { done, value } = await reader.read();
@@ -60,10 +65,27 @@ export async function callClaude(messages, { onChunk } = {}) {
           onChunk(ev.delta.text, fullText);
         } else if (ev.type === 'jarvis_tokens') {
           tokenUsage = { input: ev.input, output: ev.output };
+        } else if (ev.type === 'jarvis_action') {
+          // Ação a executar no browser (ex: abrir URL) — emitida pelo loop de
+          // tool-use server-side em api/chat.js.
+          actions.push(ev);
+          onAction?.(ev);
+        } else if (ev.type === 'jarvis_tool') {
+          onToolStatus?.(ev);
+        } else if (ev.type === 'error') {
+          // Erro sintético do loop server-side (headers já enviados quando
+          // uma chamada upstream do meio do loop falha).
+          streamError = ev.error?.message || 'erro no stream';
         }
       } catch (_) {}
     }
   }
 
-  return { text: fullText, jarvis, tokenUsage };
+  // Sem nenhum texto útil, o erro vira exceção (aciona a UI de erro do useChat);
+  // com texto parcial, entrega o parcial — melhor meia resposta que nenhuma.
+  if (streamError && !fullText.trim()) {
+    throw new Error(`API stream: ${streamError}`);
+  }
+
+  return { text: fullText, jarvis, tokenUsage, actions };
 }

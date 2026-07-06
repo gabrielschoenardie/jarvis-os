@@ -5,6 +5,7 @@ import { useSpeech } from './hooks/useSpeech.js';
 import { useChat } from './hooks/useChat.js';
 import { HolographicView } from './components/HolographicView.jsx';
 import { TerminalView } from './components/TerminalView.jsx';
+import { HudMediaWindow } from './components/HudMediaWindow.jsx';
 import { VoicePanel } from './components/VoicePanel.jsx';
 import { VoiceIndicator, MicButton } from './components/VoiceIndicator.jsx';
 import { Meter } from './components/Meter.jsx';
@@ -181,6 +182,10 @@ export default function JarvisOS() {
         .jv-ring { animation: ringPulse 1.6s ease-out infinite; }
         .jv-drift { animation: drift 6s ease-in-out infinite; }
         .jv-holo-in { animation: holoIn 1.2s ease-out both; }
+        @keyframes hudIn { from { opacity: 0; transform: scale(0.92); filter: blur(8px); } to { opacity: 1; transform: scale(1); filter: blur(0); } }
+        @keyframes hudOut { from { opacity: 1; transform: scale(1); filter: blur(0); } to { opacity: 0; transform: scale(0.94); filter: blur(6px); } }
+        .jv-hud-in { animation: hudIn 0.45s ease-out both; }
+        .jv-hud-out { animation: hudOut 0.3s ease-in both; }
         .jv-scanline { position: fixed; inset: 0; pointer-events: none; z-index: 5; background: linear-gradient(180deg, transparent, rgba(0,212,255,0.018) 50%, transparent); height: 120px; animation: scan 9s linear infinite; opacity: 0.7; }
         .jv-grain { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0.025; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>"); }
         .jv-input::placeholder { color: #1e3a4a; }
@@ -332,7 +337,7 @@ export default function JarvisOS() {
           )}
 
           {mode === 'terminal' ? (
-            <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={chat.history} thinking={chat.thinking} streamText={chat.streamText} toolStatus={chat.toolStatus} />
+            <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={chat.history} thinking={chat.thinking} streamText={chat.streamText} toolStatus={chat.toolStatus} onOpenHud={chat.openHudMedia} />
           ) : (
             <HolographicView telemetry={enrichedTelemetry} history={chat.history} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} ready={ready} time={time} />
           )}
@@ -444,6 +449,8 @@ export default function JarvisOS() {
           </div>
         </aside>
       </div>
+
+      <HudMediaWindow media={chat.hudMedia} onClose={chat.closeHudMedia} />
     </div>
   );
 }

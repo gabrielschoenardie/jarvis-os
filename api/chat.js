@@ -262,7 +262,7 @@ export default async function handler(req) {
                 for (const tu of toolUses) {
                   send({ type: 'jarvis_tool', name: tu.name, status: 'start' });
                   const toolT0 = Date.now();
-                  const { resultText, isError, action } = executeTool(tu.name, tu.input || {});
+                  const { resultText, isError, action } = await executeTool(tu.name, tu.input || {});
                   console.log(JSON.stringify({
                     event: 'jarvis_tool_exec',
                     name: tu.name,
@@ -342,11 +342,12 @@ export default async function handler(req) {
       const toolUses = (data.content || []).filter(b => b.type === 'tool_use');
       if (data.stop_reason === 'tool_use' && toolUses.length) {
         msgs = [...msgs, { role: 'assistant', content: data.content }];
-        const results = toolUses.map(tu => {
-          const { resultText, isError, action } = executeTool(tu.name, tu.input || {});
+        const results = [];
+        for (const tu of toolUses) {
+          const { resultText, isError, action } = await executeTool(tu.name, tu.input || {});
           if (action) actions.push(action);
-          return { type: 'tool_result', tool_use_id: tu.id, content: resultText, ...(isError ? { is_error: true } : {}) };
-        });
+          results.push({ type: 'tool_result', tool_use_id: tu.id, content: resultText, ...(isError ? { is_error: true } : {}) });
+        }
         msgs = [...msgs, { role: 'user', content: results }];
         continue;
       }

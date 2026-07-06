@@ -7,7 +7,8 @@
 //
 // web_search é uma server tool nativa da Anthropic: a busca executa na infra
 // deles e os resultados continuam no MESMO stream SSE — nenhum executor aqui.
-// calcular e abrir_site são custom tools executadas em executeTool().
+// calcular, abrir_site e hud_display são custom tools executadas em
+// executeTool() (async — hud_display valida o vídeo via oEmbed do YouTube).
 
 export const JARVIS_TOOLS = [
   // Ordem estável (constante de módulo) — tools ficam antes de system na
@@ -45,9 +46,21 @@ export const JARVIS_TOOLS = [
       required: ['destino'],
     },
   },
+  {
+    name: 'hud_display',
+    description: 'Exibe um vídeo do YouTube DENTRO da interface do operador: abre uma janela flutuante no HUD com o player embutido. Use quando Gabriel pedir para VER/assistir/mostrar um vídeo na interface. Requer a URL exata de um vídeo do YouTube — se não souber a URL, use web_search antes para encontrá-la.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'URL do vídeo (youtube.com/watch?v=..., youtu.be/..., youtube.com/shorts/..., youtube.com/embed/...) ou o ID de 11 caracteres.' },
+        titulo: { type: 'string', description: 'Título do vídeo, se conhecido — usado como fallback se a validação online falhar.' },
+      },
+      required: ['url'],
+    },
+  },
 ];
 
-export const TOOL_NAMES = ['web_search', 'calcular', 'abrir_site'];
+export const TOOL_NAMES = ['web_search', 'calcular', 'abrir_site', 'hud_display'];
 
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -215,12 +228,68 @@ export function resolveOpenUrl(input = {}) {
 
 
 // ───────────────────────────────────────────────────────────────────────────
-// Dispatcher — executa custom tools (síncrono; ambas são puras)
-// Retorna { resultText, isError, action|null }. `action` vira um evento SSE
-// sintético `jarvis_action` que o cliente executa (window.open + chip clicável).
+// hud_display — extração de ID do YouTube + validação via oEmbed
 // ───────────────────────────────────────────────────────────────────────────
 
-export function executeTool(name, input = {}) {
+const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+
+export function extractYouTubeId(raw) {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  const s = raw.trim();
+  if (YT_ID_RE.test(s)) return s; // ID cru de 11 caracteres
+  let u;
+  try { u = new URL(s); } catch (_) { return null; }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+  const host = u.hostname.replace(/^(www\.|m\.|music\.)/, '');
+  if (host === 'youtu.be') {
+    const id = u.pathname.split('/')[1] || '';
+    return YT_ID_RE.test(id) ? id : null;
+  }
+  if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+    if (u.pathname === '/watch') {
+      const id = u.searchParams.get('v') || '';
+      return YT_ID_RE.test(id) ? id : null;
+    }
+    const m = u.pathname.match(/^\/(?:shorts|embed|live|v)\/([A-Za-z0-9_-]{11})(?:$|[/?])/);
+    return m ? m[1] : null;
+  }
+  return null;
+}
+
+// oEmbed público do YouTube (sem API key): confirma que o vídeo existe e é
+// incorporável, e devolve título/canal canônicos. Três estados: 4xx é veredito
+// definitivo (não existe / embed desabilitado); timeout/rede/5xx é "unknown" —
+// segue graciosamente com o título informado pelo modelo.
+export async function validateYouTubeVideo(videoId, timeoutMs = 3000) {
+  const target = `https://www.youtube.com/watch?v=${videoId}`;
+  const url = `https://www.youtube.com/oembed?url=${encodeURIComponent(target)}&format=json`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (res.ok) {
+      const data = await res.json();
+      return { status: 'ok', title: data.title || null, channel: data.author_name || null };
+    }
+    if (res.status >= 400 && res.status < 500) return { status: 'not_found' };
+    return { status: 'unknown' };
+  } catch (_) {
+    return { status: 'unknown' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────────────────
+// Dispatcher — executa custom tools (async: hud_display faz I/O de rede;
+// calcular e abrir_site são puras).
+// Retorna { resultText, isError, action|null }. `action` vira um evento SSE
+// sintético `jarvis_action` que o cliente executa (window.open + chip clicável,
+// ou janela flutuante no HUD para hud_video).
+// ───────────────────────────────────────────────────────────────────────────
+
+export async function executeTool(name, input = {}) {
   if (name === 'calcular') {
     const r = evaluateExpression(input.expressao);
     if (!r.ok) return { resultText: `Erro no cálculo: ${r.error}`, isError: true, action: null };
@@ -234,6 +303,25 @@ export function executeTool(name, input = {}) {
       resultText: `Solicitação de abertura enviada ao console do operador: ${r.label} (${r.url}). O navegador tentará abrir a página; se o popup for bloqueado, o operador verá um link clicável no console.`,
       isError: false,
       action: { action: 'open_url', url: r.url, label: r.label },
+    };
+  }
+
+  if (name === 'hud_display') {
+    const videoId = extractYouTubeId(input.url);
+    if (!videoId) {
+      return { resultText: 'Não foi possível exibir: URL de vídeo do YouTube inválida ou ausente — informe uma URL youtube.com/watch, youtu.be, shorts ou o ID de 11 caracteres.', isError: true, action: null };
+    }
+    const check = await validateYouTubeVideo(videoId);
+    if (check.status === 'not_found') {
+      return { resultText: 'Vídeo não encontrado ou não incorporável (validação oEmbed falhou) — busque outro vídeo do YouTube e tente novamente.', isError: true, action: null };
+    }
+    const title = check.title || input.titulo?.trim() || 'Vídeo do YouTube';
+    const channel = check.channel || null;
+    const url = `https://www.youtube.com/watch?v=${videoId}`;
+    return {
+      resultText: `Exibindo no HUD do operador: "${title}"${channel ? ` — canal ${channel}` : ''} (${url}). Janela flutuante aberta com player embutido; um chip para reabrir fica registrado no console.`,
+      isError: false,
+      action: { action: 'hud_video', videoId, url, title, channel },
     };
   }
 

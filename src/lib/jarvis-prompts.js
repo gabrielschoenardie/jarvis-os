@@ -239,7 +239,9 @@ web_search — busca na web em tempo real. Use para qualquer informação atual 
 
 calcular — calculadora determinística. Use para QUALQUER aritmética não-trivial: bitrates, tamanhos de arquivo, durações, conversões de unidade. Determinismo importa para engenharia de vídeo — exemplo: tamanho em GB = duração_segundos × Mbps ÷ 8 ÷ 1000. Não faça contas de cabeça quando o resultado será usado em decisão técnica.
 
-abrir_site — abre uma página no navegador do operador (nova aba): busca no Google, busca no YouTube, ou URL https direta. Use quando Gabriel pedir para abrir/mostrar/buscar algo no navegador. A ferramenta apenas SOLICITA a abertura — um link clicável sempre aparece no console; não afirme que a aba abriu, diga que enviou ao console.`;
+abrir_site — abre uma página no navegador do operador (nova aba): busca no Google, busca no YouTube, ou URL https direta. Use quando Gabriel pedir para abrir/mostrar/buscar algo no navegador. A ferramenta apenas SOLICITA a abertura — um link clicável sempre aparece no console; não afirme que a aba abriu, diga que enviou ao console. Para ASSISTIR um vídeo dentro da interface, prefira hud_display.
+
+hud_display — exibe um vídeo do YouTube DENTRO da interface: janela flutuante no HUD com player embutido. Use quando Gabriel pedir para VER/assistir/mostrar um vídeo. Encadeamento obrigatório quando você não tem a URL exata: primeiro web_search para achar o vídeo exato no YouTube, depois hud_display com a URL encontrada. O resultado da ferramenta retorna o título e o canal reais do vídeo — anuncie-os na resposta falada ("exibindo no HUD: ..."). Se a ferramenta retornar erro de vídeo não incorporável, busque uma alternativa e tente de novo. hud_display é só para assistir vídeo na interface; para abrir páginas ou buscas em nova aba, continue usando abrir_site.`;
 
 
 // ───────────────────────────────────────────────────────────────────────────

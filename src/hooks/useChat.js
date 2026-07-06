@@ -5,7 +5,7 @@ import { stripImageAttachment } from '../lib/attachments.js';
 
 const BACKOFF_MS = [2000, 4000, 8000];
 
-const TOOL_LABELS = { web_search: 'BUSCA WEB', calcular: 'CÁLCULO', abrir_site: 'NAVEGADOR' };
+const TOOL_LABELS = { web_search: 'BUSCA WEB', calcular: 'CÁLCULO', abrir_site: 'NAVEGADOR', hud_display: 'HUD DISPLAY' };
 
 export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiHistoryRef }) {
   const [history, setHistory] = useState([]);
@@ -20,6 +20,14 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
   const [lastFailedCallbacks, setLastFailedCallbacks] = useState(null);
   const [sessionTokens, setSessionTokens] = useState(0);
   const [toolStatus, setToolStatus] = useState(null);
+  // Janela flutuante de vídeo no HUD — estado vivo, nunca persistido (o chip
+  // {type:'hud'} no history é o registro durável que sobrevive a F5).
+  const [hudMedia, setHudMedia] = useState(null);
+
+  const openHudMedia = media => {
+    if (media?.videoId) setHudMedia({ videoId: media.videoId, title: media.title, channel: media.channel });
+  };
+  const closeHudMedia = () => setHudMedia(null);
 
   // Fase 10: restaurar histórico no mount
   useEffect(() => {
@@ -185,12 +193,18 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
       };
 
       const onAction = ev => {
-        if (ev.action !== 'open_url') return;
-        // Best-effort: popup blockers barram window.open fora de gesto de
-        // usuário (submits por voz não têm gesto) — o chip clicável abaixo é
-        // o caminho garantido, e fica registrado no histórico.
-        try { window.open(ev.url, '_blank', 'noopener,noreferrer'); } catch (_) {}
-        setHistory(h => [...h, { role: 'jarvis', type: 'action', url: ev.url, label: ev.label, ts: new Date() }]);
+        if (ev.action === 'open_url') {
+          // Best-effort: popup blockers barram window.open fora de gesto de
+          // usuário (submits por voz não têm gesto) — o chip clicável abaixo é
+          // o caminho garantido, e fica registrado no histórico.
+          try { window.open(ev.url, '_blank', 'noopener,noreferrer'); } catch (_) {}
+          setHistory(h => [...h, { role: 'jarvis', type: 'action', url: ev.url, label: ev.label, ts: new Date() }]);
+          return;
+        }
+        if (ev.action === 'hud_video' && ev.videoId) {
+          setHudMedia({ videoId: ev.videoId, title: ev.title, channel: ev.channel });
+          setHistory(h => [...h, { role: 'jarvis', type: 'hud', videoId: ev.videoId, title: ev.title, channel: ev.channel, ts: new Date() }]);
+        }
       };
 
       // Backoff para 429; apiT0 resetado a cada tentativa para medir só o tempo real da API
@@ -298,6 +312,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
   return {
     history, apiHistory,
     thinking, streamText, activeBadge, toolStatus,
+    hudMedia, openHudMedia, closeHudMedia,
     apiError, errorDetails, showErrorDetails,
     lastFailedCmd, sessionTokens,
     setShowErrorDetails, setApiError, setErrorDetails,

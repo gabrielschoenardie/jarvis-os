@@ -1,5 +1,6 @@
 import { buildSystemPrompt, detectCommand, resolveCommandConfig, JARVIS_WEATHER_INTRO } from '../src/lib/jarvis-prompts.js';
 import { isWeatherQuery, fetchWeather, formatWeatherContext } from '../src/lib/weather.js';
+import { extractMessageText, replaceMessageText, stripImageAttachment } from '../src/lib/attachments.js';
 
 export const config = { runtime: 'edge' };
 
@@ -26,15 +27,24 @@ export default async function handler(req) {
     const { messages, stream = false } = body;
 
     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-    const { command, cleanMessage } = detectCommand(lastUserMsg?.content || '');
+    const lastUserText = extractMessageText(lastUserMsg?.content);
+    const { command, cleanMessage } = detectCommand(lastUserText || '');
     const cmdConfig = resolveCommandConfig(command);
 
     const cleanedMessages = messages.map(m => {
-      if (m === lastUserMsg && cleanMessage !== lastUserMsg.content) {
-        return { ...m, content: cleanMessage };
+      if (m === lastUserMsg && cleanMessage !== lastUserText) {
+        return { ...m, content: replaceMessageText(m.content, cleanMessage) };
       }
       return m;
     });
+
+    // Só a última mensagem do usuário pode carregar imagem/documento em anexo —
+    // turnos anteriores são comprimidos pro texto (com o marcador "[Anexo: ...]"
+    // preservado), evitando pagar reprocessamento de imagem em toda mensagem
+    // subsequente da mesma sessão.
+    const compactedMessages = cleanedMessages.map(m =>
+      m === lastUserMsg ? m : { ...m, content: stripImageAttachment(m.content) }
+    );
 
     let weatherBlockText = null;
     if (isWeatherQuery(cleanMessage)) {
@@ -65,9 +75,9 @@ export default async function handler(req) {
     if (weatherBlockText) systemBlocks.push({ type: 'text', text: weatherBlockText });
 
     const MAX_TURNS = 20;
-    const truncated = cleanedMessages.length > MAX_TURNS * 2
-      ? cleanedMessages.slice(-MAX_TURNS * 2)
-      : cleanedMessages;
+    const truncated = compactedMessages.length > MAX_TURNS * 2
+      ? compactedMessages.slice(-MAX_TURNS * 2)
+      : compactedMessages;
 
     const upstreamResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

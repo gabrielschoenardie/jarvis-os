@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { callClaude, splitIntoSpeakableChunks } from '../lib/anthropic.js';
 import { isWeatherQuery } from '../lib/weather.js';
+import { stripImageAttachment } from '../lib/attachments.js';
 
 const BACKOFF_MS = [2000, 4000, 8000];
 
@@ -36,8 +37,11 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
     if (history.length === 0 && apiHistory.length === 0) return;
     try {
       const MAX_TURNS = 20;
+      // Nenhuma imagem em base64 vai pro localStorage — vira só o texto com o
+      // marcador "[Anexo: nome]" (evita estourar a cota do browser).
+      const compactedApi = apiHistory.map(m => ({ ...m, content: stripImageAttachment(m.content) }));
       localStorage.setItem('jarvis-history', JSON.stringify({
-        api: apiHistory.slice(-MAX_TURNS * 2),
+        api: compactedApi.slice(-MAX_TURNS * 2),
         ui: history.slice(-60),
       }));
     } catch (_) {}
@@ -101,7 +105,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
     return null;
   };
 
-  const submitCommand = async (cmd, { onModeChange, onFocusChange } = {}) => {
+  const submitCommand = async (cmd, { onModeChange, onFocusChange, attachment } = {}) => {
     if (!cmd || !cmd.trim() || thinking) return;
     setApiError(null);
     setLastFailedCmd(null);
@@ -119,7 +123,11 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
       return;
     }
 
-    setHistory(h => [...h, { role: 'operator', content: cmd, ts: new Date() }]);
+    setHistory(h => [...h, {
+      role: 'operator', content: cmd,
+      attachment: attachment ? { name: attachment.name, kind: attachment.kind } : undefined,
+      ts: new Date(),
+    }]);
     setThinking(true);
 
     // Pergunta sobre clima → busca o forecast de 7 dias em paralelo com o chat
@@ -129,7 +137,19 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
       ? fetch('/api/weather').then(r => r.ok ? r.json() : null).catch(() => null)
       : null;
 
-    const newApiHistory = [...currentApiHistory, { role: 'user', content: cmd }];
+    // O texto do usuário fica no INÍCIO do bloco (não depois do marcador de
+    // anexo) — detectCommand só reconhece /comando no começo da string.
+    let userContent = cmd;
+    if (attachment?.kind === 'image') {
+      userContent = [
+        { type: 'image', source: { type: 'base64', media_type: attachment.mediaType, data: attachment.data } },
+        { type: 'text', text: `${cmd}\n\n[Anexo: ${attachment.name}]` },
+      ];
+    } else if (attachment?.kind === 'text') {
+      userContent = `${cmd}\n\n[Anexo: ${attachment.name}]\n\`\`\`\n${attachment.data}\n\`\`\``;
+    }
+
+    const newApiHistory = [...currentApiHistory, { role: 'user', content: userContent }];
     setApiHistory(newApiHistory);
     if (apiHistoryRef) apiHistoryRef.current = newApiHistory;
 
@@ -231,7 +251,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
 
       // Fix 1: armazenar último comando para retry
       setLastFailedCmd(cmd);
-      setLastFailedCallbacks({ onModeChange, onFocusChange });
+      setLastFailedCallbacks({ onModeChange, onFocusChange, attachment });
       setApiError(`[${errorType}] ${errMsg}`);
       setErrorDetails({ type: errorType, fullMessage: errMsg, stack: err.stack });
       setHistory(h => [...h, { role: 'jarvis', type: 'text', lines: [`Falha no núcleo: ${errorType}`, userMessage], ts: new Date() }]);

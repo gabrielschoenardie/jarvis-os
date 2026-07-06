@@ -53,7 +53,7 @@ function JarvisLabel({ children }) {
   );
 }
 
-function JarvisResponse({ msg }) {
+function JarvisResponse({ msg, onOpenHud }) {
   if (msg.type === 'ai') {
     return <JarvisLabel><AIText text={msg.text} /></JarvisLabel>;
   }
@@ -74,6 +74,22 @@ function JarvisResponse({ msg }) {
         >
           ▸ ABRIR · {msg.label}
         </a>
+      </JarvisLabel>
+    );
+  }
+  if (msg.type === 'hud') {
+    return (
+      <JarvisLabel>
+        <button
+          onClick={() => onOpenHud?.({ videoId: msg.videoId, title: msg.title, channel: msg.channel })}
+          style={{
+            display: 'inline-block', fontSize: 10, color: C.accent, letterSpacing: '0.18em',
+            border: `1px solid ${C.accentDim}`, padding: '5px 12px', background: 'transparent',
+            fontFamily: 'inherit', cursor: 'pointer',
+          }}
+        >
+          ▸ REPRODUZIR · {msg.title}
+        </button>
       </JarvisLabel>
     );
   }
@@ -158,13 +174,13 @@ function BootSequence({ stage }) {
   );
 }
 
-export function TerminalView({ scrollRef, bootStage, history, thinking, streamText, toolStatus }) {
+export function TerminalView({ scrollRef, bootStage, history, thinking, streamText, toolStatus, onOpenHud }) {
   return (
     <div ref={scrollRef} className="jv-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '36px 56px 24px 56px' }}>
       <BootSequence stage={bootStage} />
       {history.map((msg, i) => (
         <div key={i} className="jv-fade" style={{ marginBottom: 28 }}>
-          {msg.role === 'operator' ? <OperatorLine msg={msg} /> : <JarvisResponse msg={msg} />}
+          {msg.role === 'operator' ? <OperatorLine msg={msg} /> : <JarvisResponse msg={msg} onOpenHud={onOpenHud} />}
         </div>
       ))}
       {thinking && !streamText && <ThinkingIndicator toolStatus={toolStatus} />}

@@ -29,14 +29,27 @@ const sentinels = [
   { name: 'BEM-ESTAR', state: 'watch' },
 ];
 
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_TEXT_CHARS = 30000;
+const IMAGE_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function JarvisOS() {
   const [bootStage, setBootStage] = useState(0);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState('terminal');
   const [focusMode, setFocusMode] = useState(null);
+  const [attachment, setAttachment] = useState(null);
+  const [attachmentError, setAttachmentError] = useState(null);
 
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const apiHistoryRef = useRef([]);
 
   const { time, telemetry, setTelemetry, startTimer, stopTimer } = useTelemetry();
@@ -95,10 +108,49 @@ export default function JarvisOS() {
   const handleSubmit = () => {
     if (!ready || !input.trim()) return;
     const cmd = input;
+    const currentAttachment = attachment;
     setInput('');
-    chat.submitCommand(cmd, { onModeChange: setMode, onFocusChange: setFocusMode });
+    setAttachment(null);
+    chat.submitCommand(cmd, { onModeChange: setMode, onFocusChange: setFocusMode, attachment: currentAttachment });
   };
   const handleKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setAttachmentError(null);
+
+    if (IMAGE_MEDIA_TYPES.includes(file.type)) {
+      if (file.size > MAX_IMAGE_BYTES) {
+        setAttachmentError(`imagem muito grande · máximo ${formatBytes(MAX_IMAGE_BYTES)}`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1] || '';
+        setAttachment({ name: file.name, sizeLabel: formatBytes(file.size), mediaType: file.type, kind: 'image', data: base64 });
+      };
+      reader.onerror = () => setAttachmentError('falha ao ler o arquivo');
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const isTextLike = file.type.startsWith('text/') || /\.(json|txt|cube|srt|log|csv|md|js|py)$/i.test(file.name);
+    if (isTextLike) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        let text = reader.result;
+        if (text.length > MAX_TEXT_CHARS) text = text.slice(0, MAX_TEXT_CHARS) + '\n...[truncado]';
+        setAttachment({ name: file.name, sizeLabel: formatBytes(file.size), mediaType: file.type || 'text/plain', kind: 'text', data: text });
+      };
+      reader.onerror = () => setAttachmentError('falha ao ler o arquivo');
+      reader.readAsText(file);
+      return;
+    }
+
+    setAttachmentError('tipo de arquivo não suportado');
+  };
 
   const fmtTime = d => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const fmtDate = d => d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
@@ -324,6 +376,13 @@ export default function JarvisOS() {
                 style={{ ...mono, flex: 1, background: 'transparent', border: 'none', color: C.text, fontSize: 14, letterSpacing: '0.02em', padding: '4px 0' }}
               />
               <MicButton listening={speech.listening} onStart={speech.startListening} onStop={speech.stopListening} disabled={!speech.recogSupported || chat.thinking || !ready || !!speech.partialTranscript || speech.vadLoading} />
+              <input ref={fileInputRef} type="file" hidden accept="image/png,image/jpeg,image/webp,.json,.txt,.cube,.srt,.log,.csv,.md,.js,.py" onChange={handleFileSelect} />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!ready || chat.thinking}
+                title="Anexar arquivo ou imagem"
+                style={{ background: attachment ? C.accent : 'transparent', color: attachment ? C.bg : C.accentDim, border: `1px solid ${C.accentDim}`, padding: '6px 12px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.18em', cursor: !ready || chat.thinking ? 'not-allowed' : 'pointer' }}
+              >▸ ANEXO</button>
               <button onClick={handleSubmit} disabled={!ready || chat.thinking || !input.trim()} style={{ background: 'transparent', border: `1px solid ${input.trim() ? C.accentDim : C.dim}`, color: input.trim() ? C.accent : C.dim, padding: '6px 14px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: input.trim() && !chat.thinking ? 'pointer' : 'not-allowed' }}>
                 ▸ ENVIAR
               </button>
@@ -332,6 +391,17 @@ export default function JarvisOS() {
             {speech.partialTranscript && (
               <div className="jv-fade" style={{ marginTop: 6, fontSize: 12, color: C.muted, letterSpacing: '0.04em', fontStyle: 'italic' }}>
                 ◎ {speech.partialTranscript}
+              </div>
+            )}
+            {attachment && (
+              <div className="jv-fade" style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, fontSize: 10, color: C.accentDim, letterSpacing: '0.08em', border: `1px solid ${C.line}`, padding: '5px 10px', width: 'fit-content' }}>
+                <span>▸ {attachment.name} · {attachment.sizeLabel}</span>
+                <button onClick={() => setAttachment(null)} style={{ background: 'transparent', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 11 }}>✕</button>
+              </div>
+            )}
+            {attachmentError && (
+              <div className="jv-fade" style={{ marginTop: 8, fontSize: 10, color: C.warn, letterSpacing: '0.08em' }}>
+                ⚠ {attachmentError}
               </div>
             )}
             <div style={{ marginTop: 10, display: 'flex', gap: 18, fontSize: 9.5, color: C.dim, letterSpacing: '0.22em', flexWrap: 'wrap' }}>

@@ -82,9 +82,14 @@ function JarvisResponse({ msg }) {
 
 function OperatorLine({ msg }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
       <span style={{ color: C.dim, fontSize: 10, letterSpacing: '0.22em', minWidth: 88 }}>SIR · GABRIEL</span>
       <span style={{ color: C.text, fontSize: 13.5 }}>{msg.content}</span>
+      {msg.attachment && (
+        <span style={{ fontSize: 9, color: C.accentDim, letterSpacing: '0.1em', border: `1px solid ${C.line}`, padding: '2px 8px' }}>
+          ▸ ANEXO · {msg.attachment.name}
+        </span>
+      )}
     </div>
   );
 }

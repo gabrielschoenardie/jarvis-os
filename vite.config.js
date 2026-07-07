@@ -17,6 +17,7 @@ export default defineConfig({
     }),
   ],
   optimizeDeps: {
+    include: ['three', 'd3-force-3d'],
     exclude: ['@ricky0123/vad-react', '@ricky0123/vad-web', 'onnxruntime-web'],
   },
   build: {

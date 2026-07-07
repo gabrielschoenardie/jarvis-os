@@ -1,14 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { C, display, mono } from './lib/constants.js';
 import { useTelemetry } from './hooks/useTelemetry.js';
 import { useSpeech } from './hooks/useSpeech.js';
 import { useChat } from './hooks/useChat.js';
-import { HolographicView } from './components/HolographicView.jsx';
+import { useVault } from './hooks/useVault.js';
 import { TerminalView } from './components/TerminalView.jsx';
 import { HudMediaWindow } from './components/HudMediaWindow.jsx';
 import { VoicePanel } from './components/VoicePanel.jsx';
 import { VoiceIndicator, MicButton } from './components/VoiceIndicator.jsx';
 import { Meter } from './components/Meter.jsx';
+
+// Lazy: o chunk do three.js (~680kB min) só carrega ao entrar no modo VAULT
+const VaultBrain = lazy(() => import('./components/VaultBrain.jsx'));
 
 const modules = [
   { id: '01', name: 'MATRIX', status: 'online' },
@@ -16,7 +19,7 @@ const modules = [
   { id: '03', name: 'ARCHIVE', status: 'online' },
   { id: '04', name: 'DEFESA', status: 'online' },
   { id: '05', name: 'OVERWATCH', status: 'online' },
-  { id: '06', name: 'MARK VII', status: 'idle' },
+  { id: '06', name: 'VAULT', status: 'idle' },
   { id: '07', name: 'SYNTHESIA', status: 'online' },
   { id: '08', name: 'TRIBUNAL', status: 'online' },
   { id: '09', name: 'CRONOS', status: 'online' },
@@ -72,6 +75,9 @@ export default function JarvisOS() {
     apiHistoryRef,
     speakChunks: speech.speakChunks,
   });
+
+  // Vault Obsidian — vive no App para sobreviver às trocas de modo
+  const vault = useVault();
 
   // Keep ref current on every render so STT callback always calls the latest submitCommand
   submitCommandRef.current = chat.submitCommand;
@@ -153,6 +159,20 @@ export default function JarvisOS() {
     setAttachmentError('tipo de arquivo não suportado');
   };
 
+  // Nó do cérebro → JARVIS lê a nota (reusa o pipeline de anexos de texto)
+  const handleAnalyzeNote = ({ title, path, content }) => {
+    let data = content;
+    if (data.length > MAX_TEXT_CHARS) data = data.slice(0, MAX_TEXT_CHARS) + '\n...[truncado]';
+    chat.submitCommand(`Analise esta nota do meu vault Obsidian: "${title}"`, {
+      onModeChange: setMode, onFocusChange: setFocusMode,
+      attachment: {
+        name: title.toLowerCase().endsWith('.md') ? title : `${title}.md`,
+        sizeLabel: formatBytes(content.length),
+        mediaType: 'text/markdown', kind: 'text', data,
+      },
+    });
+  };
+
   const fmtTime = d => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const fmtDate = d => d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
@@ -232,7 +252,7 @@ export default function JarvisOS() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 22, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${C.line}`, padding: 2 }}>
             <button onClick={() => setMode('terminal')} style={{ background: mode === 'terminal' ? C.accent : 'transparent', color: mode === 'terminal' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>TERMINAL</button>
-            <button onClick={() => setMode('holographic')} style={{ background: mode === 'holographic' ? C.accent : 'transparent', color: mode === 'holographic' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>MARK VII</button>
+            <button onClick={() => setMode('holographic')} style={{ background: mode === 'holographic' ? C.accent : 'transparent', color: mode === 'holographic' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>VAULT</button>
           </div>
           <VoiceIndicator voiceOut={speech.voiceOut} speaking={speech.speaking} listening={speech.listening} onToggle={speech.toggleVoiceOut} onPanel={() => speech.setVoicePanelOpen(o => !o)} supported={speech.speechSupported} />
           <div style={{ color: C.muted }}>{fmtDate(time)}</div>
@@ -339,7 +359,13 @@ export default function JarvisOS() {
           {mode === 'terminal' ? (
             <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={chat.history} thinking={chat.thinking} streamText={chat.streamText} toolStatus={chat.toolStatus} onOpenHud={chat.openHudMedia} />
           ) : (
-            <HolographicView telemetry={enrichedTelemetry} history={chat.history} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} ready={ready} time={time} />
+            <Suspense fallback={
+              <div className="jv-pulse" style={{ flex: 1, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, letterSpacing: '0.32em', color: C.accent }}>
+                INICIALIZANDO NÚCLEO NEURAL…
+              </div>
+            }>
+              <VaultBrain vault={vault} history={chat.history} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} ready={ready} onAnalyzeNote={handleAnalyzeNote} />
+            </Suspense>
           )}
 
           {/* COMMAND INPUT */}
@@ -410,7 +436,7 @@ export default function JarvisOS() {
               </div>
             )}
             <div style={{ marginTop: 10, display: 'flex', gap: 18, fontSize: 9.5, color: C.dim, letterSpacing: '0.22em', flexWrap: 'wrap' }}>
-              <span>/ARMOR</span><span>/HOLO</span><span>/TERMINAL</span><span>/FOCO [tema]</span><span>/STATUS</span><span>/SAIR</span>
+              <span>/VAULT</span><span>/HOLO</span><span>/TERMINAL</span><span>/FOCO [tema]</span><span>/STATUS</span><span>/SAIR</span>
               <span style={{ color: C.accentDim }}>↵ tudo mais vai para a IA</span>
               <span style={{ marginLeft: 'auto', color: speech.voiceOut ? C.accent : C.dim }}>{speech.voiceOut ? '◉ VOZ ATIVA' : '○ VOZ'}</span>
             </div>

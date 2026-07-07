@@ -44,3 +44,14 @@ Funciona direto no Vercel. O browser pede permissão na primeira vez.
 
 ## Segurança
 A chave fica no servidor Vercel. O browser nunca a vê.
+
+---
+
+## Cérebro Obsidian (modo VAULT)
+
+O modo `VAULT` (botão no topo, ou comando `/vault`) substitui a projeção do reator arc por um grafo 3D do seu vault Obsidian real — cada nota vira um ponto de luz, cada `[[wikilink]]` vira uma conexão.
+
+- **Requisito**: navegador Chromium (Chrome ou Edge) — usa a File System Access API, que não existe no Firefox/Safari.
+- **Conectar**: clique em `▸ CONECTAR VAULT` e escolha a pasta do seu vault. As notas são lidas **inteiramente no navegador** — nenhum conteúdo sobe a servidor, exceto quando você clica em `▸ ANALISAR COM JARVIS` numa nota específica (aí só o texto daquela nota é enviado à IA).
+- **Reconectar**: ao reabrir o navegador, um clique em `▸ RECONECTAR VAULT` restaura o acesso, sem escolher a pasta de novo.
+- **Analisar uma nota**: clique num ponto do grafo → painel com preview abre → `▸ ANALISAR COM JARVIS` envia o conteúdo pra IA responder em voz e texto.

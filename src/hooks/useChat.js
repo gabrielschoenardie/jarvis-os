@@ -61,11 +61,11 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
   const handleLocalCommand = (cmd, currentApiHistory) => {
     const lower = cmd.trim().toLowerCase();
 
-    if (lower === '/holo' || lower === '/holografia' || lower === '/armor') {
+    if (lower === '/vault' || lower === '/holo' || lower === '/holografia' || lower === '/armor') {
       return { type: 'text', lines: [
-        'Projeção holográfica Mark VII iniciada.',
-        'Arc reactor online · topologia visível.',
-        lower === '/armor' ? 'Interface de combate carregada, Sir.' : 'Modo holográfico ativo.',
+        'Núcleo neural projetado.',
+        'Grafo do vault Obsidian online, Sir.',
+        lower === '/armor' ? 'Interface de combate carregada.' : 'Modo cérebro ativo.',
       ], switchMode: 'holographic' };
     }
     if (lower === '/terminal') {
@@ -84,7 +84,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
         '◉ MATRIX · online · latência nominal',
         '◉ NEXUS · online · 847.293 registros indexados',
         '◉ DEFESA · online · sem ameaças detectadas',
-        '◉ MARK VII · standby · disponível para deploy',
+        '◉ VAULT · standby · núcleo neural disponível',
         '◉ ARC REACTOR · potência 100% · estável',
         `◉ MODELO · claude-sonnet-4.6 · ${currentApiHistory.length > 0 ? Math.min(Math.floor(currentApiHistory.length / 2), 20) + ' / 20 turnos' : 'contexto limpo'}`,
       ]};
@@ -102,7 +102,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
     if (lower === '/ajuda' || lower === '/help') {
       return { type: 'text', lines: [
         '═══ J.A.R.V.I.S. · COMANDOS ═══',
-        '/armor ou /holo → projeção holográfica Mark VII',
+        '/vault ou /holo → cérebro neural do vault Obsidian',
         '/terminal → interface de terminal',
         '/foco [tema] → modo concentração',
         '/sair → encerrar modo foco',

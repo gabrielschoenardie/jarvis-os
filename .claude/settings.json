@@ -1,0 +1,26 @@
+{
+  "enabledPlugins": {
+    "claude-code-setup@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/block-api-key-leak.cjs",
+            "statusMessage": "Checking for API keys leaking into src/..."
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard-coop-coep-headers.cjs",
+            "statusMessage": "Checking COOP/COEP headers..."
+          }
+        ]
+      }
+    ]
+  }
+}

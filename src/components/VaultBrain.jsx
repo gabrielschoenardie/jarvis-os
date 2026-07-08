@@ -162,8 +162,11 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
       );
       case 'error': return (
         <>
-          <div style={{ fontSize: 10, letterSpacing: '0.22em', color: C.critical, marginBottom: 14, maxWidth: 340 }}>⚠ {vault.error}</div>
-          <button style={holoButton} onClick={vault.rescanVault}>↺ TENTAR NOVAMENTE</button>
+          <div style={{ fontSize: 10, letterSpacing: '0.22em', color: C.critical, marginBottom: 14, maxWidth: 340, lineHeight: 1.6 }}>⚠ {vault.error}</div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button style={holoButton} onClick={vault.rescanVault}>↺ TENTAR NOVAMENTE</button>
+            <button style={holoButton} onClick={vault.connectVault}>▸ CONECTAR OUTRO VAULT</button>
+          </div>
         </>
       );
       default: return null;

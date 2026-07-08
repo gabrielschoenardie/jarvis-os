@@ -2,6 +2,23 @@ import { memo, useMemo } from 'react';
 import { C, display, MODEL } from '../lib/constants.js';
 import { WeatherCard } from './WeatherCard.jsx';
 
+// Parser inline compartilhado: **negrito**, `código`, [rótulo](url) e URLs
+// cruas. Usado tanto em parágrafos quanto em itens de lista (antes a lista
+// mostrava o texto cru, sem formatação).
+function renderInline(text, kp) {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|https?:\/\/[^\s)]+)/g);
+  const link = { color: C.accent, textDecoration: 'underline', textUnderlineOffset: 2 };
+  return parts.map((p, j) => {
+    if (!p) return null;
+    if (p.startsWith('**') && p.endsWith('**')) return <strong key={`${kp}-${j}`} style={{ color: C.accent, fontWeight: 600 }}>{p.slice(2, -2)}</strong>;
+    if (p.startsWith('`') && p.endsWith('`')) return <code key={`${kp}-${j}`} style={{ background: 'rgba(0,212,255,0.07)', color: C.accent, padding: '1px 5px', fontSize: 11.5 }}>{p.slice(1, -1)}</code>;
+    const md = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (md) return <a key={`${kp}-${j}`} href={md[2]} target="_blank" rel="noopener noreferrer" style={link}>{md[1]}</a>;
+    if (/^https?:\/\//.test(p)) return <a key={`${kp}-${j}`} href={p} target="_blank" rel="noopener noreferrer" style={{ ...link, wordBreak: 'break-all' }}>{p}</a>;
+    return p;
+  });
+}
+
 // memo: o parser de markdown roda de novo só quando o `text` daquela mensagem
 // muda. Antes, cada delta do stream re-parseava TODO o histórico.
 const AIText = memo(function AIText({ text }) {
@@ -11,38 +28,42 @@ const AIText = memo(function AIText({ text }) {
   let inCode = false;
   let codeLines = [];
 
+  const flushCode = (key) => {
+    elements.push(<pre key={key} className="jv-ai-code" style={{ color: C.accent, fontFamily: '"JetBrains Mono", monospace' }}>{codeLines.join('\n')}</pre>);
+    codeLines = [];
+  };
+
   lines.forEach((line, i) => {
     if (line.startsWith('```')) {
-      if (inCode) {
-        elements.push(<pre key={`code-${i}`} className="jv-ai-code" style={{ color: C.accent, fontFamily: '"JetBrains Mono", monospace' }}>{codeLines.join('\n')}</pre>);
-        codeLines = []; inCode = false;
-      } else { inCode = true; }
+      if (inCode) { flushCode(`code-${i}`); inCode = false; }
+      else { inCode = true; }
       return;
     }
     if (inCode) { codeLines.push(line); return; }
-    if (line.startsWith('# ')) {
-      elements.push(<div key={i} style={{ fontSize: 16, color: C.accent, fontWeight: 500, margin: '10px 0 6px', letterSpacing: '0.04em' }}>{line.slice(2)}</div>);
+    if (line.startsWith('### ')) {
+      elements.push(<div key={i} style={{ fontSize: 12.5, color: C.text, fontWeight: 600, margin: '8px 0 3px', letterSpacing: '0.08em' }}>{renderInline(line.slice(4), i)}</div>);
+    } else if (line.startsWith('# ')) {
+      elements.push(<div key={i} style={{ fontSize: 16, color: C.accent, fontWeight: 500, margin: '10px 0 6px', letterSpacing: '0.04em' }}>{renderInline(line.slice(2), i)}</div>);
     } else if (line.startsWith('## ')) {
-      elements.push(<div key={i} style={{ fontSize: 13.5, color: C.text, fontWeight: 500, margin: '8px 0 4px', letterSpacing: '0.06em' }}>{line.slice(3)}</div>);
+      elements.push(<div key={i} style={{ fontSize: 13.5, color: C.text, fontWeight: 500, margin: '8px 0 4px', letterSpacing: '0.06em' }}>{renderInline(line.slice(3), i)}</div>);
     } else if (line.startsWith('- ') || line.startsWith('• ')) {
-      elements.push(<div key={i} style={{ display: 'flex', gap: 10, padding: '2px 0', color: C.text, fontSize: 13 }}><span style={{ color: C.accentDim }}>▸</span><span>{line.slice(2)}</span></div>);
+      elements.push(<div key={i} style={{ display: 'flex', gap: 10, padding: '2px 0', color: C.text, fontSize: 13, lineHeight: 1.6 }}><span style={{ color: C.accentDim }}>▸</span><span>{renderInline(line.slice(2), i)}</span></div>);
     } else if (line.match(/^`[^`]+`$/)) {
       elements.push(<code key={i} style={{ background: 'rgba(0,212,255,0.07)', color: C.accent, padding: '1px 6px', fontSize: 12 }}>{line.slice(1,-1)}</code>);
     } else if (line.trim() === '') {
       elements.push(<div key={i} style={{ height: 8 }} />);
     } else {
-      const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
       elements.push(
         <div key={i} style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75, marginBottom: 2 }}>
-          {parts.map((p, j) => {
-            if (p.startsWith('**') && p.endsWith('**')) return <strong key={j} style={{ color: C.accent, fontWeight: 600 }}>{p.slice(2,-2)}</strong>;
-            if (p.startsWith('`') && p.endsWith('`')) return <code key={j} style={{ background: 'rgba(0,212,255,0.07)', color: C.accent, padding: '1px 5px', fontSize: 11.5 }}>{p.slice(1,-1)}</code>;
-            return p;
-          })}
+          {renderInline(line, i)}
         </div>
       );
     }
   });
+
+  // Bloco de código ainda aberto no fim (stream cortou no meio da cerca): mostra
+  // o que já chegou em vez de deixar o código invisível até fechar a ```.
+  if (inCode && codeLines.length) flushCode('code-open');
 
   return <div>{elements}</div>;
 });

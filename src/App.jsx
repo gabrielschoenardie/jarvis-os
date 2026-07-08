@@ -10,6 +10,7 @@ import { VoicePanel } from './components/VoicePanel.jsx';
 import { VoiceIndicator, MicButton } from './components/VoiceIndicator.jsx';
 import { Meter } from './components/Meter.jsx';
 import { PresenceCore } from './components/PresenceCore.jsx';
+import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 
 // Lazy: o chunk do three.js (~680kB min) só carrega ao entrar no modo VAULT
 const VaultBrain = lazy(() => import('./components/VaultBrain.jsx'));
@@ -51,7 +52,7 @@ function LatencyReadout({ subscribe, getInitial }) {
   const [ms, setMs] = useState(() => getInitial());
   useEffect(() => subscribe(setMs), [subscribe]);
   return (
-    <div style={{ ...display, fontSize: 26, color: C.text, fontWeight: 300 }}>
+    <div style={{ ...display, fontSize: 26, color: C.text, fontWeight: 300, fontVariantNumeric: 'tabular-nums' }}>
       {Math.round(ms)}<span style={{ ...mono, fontSize: 11, color: C.muted, marginLeft: 6 }}>ms</span>
     </div>
   );
@@ -218,7 +219,7 @@ export default function JarvisOS() {
   const fmtDate = d => d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
   return (
-    <div style={{ ...mono, background: C.bg, color: C.text, minHeight: '100vh', width: '100%', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ ...mono, background: `radial-gradient(ellipse at 50% 28%, ${C.bgSoft} 0%, ${C.bg} 55%, ${C.bgDeep} 100%)`, color: C.text, minHeight: '100vh', width: '100%', position: 'relative', overflow: 'hidden' }}>
       <style>{`
         @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
         @keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -347,7 +348,7 @@ export default function JarvisOS() {
           </div>
           <VoiceIndicator voiceOut={speech.voiceOut} speaking={speech.speaking} listening={speech.listening} onToggle={speech.toggleVoiceOut} onPanel={() => speech.setVoicePanelOpen(o => !o)} supported={speech.speechSupported} />
           <div className="jv-hide-sm" style={{ color: C.muted }}>{fmtDate(time)}</div>
-          <div style={{ color: C.text, fontWeight: 500 }}>{fmtTime(time)} <span style={{ color: C.muted }}>brt</span></div>
+          <div style={{ color: C.text, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(time)} <span style={{ color: C.muted }}>brt</span></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: ready ? C.accent : C.warn }} className={ready ? 'jv-pulse' : ''} />
             <span style={{ color: C.muted }}>{ready ? 'núcleo' : 'iniciando'}</span>
@@ -392,13 +393,20 @@ export default function JarvisOS() {
         <aside className="jv-rail-left" style={{ borderRight: `1px solid ${C.line}`, padding: '24px 18px', background: 'rgba(0,0,0,0.22)' }}>
           <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 18 }}>SUBSISTEMAS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 11 }}>
-            {modules.map((m, i) => (
-              <div key={m.id} className="jv-fade" style={{ display: 'flex', alignItems: 'center', gap: 10, animationDelay: `${i * 80}ms` }}>
-                <span style={{ color: C.dim, width: 18 }}>{m.id}</span>
-                <span style={{ color: m.status === 'online' ? C.text : C.muted, flex: 1, letterSpacing: '0.08em' }}>{m.name}</span>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.status === 'online' ? C.accent : C.dim }} className={m.status === 'online' ? 'jv-pulse' : ''} />
-              </div>
-            ))}
+            {modules.map((m, i) => {
+              // VAULT reflete a conexão real do vault Obsidian; o resto é lore Stark.
+              const st = m.name === 'VAULT'
+                ? (vault.status === 'ready' ? 'online' : vault.status === 'scanning' ? 'scanning' : 'idle')
+                : m.status;
+              const on = st === 'online', scanning = st === 'scanning';
+              return (
+                <div key={m.id} className="jv-fade" style={{ display: 'flex', alignItems: 'center', gap: 10, animationDelay: `${i * 80}ms` }}>
+                  <span style={{ color: C.dim, width: 18 }}>{m.id}</span>
+                  <span style={{ color: on || scanning ? C.text : C.muted, flex: 1, letterSpacing: '0.08em' }}>{m.name}</span>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: on ? C.accent : scanning ? C.warn : C.dim }} className={on || scanning ? 'jv-pulse' : ''} />
+                </div>
+              );
+            })}
           </div>
           <div style={{ marginTop: 32, color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 14 }}>HIERARQUIA</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 10.5 }}>
@@ -415,11 +423,11 @@ export default function JarvisOS() {
             <div style={{ fontSize: 10, color: C.text }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ color: C.dim }}>TURNOS</span>
-                <span style={{ color: C.accent }}>{Math.floor(apiHistoryRef.current.length / 2)}</span>
+                <span style={{ color: C.accent, fontVariantNumeric: 'tabular-nums' }}>{Math.floor(apiHistoryRef.current.length / 2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ color: C.dim }}>TOKENS EST.</span>
-                <span style={{ color: C.accent }}>{apiHistoryRef.current.reduce((a, m) => a + (m.content?.length || 0), 0) / 4 | 0}</span>
+                <span style={{ color: C.accent, fontVariantNumeric: 'tabular-nums' }}>{apiHistoryRef.current.reduce((a, m) => a + (m.content?.length || 0), 0) / 4 | 0}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: C.dim }}>MODELO</span>
@@ -457,13 +465,15 @@ export default function JarvisOS() {
             {mode === 'terminal' ? (
               <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={chat.history} thinking={chat.thinking} streamText={chat.streamText} toolStatus={chat.toolStatus} onOpenHud={chat.openHudMedia} />
             ) : (
-              <Suspense fallback={
-                <div className="jv-pulse" style={{ flex: 1, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, letterSpacing: '0.32em', color: C.accent }}>
-                  INICIALIZANDO NÚCLEO NEURAL…
-                </div>
-              }>
-                <VaultBrain vault={vault} history={chat.history} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} ready={ready} onAnalyzeNote={handleAnalyzeNote} />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={
+                  <div className="jv-pulse" style={{ flex: 1, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, letterSpacing: '0.32em', color: C.accent }}>
+                    INICIALIZANDO NÚCLEO NEURAL…
+                  </div>
+                }>
+                  <VaultBrain vault={vault} history={chat.history} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} ready={ready} onAnalyzeNote={handleAnalyzeNote} />
+                </Suspense>
+              </ErrorBoundary>
             )}
           </div>
 

@@ -1,5 +1,7 @@
 export const C = {
   bg: '#050a14',
+  bgSoft: '#071018', // topo levemente mais claro — profundidade do void
+  bgDeep: '#030710', // bordas mais fundas
   line: 'rgba(0,212,255,0.10)',
   lineStrong: 'rgba(0,212,255,0.26)',
   text: '#c8e8f8',

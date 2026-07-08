@@ -51,9 +51,13 @@
 - Crossfade 400ms na troca terminal↔VAULT com "handoff" do core entre projeções.
 - Linhas do boot ganham exit; curvas de easing compartilhadas via tokens.
 
-## Fase 4 — Visual Polish & Layout
+## Fase 4 — Visual Polish & Layout · (dividida em 4a + 4b)
 
 **Objetivo**: hierarquia tipográfica, sistema de profundidade, responsividade.
+
+> **4a — Responsividade ✅ CONCLUÍDA**: grid movido pra classe `.jv-layout` com media queries (inline venceria as MQs). Base 3 colunas; <1280 esconde rail direito (`.jv-rail-right`) e passa a 2 colunas; <900 esconde rail esquerdo (`.jv-rail-left`) → só o núcleo (conversa+voz+comando); header com `flex-wrap`; paddings do terminal/comando em classes (`.jv-term-scroll`/`.jv-cmd`) pra encolher no mobile; input com `minWidth` + row `flex-wrap`; data/hints escondidos <620 (`.jv-hide-sm`/`.jv-cmd-hints`). Sem scroll horizontal. Build OK (187 módulos).
+>
+> **4b — Polimento (PENDENTE)**: hierarquia tipográfica (labels ≥10px, `C.dim` a ~3:1 onde carrega significado, Rajdhani só display, numerais tabulares, tracking hierarquia); profundidade em 3 camadas (void → estrutura → projeção); void 2-stop (`#030710→#071018`); command input "cockpit"; VoicePanel em clusters; HudMediaWindow arrastável + vinheta; rails com sinais reais (H9); AIText (código no stream, links, `###`, formatação inline em list items — M1); ErrorBoundary no VaultBrain (M3).
 
 - Type scale: labels ≥10px; `C.dim` elevado a ~3:1 onde carrega significado; Rajdhani reservada a momentos display; numerais tabulares em números vivos; tracking 0.32em só em eyebrows.
 - Profundidade em 3 camadas: void (efeitos de fundo) → estrutura (rails, hairlines, sem blur) → projeção (glass + blur + corner brackets — brackets viram marca exclusiva de superfícies projetadas).

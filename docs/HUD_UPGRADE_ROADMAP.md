@@ -1,6 +1,6 @@
 # JARVIS OS — Hollywood HUD Upgrade · Roadmap
 
-> Status: **Fases 1 e 2 CONCLUÍDAS** · próximas: Fase 3 → 6.
+> Status: **Fases 1, 2 e 3 CONCLUÍDAS** · próximas: Fase 4 → 6.
 > Origem: auditoria completa do repositório (07/07/2026).
 > Regra: uma fase por vez, commits pequenos, verificar `npm run dev` + `npm run build` antes de avançar.
 > Invariantes CLAUDE.md sempre valem: nunca tocar `require-corp`, pipeline de streaming/TTS intocado na lógica, `dispose()` simétrico no three.js.
@@ -34,9 +34,11 @@
 - rAF-batch do `setStreamText` (coalescer chunks SSE por frame).
 - Verificar TTS sentence-feeding e tool-status após cada commit.
 
-## Fase 3 — Motion Design & Presence Core (elemento assinatura)
+## Fase 3 — Motion Design & Presence Core (elemento assinatura) ✅ CONCLUÍDA
 
 **Objetivo**: uma gramática de movimento; JARVIS vira presença física.
+
+> Entregue: `src/components/PresenceCore.jsx` — arc-reactor SVG (~116px) cujo estado (`idle/listening/thinking/speaking/tool`) deriva de `thinking/speaking/listening/toolStatus`; motion = estado (halo, rotação dos anéis, respiração/pulso do núcleo, ondas de fala, marcador orbital de ferramenta) + legenda de estado. Keyframes `pc-*` no bloco `<style>` do App. Montado como **hero flutuante** ancorado acima do command input (só no modo terminal; no VAULT o núcleo 3D é a outra projeção — handoff no fade de troca). Banners (FOCO/TRANSMITINDO) viraram **overlay absoluto** com slide-in (`jv-banner-in`) → acabou o layout jump (H1). Troca terminal↔VAULT com fade (`jv-mode-in`, `key={mode}`). Sob `prefers-reduced-motion` o core repousa estático aceso. Build OK (187 módulos). **Nota**: "saídas do boot" ficou mínima de propósito — o log de boot persiste como cabeçalho da conversa; o orçamento de motion foi pro core/banners/transição.
 
 - **`src/components/PresenceCore.jsx`**: arc-reactor 2D (SVG/CSS, sem three.js no terminal) ancorado no command input. Vocabulário de estados:
   - idle → respiração lenta 4s

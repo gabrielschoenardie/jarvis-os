@@ -9,6 +9,7 @@ import { HudMediaWindow } from './components/HudMediaWindow.jsx';
 import { VoicePanel } from './components/VoicePanel.jsx';
 import { VoiceIndicator, MicButton } from './components/VoiceIndicator.jsx';
 import { Meter } from './components/Meter.jsx';
+import { PresenceCore } from './components/PresenceCore.jsx';
 
 // Lazy: o chunk do three.js (~680kB min) só carrega ao entrar no modo VAULT
 const VaultBrain = lazy(() => import('./components/VaultBrain.jsx'));
@@ -235,6 +236,15 @@ export default function JarvisOS() {
         @keyframes arcPulse { 0% { box-shadow: 0 0 0 0 rgba(0,212,255,0.7), 0 0 20px 4px rgba(0,212,255,0.3); } 70% { box-shadow: 0 0 0 18px rgba(0,212,255,0), 0 0 30px 8px rgba(0,212,255,0.15); } 100% { box-shadow: 0 0 0 0 rgba(0,212,255,0), 0 0 20px 4px rgba(0,212,255,0.3); } }
         @keyframes dataStream { 0% { transform: translateY(-100%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 0.6; } 100% { transform: translateY(100vh); opacity: 0; } }
         @keyframes hexGlow { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.55; } }
+        @keyframes pc-spin { to { transform: rotate(360deg); } }
+        @keyframes pc-spin-rev { to { transform: rotate(-360deg); } }
+        @keyframes pc-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+        @keyframes pc-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.14); opacity: 0.82; } }
+        @keyframes pc-ripple { from { transform: scale(0.55); opacity: 0.5; } to { transform: scale(2.6); opacity: 0; } }
+        @keyframes modeIn { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: scale(1); } }
+        @keyframes bannerIn { from { opacity: 0; transform: translateY(-100%); } to { opacity: 1; transform: translateY(0); } }
+        .jv-mode-in { animation: modeIn 0.42s cubic-bezier(0.16,1,0.3,1) both; }
+        .jv-banner-in { animation: bannerIn 0.32s cubic-bezier(0.16,1,0.3,1) both; }
         .jv-fade { animation: fadeIn 0.5s ease-out both; }
         .jv-scale-in { animation: fadeInScale 0.6s ease-out both; }
         .jv-blink { animation: blink 1.1s steps(1, end) infinite; }
@@ -397,36 +407,53 @@ export default function JarvisOS() {
 
         {/* CENTER */}
         <main style={{ display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
-          {focusMode && (
-            <div style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '10px 32px', background: 'rgba(0,212,255,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 20 }}>
-              <div style={{ fontSize: 10, letterSpacing: '0.32em', color: C.accent }}>◆ MODO FOCO · {focusMode.toUpperCase()}</div>
-              <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.2em' }}>"/sair" para encerrar</div>
-            </div>
-          )}
-          {speech.speaking && (
-            <div style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '8px 32px', background: 'rgba(0,212,255,0.05)', display: 'flex', alignItems: 'center', gap: 14, position: 'relative', zIndex: 20 }}>
-              <span style={{ display: 'inline-flex', gap: 2, alignItems: 'center', height: 14 }}>
-                {[14,14,14,14,14].map((h,i) => <span key={i} className="jv-wave-bar" style={{ height: h }} />)}
-              </span>
-              <span style={{ fontSize: 10, color: C.accent, letterSpacing: '0.3em' }}>J.A.R.V.I.S. · TRANSMITINDO</span>
-              <button onClick={speech.stopSpeaking} style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accentDim, padding: '3px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>◾ SILENCIAR</button>
-            </div>
-          )}
-
-          {mode === 'terminal' ? (
-            <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={chat.history} thinking={chat.thinking} streamText={chat.streamText} toolStatus={chat.toolStatus} onOpenHud={chat.openHudMedia} />
-          ) : (
-            <Suspense fallback={
-              <div className="jv-pulse" style={{ flex: 1, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, letterSpacing: '0.32em', color: C.accent }}>
-                INICIALIZANDO NÚCLEO NEURAL…
+          {/* Banners como overlay: deslizam sobre o topo do conteúdo em vez de
+              inserir no fluxo — antes cada um empurrava a coluna inteira pra
+              baixo (o momento mais visível, o layout jump da fala). */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, pointerEvents: 'none' }}>
+            {focusMode && (
+              <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '10px 32px', background: 'rgba(3,7,16,0.92)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'auto' }}>
+                <div style={{ fontSize: 10, letterSpacing: '0.32em', color: C.accent }}>◆ MODO FOCO · {focusMode.toUpperCase()}</div>
+                <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.2em' }}>"/sair" para encerrar</div>
               </div>
-            }>
-              <VaultBrain vault={vault} history={chat.history} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} ready={ready} onAnalyzeNote={handleAnalyzeNote} />
-            </Suspense>
-          )}
+            )}
+            {speech.speaking && (
+              <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '8px 32px', background: 'rgba(3,7,16,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: 14, pointerEvents: 'auto' }}>
+                <span style={{ display: 'inline-flex', gap: 2, alignItems: 'center', height: 14 }}>
+                  {[14,14,14,14,14].map((h,i) => <span key={i} className="jv-wave-bar" style={{ height: h }} />)}
+                </span>
+                <span style={{ fontSize: 10, color: C.accent, letterSpacing: '0.3em' }}>J.A.R.V.I.S. · TRANSMITINDO</span>
+                <button onClick={speech.stopSpeaking} style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accentDim, padding: '3px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>◾ SILENCIAR</button>
+              </div>
+            )}
+          </div>
+
+          {/* Troca de modo com fade (key={mode} remonta → dispara modeIn). */}
+          <div key={mode} className="jv-mode-in" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            {mode === 'terminal' ? (
+              <TerminalView scrollRef={scrollRef} bootStage={bootStage} history={chat.history} thinking={chat.thinking} streamText={chat.streamText} toolStatus={chat.toolStatus} onOpenHud={chat.openHudMedia} />
+            ) : (
+              <Suspense fallback={
+                <div className="jv-pulse" style={{ flex: 1, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, letterSpacing: '0.32em', color: C.accent }}>
+                  INICIALIZANDO NÚCLEO NEURAL…
+                </div>
+              }>
+                <VaultBrain vault={vault} history={chat.history} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} ready={ready} onAnalyzeNote={handleAnalyzeNote} />
+              </Suspense>
+            )}
+          </div>
 
           {/* COMMAND INPUT */}
           <div style={{ borderTop: `1px solid ${C.line}`, padding: '18px 32px 22px 32px', background: 'rgba(5,10,20,0.92)', backdropFilter: 'blur(8px)', position: 'relative', zIndex: 20 }}>
+            {/* Presence Core — hero flutuante ancorado logo acima do prompt.
+                Só no modo terminal: no VAULT, o núcleo 3D é a outra projeção
+                do mesmo ser (o handoff acontece no fade de troca de modo).
+                pointer-events none → não bloqueia o texto atrás. */}
+            {mode === 'terminal' && (
+              <div className="jv-holo-in" style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 6, pointerEvents: 'none', zIndex: 15 }}>
+                <PresenceCore size={116} thinking={chat.thinking} speaking={speech.speaking} listening={speech.listening} toolStatus={chat.toolStatus} />
+              </div>
+            )}
             {chat.apiError && (
               <div style={{ marginBottom: 10, fontSize: 10, color: C.critical, letterSpacing: '0.12em', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,60,60,0.08)', border: `1px solid ${C.critical}`, borderRadius: 4 }}>
                 <div style={{ flex: 1 }}>

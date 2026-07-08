@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { callClaude, splitIntoSpeakableChunks } from '../lib/anthropic.js';
 import { isWeatherQuery } from '../lib/weather.js';
 import { stripImageAttachment } from '../lib/attachments.js';
+import { MODEL } from '../lib/constants.js';
 
 const BACKOFF_MS = [2000, 4000, 8000];
 
@@ -86,7 +87,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
         '◉ DEFESA · online · sem ameaças detectadas',
         '◉ VAULT · standby · núcleo neural disponível',
         '◉ ARC REACTOR · potência 100% · estável',
-        `◉ MODELO · claude-sonnet-4.6 · ${currentApiHistory.length > 0 ? Math.min(Math.floor(currentApiHistory.length / 2), 20) + ' / 20 turnos' : 'contexto limpo'}`,
+        `◉ MODELO · claude-${MODEL.label} · ${currentApiHistory.length > 0 ? Math.min(Math.floor(currentApiHistory.length / 2), 20) + ' / 20 turnos' : 'contexto limpo'}`,
       ]};
     }
     if (lower === '/briefing') {

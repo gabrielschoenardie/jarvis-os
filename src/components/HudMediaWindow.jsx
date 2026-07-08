@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { C } from '../lib/constants.js';
+import { Corners } from './hud/index.js';
 
 // COEP require-corp (vercel.json/vite.config.js — indispensável pro VAD:
 // SharedArrayBuffer/WASM threads) bloqueia iframes cross-origin sem CORP.
@@ -7,13 +8,6 @@ import { C } from '../lib/constants.js';
 // Fallback (Firefox/Safari): a janela abre com link externo no lugar do player.
 const supportsCredentialless =
   typeof HTMLIFrameElement !== 'undefined' && 'credentialless' in HTMLIFrameElement.prototype;
-
-const CORNERS = {
-  tl: { top: -1, left: -1, borderTop: `1px solid ${C.accent}`, borderLeft: `1px solid ${C.accent}` },
-  tr: { top: -1, right: -1, borderTop: `1px solid ${C.accent}`, borderRight: `1px solid ${C.accent}` },
-  bl: { bottom: -1, left: -1, borderBottom: `1px solid ${C.accent}`, borderLeft: `1px solid ${C.accent}` },
-  br: { bottom: -1, right: -1, borderBottom: `1px solid ${C.accent}`, borderRight: `1px solid ${C.accent}` },
-};
 
 export function HudMediaWindow({ media, onClose }) {
   const [closing, setClosing] = useState(false);
@@ -43,9 +37,7 @@ export function HudMediaWindow({ media, onClose }) {
         onAnimationEnd={handleAnimEnd}
         style={{ position: 'relative', width: 'min(720px, 92vw)', pointerEvents: 'auto', boxShadow: '0 0 40px rgba(0,212,255,0.12)' }}
       >
-        {Object.entries(CORNERS).map(([p, s]) => (
-          <span key={p} style={{ position: 'absolute', width: 8, height: 8, zIndex: 1, ...s }} />
-        ))}
+        <Corners />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: `1px solid ${C.line}` }}>
           <span style={{ fontSize: 10, color: C.accent, letterSpacing: '0.22em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>

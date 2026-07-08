@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { C, display, mono } from './lib/constants.js';
+import { C, display, mono, MODEL, clampPct } from './lib/constants.js';
 import { useTelemetry } from './hooks/useTelemetry.js';
 import { useSpeech } from './hooks/useSpeech.js';
 import { useChat } from './hooks/useChat.js';
@@ -55,6 +55,9 @@ export default function JarvisOS() {
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const apiHistoryRef = useRef([]);
+  // Auto-scroll "grudento": só arrasta pro fim se o operador já estava perto do
+  // fim. Se ele rolou pra cima pra reler, não brigamos com ele durante o stream.
+  const stickToBottomRef = useRef(true);
 
   const { time, telemetry, setTelemetry, startTimer, stopTimer } = useTelemetry();
 
@@ -82,22 +85,48 @@ export default function JarvisOS() {
   // Keep ref current on every render so STT callback always calls the latest submitCommand
   submitCommandRef.current = chat.submitCommand;
 
-  useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap';
-    document.head.appendChild(link);
-    return () => { try { document.head.removeChild(link); } catch (e) {} };
-  }, []);
+  // Fontes agora são self-hosted via index.html (public/fonts/) — sem injeção
+  // de <link> em runtime, sem FOUT, sem origem third-party sob COEP.
 
   useEffect(() => {
     const stages = [700, 900, 700, 700, 800];
     let acc = 0;
-    stages.forEach((d, i) => { acc += d; setTimeout(() => setBootStage(i + 1), acc); });
+    const timers = stages.map((d, i) => { acc += d; return setTimeout(() => setBootStage(i + 1), acc); });
+
+    // Pular a sequência de boot com qualquer tecla/clique — o operador não fica
+    // preso a ~3,8s a cada F5. Auto-remove após o primeiro disparo.
+    const skip = () => {
+      timers.forEach(clearTimeout);
+      setBootStage(5);
+      window.removeEventListener('keydown', skip);
+      window.removeEventListener('pointerdown', skip);
+    };
+    window.addEventListener('keydown', skip);
+    window.addEventListener('pointerdown', skip);
+
+    return () => {
+      timers.forEach(clearTimeout);
+      window.removeEventListener('keydown', skip);
+      window.removeEventListener('pointerdown', skip);
+    };
   }, []);
 
+  // Observa a rolagem do terminal pra saber se o operador está "grudado" no fim.
   useEffect(() => {
-    if (scrollRef.current && mode === 'terminal') scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const el = scrollRef.current;
+    if (!el || mode !== 'terminal') return;
+    const onScroll = () => {
+      const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+      stickToBottomRef.current = dist < 80;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [mode]);
+
+  useEffect(() => {
+    if (scrollRef.current && mode === 'terminal' && stickToBottomRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   }, [chat.history, chat.thinking, chat.streamText, bootStage, mode]);
 
   useEffect(() => {
@@ -229,6 +258,23 @@ export default function JarvisOS() {
         .jv-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .jv-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.18); border-radius: 2px; }
         .jv-data-stream { position: fixed; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+        /* Foco visível pra teclado (não aparece em clique de mouse). O input mantém
+           outline:none no :focus, mas ganha anel no :focus-visible. */
+        .jv-input:focus-visible { outline: 1px solid ${C.accent}; outline-offset: 2px; }
+        button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+          outline: 1px solid ${C.accent}; outline-offset: 2px;
+        }
+        /* Movimento reduzido: silencia as animações ambientes e transições CSS.
+           (O movimento em JS do three.js — autoRotate/física — será tratado na Fase 5.) */
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.001ms !important;
+            scroll-behavior: auto !important;
+          }
+          .jv-scanline, .jv-data-stream, .jv-grid-bg { animation: none !important; }
+        }
       `}</style>
 
       <div className="jv-grid-bg" />
@@ -245,7 +291,7 @@ export default function JarvisOS() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ ...display, fontSize: 22, fontWeight: 700, letterSpacing: '0.18em', color: C.accent }}>STARK INDUSTRIES</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <div style={{ color: C.muted, fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase' }}>J.A.R.V.I.S. · Núcleo 4.6</div>
+            <div style={{ color: C.muted, fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase' }}>J.A.R.V.I.S. · Núcleo {MODEL.core}</div>
           </div>
           <div style={{ fontSize: 9, letterSpacing: '0.22em', color: C.ok, border: `1px solid ${C.ok}`, padding: '2px 7px', opacity: 0.85 }}>◉ ONLINE</div>
         </div>
@@ -332,7 +378,7 @@ export default function JarvisOS() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: C.dim }}>MODELO</span>
-                <span style={{ color: C.accentDim, fontSize: 9 }}>sonnet-4.6</span>
+                <span style={{ color: C.accentDim, fontSize: 9 }}>{MODEL.label}</span>
               </div>
             </div>
           </div>
@@ -446,8 +492,10 @@ export default function JarvisOS() {
         {/* RIGHT RAIL */}
         <aside style={{ borderLeft: `1px solid ${C.line}`, padding: '24px 20px', background: 'rgba(0,0,0,0.22)' }}>
           <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 18 }}>TELEMETRIA</div>
-          <Meter label="CONTEXTO IA" value={enrichedTelemetry.context} unit="%" />
-          <Meter label="TOKENS SESSÃO" value={enrichedTelemetry.tokens} unit="tk" />
+          <Meter label="CONTEXTO IA" value={clampPct(enrichedTelemetry.context)} unit="%" />
+          {/* max = orçamento macio da sessão só pra dar escala à barra — o valor
+              exibido é a contagem real de tokens acumulados. */}
+          <Meter label="TOKENS SESSÃO" value={enrichedTelemetry.tokens} max={100000} display={`${enrichedTelemetry.tokens.toLocaleString('pt-BR')} tk`} />
           <div style={{ marginTop: 16, marginBottom: 22 }}>
             <div style={{ fontSize: 9, color: C.dim, letterSpacing: '0.28em', marginBottom: 6 }}>LATÊNCIA API</div>
             <div style={{ ...display, fontSize: 26, color: C.text, fontWeight: 300 }}>

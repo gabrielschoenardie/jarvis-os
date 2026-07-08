@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { C, display } from '../lib/constants.js';
+import { Corners } from './hud/index.js';
 
 // Glifos com ︎ (variation selector de texto) para nunca renderizarem como
 // emoji colorido — mantêm a cor ciano da marca.
@@ -30,18 +31,6 @@ const W = 640, H = 150;
 const M = { top: 14, right: 10, bottom: 22, left: 34 };
 const PW = W - M.left - M.right;
 const PH = H - M.top - M.bottom;
-
-function corner(pos) {
-  const s = { position: 'absolute', width: 8, height: 8 };
-  const b = `1px solid ${C.accent}`;
-  const map = {
-    tl: { ...s, top: -1, left: -1, borderTop: b, borderLeft: b },
-    tr: { ...s, top: -1, right: -1, borderTop: b, borderRight: b },
-    bl: { ...s, bottom: -1, left: -1, borderBottom: b, borderLeft: b },
-    br: { ...s, bottom: -1, right: -1, borderBottom: b, borderRight: b },
-  };
-  return map[pos];
-}
 
 // Barra com topo levemente arredondado (2px) e base reta, como manda a spec
 function topRoundedBar(x, y, w, h, r = 2) {
@@ -180,7 +169,7 @@ export function WeatherCard({ forecast }) {
 
   return (
     <div ref={containerRef} className="jv-holo-in" style={{ position: 'relative', border: `1px solid ${C.line}`, background: 'rgba(0,212,255,0.03)', padding: '16px 18px', maxWidth: 680 }}>
-      {['tl', 'tr', 'bl', 'br'].map(p => <span key={p} style={corner(p)} />)}
+      <Corners />
 
       {/* Header */}
       <div style={{ fontSize: 9, color: C.muted, letterSpacing: '0.28em', marginBottom: 12 }}>

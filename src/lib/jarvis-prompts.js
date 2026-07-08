@@ -172,7 +172,7 @@ export const JARVIS_COMMANDS = `COMANDOS DO OPERADOR:
 
 Estes comandos, quando aparecem no INÍCIO da mensagem de Gabriel, alteram o comportamento:
 
-/profundo — Ativa análise técnica densa (modelo Opus 4.7). Use quando a tarefa exige raciocínio multi-step, debugging complexo, ou análise técnica profunda. Você terá mais "espaço cognitivo" — aproveite com respostas mais ricas e detalhadas.
+/profundo — Ativa análise técnica densa (modelo Opus 4.8). Use quando a tarefa exige raciocínio multi-step, debugging complexo, ou análise técnica profunda. Você terá mais "espaço cognitivo" — aproveite com respostas mais ricas e detalhadas.
 
 /briefing — Resumo estratégico do estado atual: projetos ativos, pendências, decisões abertas, última sessão. Requer memória persistente ativa.
 
@@ -190,13 +190,13 @@ Para mensagens SEM prefixo de comando: resposta direta, técnica e precisa, dent
 
 
 // ───────────────────────────────────────────────────────────────────────────
-// BLOCO 7 · MODO PROFUNDO (Opus 4.7)
+// BLOCO 7 · MODO PROFUNDO (Opus 4.8)
 // Incluído APENAS quando deep = true. Adiciona contexto para raciocínio denso.
 // ───────────────────────────────────────────────────────────────────────────
 
 export const JARVIS_DEEP_MODE = `── MODO PROFUNDO ATIVO ──
 
-Você está rodando em capacidade máxima (Opus 4.7). Gabriel acionou este modo conscientemente para uma tarefa que exige raciocínio mais denso. Comportamento esperado:
+Você está rodando em capacidade máxima (Opus 4.8). Gabriel acionou este modo conscientemente para uma tarefa que exige raciocínio mais denso. Comportamento esperado:
 
 1. PENSE LONGE. Considere implicações de segunda e terceira ordem. Múltiplas hipóteses antes de comprometer-se com uma.
 
@@ -302,7 +302,7 @@ SEMPRE responda como o JARVIS responderia: parceiro técnico sênior de Gabriel,
  * Constrói o system prompt final do JARVIS por composição modular.
  *
  * @param {Object} options
- * @param {boolean} [options.deep=false] - Ativa contexto de modo profundo (Opus 4.7)
+ * @param {boolean} [options.deep=false] - Ativa contexto de modo profundo (Opus 4.8)
  * @param {Array} [options.tools=[]] - Array de tools disponíveis (Fase 4+)
  * @param {string|null} [options.memoryContext=null] - Contexto recuperado da memória (Fase 5+)
  * @returns {string} System prompt completo pronto para uso na API
@@ -393,11 +393,11 @@ export function detectCommand(message) {
  *
  * EXEMPLO:
  *   resolveCommandConfig('profundo')
- *   → { model: 'claude-opus-4-7', deep: true, badge: 'MODO PROFUNDO · OPUS 4.7' }
+ *   → { model: 'claude-opus-4-8', deep: true, badge: 'MODO PROFUNDO · OPUS 4.8' }
  */
 export function resolveCommandConfig(command) {
   const DEFAULT = {
-    model: 'claude-sonnet-4-5',
+    model: 'claude-sonnet-4-6',
     deep: false,
     badge: null,
   };
@@ -407,9 +407,9 @@ export function resolveCommandConfig(command) {
   switch (command) {
     case 'profundo':
       return {
-        model: 'claude-opus-4-7',
+        model: 'claude-opus-4-8',
         deep: true,
-        badge: 'MODO PROFUNDO · OPUS 4.7',
+        badge: 'MODO PROFUNDO · OPUS 4.8',
       };
     // Outros comandos não alteram modelo — apenas comportamento de UI:
     case 'briefing':

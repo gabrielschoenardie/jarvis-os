@@ -34,8 +34,8 @@ cached block) or **varies per turn** (must be a separate, uncached block).
    `{ model, deep: true, badge }`; default → the `DEFAULT` config. UI-only
    commands return `{ ...DEFAULT, uiCommand }`.
    - **Confirm model IDs with the `claude-api` skill before editing** — the code
-     currently ships `claude-opus-4-7` / `claude-sonnet-4-5` here, while CLAUDE.md
-     says `4-8` / `4-6`. Don't propagate a guess; fetch the live ID.
+     ships `claude-opus-4-8` / `claude-sonnet-4-6` here, matching CLAUDE.md.
+     Don't propagate a guess; fetch the live ID.
    - A model change that also touches the `web_search` tool version has a
      coupling — see `add-a-tool.md` step 6.
 

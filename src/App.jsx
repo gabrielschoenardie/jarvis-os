@@ -43,6 +43,19 @@ function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Folha isolada: assina o valor de latência e re-renderiza só a si mesma no
+// tick de 100ms. Antes esse tick subia até o App e re-renderizava a árvore
+// inteira 10×/s durante cada requisição.
+function LatencyReadout({ subscribe, getInitial }) {
+  const [ms, setMs] = useState(() => getInitial());
+  useEffect(() => subscribe(setMs), [subscribe]);
+  return (
+    <div style={{ ...display, fontSize: 26, color: C.text, fontWeight: 300 }}>
+      {Math.round(ms)}<span style={{ ...mono, fontSize: 11, color: C.muted, marginLeft: 6 }}>ms</span>
+    </div>
+  );
+}
+
 export default function JarvisOS() {
   const [bootStage, setBootStage] = useState(0);
   const [input, setInput] = useState('');
@@ -59,7 +72,7 @@ export default function JarvisOS() {
   // fim. Se ele rolou pra cima pra reler, não brigamos com ele durante o stream.
   const stickToBottomRef = useRef(true);
 
-  const { time, telemetry, setTelemetry, startTimer, stopTimer } = useTelemetry();
+  const { time, startTimer, stopTimer, subscribeLatency, getLatency } = useTelemetry();
 
   // Refs break the circular dependency between useSpeech ↔ useChat
   const submitCommandRef = useRef(null);
@@ -72,7 +85,6 @@ export default function JarvisOS() {
   });
 
   const chat = useChat({
-    setTelemetry,
     startTimer,
     stopTimer,
     apiHistoryRef,
@@ -135,11 +147,10 @@ export default function JarvisOS() {
 
   const ready = bootStage >= 5;
 
-  const enrichedTelemetry = {
-    ...telemetry,
-    context: Math.round(chat.apiHistory.length / 2 / 20 * 100),
-    tokens: chat.sessionTokens,
-  };
+  // Contexto/tokens mudam ~1×/requisição — baratos de derivar no render.
+  // A latência ao vivo agora é isolada no <LatencyReadout> (não re-renderiza o App).
+  const contextPct = clampPct(Math.round(chat.apiHistory.length / 2 / 20 * 100));
+  const sessionTokens = chat.sessionTokens;
 
   const handleSubmit = () => {
     if (!ready || !input.trim()) return;
@@ -492,15 +503,13 @@ export default function JarvisOS() {
         {/* RIGHT RAIL */}
         <aside style={{ borderLeft: `1px solid ${C.line}`, padding: '24px 20px', background: 'rgba(0,0,0,0.22)' }}>
           <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 18 }}>TELEMETRIA</div>
-          <Meter label="CONTEXTO IA" value={clampPct(enrichedTelemetry.context)} unit="%" />
+          <Meter label="CONTEXTO IA" value={contextPct} unit="%" />
           {/* max = orçamento macio da sessão só pra dar escala à barra — o valor
               exibido é a contagem real de tokens acumulados. */}
-          <Meter label="TOKENS SESSÃO" value={enrichedTelemetry.tokens} max={100000} display={`${enrichedTelemetry.tokens.toLocaleString('pt-BR')} tk`} />
+          <Meter label="TOKENS SESSÃO" value={sessionTokens} max={100000} display={`${sessionTokens.toLocaleString('pt-BR')} tk`} />
           <div style={{ marginTop: 16, marginBottom: 22 }}>
             <div style={{ fontSize: 9, color: C.dim, letterSpacing: '0.28em', marginBottom: 6 }}>LATÊNCIA API</div>
-            <div style={{ ...display, fontSize: 26, color: C.text, fontWeight: 300 }}>
-              {Math.round(telemetry.latency)}<span style={{ ...mono, fontSize: 11, color: C.muted, marginLeft: 6 }}>ms</span>
-            </div>
+            <LatencyReadout subscribe={subscribeLatency} getInitial={getLatency} />
           </div>
           <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 20, marginBottom: 22 }}>
             <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 14 }}>SENTINELAS</div>

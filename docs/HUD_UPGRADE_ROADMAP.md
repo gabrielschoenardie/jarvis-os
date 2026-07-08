@@ -1,6 +1,6 @@
 # JARVIS OS — Hollywood HUD Upgrade · Roadmap
 
-> Status: **Fase 1 CONCLUÍDA** (commit `feat(hud): Phase 1`) · próximas: Fase 2 → 6.
+> Status: **Fases 1 e 2 CONCLUÍDAS** · próximas: Fase 3 → 6.
 > Origem: auditoria completa do repositório (07/07/2026).
 > Regra: uma fase por vez, commits pequenos, verificar `npm run dev` + `npm run build` antes de avançar.
 > Invariantes CLAUDE.md sempre valem: nunca tocar `require-corp`, pipeline de streaming/TTS intocado na lógica, `dispose()` simétrico no three.js.
@@ -22,9 +22,11 @@
 - Auto-scroll só quando o usuário está perto do fundo (`App.jsx:99-101`).
 - `:focus-visible` styles (input hoje tem `outline: none` sem substituto) + bloco `prefers-reduced-motion`.
 
-## Fase 2 — React Performance Hardening
+## Fase 2 — React Performance Hardening ✅ CONCLUÍDA
 
 **Objetivo**: 60fps estável durante streaming. **Só topologia de render — zero mudança de lógica em `useChat`/`anthropic.js`.**
+
+> Entregue: `useTelemetry` agora empurra a latência ao vivo por assinatura (`subscribeLatency`/`getLatency`) — o tick de 100ms não passa mais por estado React; `<LatencyReadout>` (folha em App.jsx) re-renderiza só a si mesma. Removido `setTelemetry` (era passado ao useChat e nunca usado). `TerminalView`: linhas do histórico em `useMemo([history, onOpenHud])` + `AIText` com `React.memo` → durante o stream o histórico não é recriado nem re-parseado. `useChat`: `setStreamText` agrupado por `requestAnimationFrame` (≤1 update/frame, com `cancelStream` protegendo os sets diretos/erros); `openHudMedia`/`closeHudMedia` em `useCallback` (referências estáveis pro memo). Lógica de TTS/tool/streaming intocada. Build OK (186 módulos), dev boot OK.
 
 - Problema central (C1): tick de 100ms do `useTelemetry` + `setStreamText` por chunk re-renderizam a árvore inteira; `AIText` re-parseia o markdown completo a cada chunk; nenhum `React.memo` no projeto.
 - `React.memo` nas linhas de histórico; memoizar `AIText` por mensagem; linha de streaming vira componente próprio.

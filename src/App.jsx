@@ -296,6 +296,30 @@ export default function JarvisOS() {
           }
           .jv-scanline, .jv-data-stream, .jv-grid-bg { animation: none !important; }
         }
+        /* ── Responsividade (Fase 4a) ──────────────────────────────────────
+           Base = 3 colunas. <1280 esconde o rail direito (telemetria/sentinelas,
+           informação secundária); <900 esconde também o esquerdo, deixando só o
+           núcleo — conversa + voz + comando — que é sempre usável. Sem scroll
+           horizontal em nenhuma largura. */
+        .jv-layout { display: grid; grid-template-columns: 220px 1fr 240px; }
+        .jv-term-scroll { padding: 36px 56px 150px 56px; }
+        .jv-cmd { padding: 18px 32px 22px 32px; }
+        @media (max-width: 1280px) {
+          .jv-layout { grid-template-columns: 190px 1fr; }
+          .jv-rail-right { display: none; }
+          .jv-term-scroll { padding: 32px 36px 150px 36px; }
+        }
+        @media (max-width: 900px) {
+          .jv-layout { grid-template-columns: 1fr; }
+          .jv-rail-left { display: none; }
+          .jv-header { flex-wrap: wrap; row-gap: 10px; padding: 12px 16px; }
+          .jv-term-scroll { padding: 26px 18px 140px 18px; }
+          .jv-cmd { padding: 16px 16px 18px 16px; }
+        }
+        @media (max-width: 620px) {
+          .jv-hide-sm { display: none; }
+          .jv-cmd-hints { display: none; }
+        }
       `}</style>
 
       <div className="jv-grid-bg" />
@@ -308,7 +332,7 @@ export default function JarvisOS() {
       </div>
 
       {/* TOP BAR */}
-      <header style={{ position: 'relative', zIndex: 10, borderBottom: `1px solid ${C.line}`, padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5,10,20,0.88)', backdropFilter: 'blur(8px)' }}>
+      <header className="jv-header" style={{ position: 'relative', zIndex: 10, borderBottom: `1px solid ${C.line}`, padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5,10,20,0.88)', backdropFilter: 'blur(8px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ ...display, fontSize: 22, fontWeight: 700, letterSpacing: '0.18em', color: C.accent }}>STARK INDUSTRIES</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -316,13 +340,13 @@ export default function JarvisOS() {
           </div>
           <div style={{ fontSize: 9, letterSpacing: '0.22em', color: C.ok, border: `1px solid ${C.ok}`, padding: '2px 7px', opacity: 0.85 }}>◉ ONLINE</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 22, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 22, rowGap: 8, justifyContent: 'flex-end', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${C.line}`, padding: 2 }}>
             <button onClick={() => setMode('terminal')} style={{ background: mode === 'terminal' ? C.accent : 'transparent', color: mode === 'terminal' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>TERMINAL</button>
             <button onClick={() => setMode('holographic')} style={{ background: mode === 'holographic' ? C.accent : 'transparent', color: mode === 'holographic' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>VAULT</button>
           </div>
           <VoiceIndicator voiceOut={speech.voiceOut} speaking={speech.speaking} listening={speech.listening} onToggle={speech.toggleVoiceOut} onPanel={() => speech.setVoicePanelOpen(o => !o)} supported={speech.speechSupported} />
-          <div style={{ color: C.muted }}>{fmtDate(time)}</div>
+          <div className="jv-hide-sm" style={{ color: C.muted }}>{fmtDate(time)}</div>
           <div style={{ color: C.text, fontWeight: 500 }}>{fmtTime(time)} <span style={{ color: C.muted }}>brt</span></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: ready ? C.accent : C.warn }} className={ready ? 'jv-pulse' : ''} />
@@ -362,10 +386,10 @@ export default function JarvisOS() {
       )}
 
       {/* BODY */}
-      <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '220px 1fr 240px', minHeight: `calc(100vh - ${speech.voicePanelOpen ? '180px' : '56px'})` }}>
+      <div className="jv-layout" style={{ position: 'relative', zIndex: 10, minHeight: `calc(100vh - ${speech.voicePanelOpen ? '180px' : '56px'})` }}>
 
         {/* LEFT RAIL */}
-        <aside style={{ borderRight: `1px solid ${C.line}`, padding: '24px 18px', background: 'rgba(0,0,0,0.22)' }}>
+        <aside className="jv-rail-left" style={{ borderRight: `1px solid ${C.line}`, padding: '24px 18px', background: 'rgba(0,0,0,0.22)' }}>
           <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 18 }}>SUBSISTEMAS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 11 }}>
             {modules.map((m, i) => (
@@ -444,7 +468,7 @@ export default function JarvisOS() {
           </div>
 
           {/* COMMAND INPUT */}
-          <div style={{ borderTop: `1px solid ${C.line}`, padding: '18px 32px 22px 32px', background: 'rgba(5,10,20,0.92)', backdropFilter: 'blur(8px)', position: 'relative', zIndex: 20 }}>
+          <div className="jv-cmd" style={{ borderTop: `1px solid ${C.line}`, background: 'rgba(5,10,20,0.92)', backdropFilter: 'blur(8px)', position: 'relative', zIndex: 20 }}>
             {/* Presence Core — hero flutuante ancorado logo acima do prompt.
                 Só no modo terminal: no VAULT, o núcleo 3D é a outra projeção
                 do mesmo ser (o handoff acontece no fade de troca de modo).
@@ -478,7 +502,7 @@ export default function JarvisOS() {
                 ◉ {chat.activeBadge}
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 10, gap: 12 }}>
               <span style={{ color: chat.thinking ? C.warn : C.accent, fontSize: 13 }}>{chat.thinking ? '⟳' : '⟢'}</span>
               <input
                 ref={inputRef}
@@ -488,7 +512,7 @@ export default function JarvisOS() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKey}
                 placeholder={speech.partialTranscript ? 'ouvindo...' : speech.listening ? 'canal de voz aberto...' : speech.vadLoading ? 'inicializando VAD...' : chat.thinking ? 'processando na matrix neural...' : ready ? 'aguardando instrução, Sir...' : 'inicializando...'}
-                style={{ ...mono, flex: 1, background: 'transparent', border: 'none', color: C.text, fontSize: 14, letterSpacing: '0.02em', padding: '4px 0' }}
+                style={{ ...mono, flex: 1, minWidth: 140, background: 'transparent', border: 'none', color: C.text, fontSize: 14, letterSpacing: '0.02em', padding: '4px 0' }}
               />
               <MicButton listening={speech.listening} onStart={speech.startListening} onStop={speech.stopListening} disabled={!speech.recogSupported || chat.thinking || !ready || !!speech.partialTranscript || speech.vadLoading} />
               <input ref={fileInputRef} type="file" hidden accept="image/png,image/jpeg,image/webp,.json,.txt,.cube,.srt,.log,.csv,.md,.js,.py" onChange={handleFileSelect} />
@@ -519,7 +543,7 @@ export default function JarvisOS() {
                 ⚠ {attachmentError}
               </div>
             )}
-            <div style={{ marginTop: 10, display: 'flex', gap: 18, fontSize: 9.5, color: C.dim, letterSpacing: '0.22em', flexWrap: 'wrap' }}>
+            <div className="jv-cmd-hints" style={{ marginTop: 10, display: 'flex', gap: 18, fontSize: 9.5, color: C.dim, letterSpacing: '0.22em', flexWrap: 'wrap' }}>
               <span>/VAULT</span><span>/HOLO</span><span>/TERMINAL</span><span>/FOCO [tema]</span><span>/STATUS</span><span>/SAIR</span>
               <span style={{ color: C.accentDim }}>↵ tudo mais vai para a IA</span>
               <span style={{ marginLeft: 'auto', color: speech.voiceOut ? C.accent : C.dim }}>{speech.voiceOut ? '◉ VOZ ATIVA' : '○ VOZ'}</span>
@@ -528,7 +552,7 @@ export default function JarvisOS() {
         </main>
 
         {/* RIGHT RAIL */}
-        <aside style={{ borderLeft: `1px solid ${C.line}`, padding: '24px 20px', background: 'rgba(0,0,0,0.22)' }}>
+        <aside className="jv-rail-right" style={{ borderLeft: `1px solid ${C.line}`, padding: '24px 20px', background: 'rgba(0,0,0,0.22)' }}>
           <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 18 }}>TELEMETRIA</div>
           <Meter label="CONTEXTO IA" value={contextPct} unit="%" />
           {/* max = orçamento macio da sessão só pra dar escala à barra — o valor

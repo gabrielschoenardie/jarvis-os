@@ -191,10 +191,11 @@ export function TerminalView({ scrollRef, bootStage, history, thinking, streamTe
     [history, onOpenHud]
   );
 
-  // padding-bottom generoso: o conteúdo repousa acima do Presence Core
-  // flutuante ancorado ao prompt, sem ficar escondido atrás dele.
+  // padding via classe .jv-term-scroll (App style block) pra ser responsivo —
+  // inline venceria as media queries. O padding-bottom generoso mantém o
+  // conteúdo acima do Presence Core flutuante ancorado ao prompt.
   return (
-    <div ref={scrollRef} className="jv-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '36px 56px 150px 56px' }}>
+    <div ref={scrollRef} className="jv-scrollbar jv-term-scroll" style={{ flex: 1, overflowY: 'auto' }}>
       <BootSequence stage={bootStage} />
       {rows}
       {thinking && !streamText && <ThinkingIndicator toolStatus={toolStatus} />}

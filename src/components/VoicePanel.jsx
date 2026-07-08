@@ -16,9 +16,11 @@ export function VoicePanel({
 }) {
   return (
     <div className="jv-fade" style={{ position: 'relative', zIndex: 10, borderBottom: `1px solid ${C.line}`, background: 'rgba(0,212,255,0.03)', padding: '18px 28px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 26, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
         <ToggleBtn label="SAÍDA" on={voiceOut} onClick={toggleVoiceOut} />
         <ToggleBtn label="CONVERSA" on={conversationMode} onClick={() => setConversationMode(v => !v)} />
+
+        <span style={{ width: 1, alignSelf: 'stretch', minHeight: 22, background: C.line }} />
 
         {/* ElevenLabs voice selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -58,6 +60,8 @@ export function VoicePanel({
             onChange={e => setElStyle(parseFloat(e.target.value))} className="jv-slider" style={{ width: 70 }} />
           <span style={{ fontSize: 10, color: C.accent, minWidth: 28 }}>{elStyle.toFixed(2)}</span>
         </div>
+
+        <span style={{ width: 1, alignSelf: 'stretch', minHeight: 22, background: C.line }} />
 
         {/* History */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

@@ -36,9 +36,9 @@ The recipes deliberately hold no external-library facts (they go stale). When a
 step needs current API/library detail, pull it live:
 
 - **Anthropic model IDs, tool-use, prompt caching, token accounting** → invoke
-  the built-in **`claude-api`** skill. (The code already drifts from CLAUDE.md
-  here — e.g. `resolveCommandConfig` ships `claude-opus-4-7`/`claude-sonnet-4-5`
-  while CLAUDE.md says `4-8`/`4-6`. Confirm the real ID before quoting one.)
+  the built-in **`claude-api`** skill. (`resolveCommandConfig` now ships
+  `claude-opus-4-8`/`claude-sonnet-4-6`, matching CLAUDE.md. Confirm the real ID
+  before quoting one.)
 - **Three.js, React, d3-force-3d, Vite** → **context7** (`resolve-library-id`
   then `query-docs`).
 - **MCP protocol / anything else** → **WebSearch**.

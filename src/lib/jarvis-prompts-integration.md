@@ -223,9 +223,9 @@ curl -X POST https://SEU-PROJETO.vercel.app/api/chat \
   }'
 ```
 
-Esperado: resposta curta usando `claude-sonnet-4-5`. Verificar no log Vercel que `model` é Sonnet.
+Esperado: resposta curta usando `claude-sonnet-4-6`. Verificar no log Vercel que `model` é Sonnet.
 
-### 4.2 Teste comando profundo (Opus 4.7)
+### 4.2 Teste comando profundo (Opus 4.8)
 
 ```bash
 curl -X POST https://SEU-PROJETO.vercel.app/api/chat \
@@ -238,9 +238,9 @@ curl -X POST https://SEU-PROJETO.vercel.app/api/chat \
 ```
 
 Esperado:
-- `model` no log é `claude-opus-4-7`
+- `model` no log é `claude-opus-4-8`
 - Resposta tem profundidade analítica (não 1 parágrafo)
-- `_jarvis.badge` = `"MODO PROFUNDO · OPUS 4.7"` no response
+- `_jarvis.badge` = `"MODO PROFUNDO · OPUS 4.8"` no response
 
 ### 4.3 Verificação local com `vercel dev`
 
@@ -262,9 +262,9 @@ curl -X POST http://localhost:3000/api/chat \
 - [ ] `src/lib/jarvis-prompts.js` criado e exportando funções corretas
 - [ ] `api/chat.js` migrado para Edge Function com `export const config = { runtime: 'edge' }`
 - [ ] `api/chat.js` consumindo `buildSystemPrompt()` ao invés de string hardcoded
-- [ ] Comando `/profundo` detectado e roteia para Opus 4.7
+- [ ] Comando `/profundo` detectado e roteia para Opus 4.8
 - [ ] Log estruturado JSON em cada chamada (model, command, tokens, tempo)
-- [ ] Frontend mostra badge "MODO PROFUNDO · OPUS 4.7" quando ativo
+- [ ] Frontend mostra badge "MODO PROFUNDO · OPUS 4.8" quando ativo
 - [ ] Frontend não envia mais `system` no body — servidor é fonte da verdade
 - [ ] Teste curl com `/profundo` retorna model correto no `_jarvis` metadata
 - [ ] Teste curl sem comando usa Sonnet por default

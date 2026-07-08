@@ -76,7 +76,13 @@ export function useVault() {
       setStatus('ready');
     } catch (err) {
       if (scanTokenRef.current !== token) return;
-      setError(err.message || 'falha ao varrer o vault');
+      // NotFoundError: o handle salvo aponta pra uma pasta que sumiu do caminho
+      // (movida, renomeada, excluída ou num drive/nuvem desconectado). Re-varrer
+      // o mesmo handle só repete o erro — a saída é escolher a pasta de novo.
+      const notFound = err?.name === 'NotFoundError';
+      setError(notFound
+        ? 'pasta do vault não encontrada — pode ter sido movida, renomeada, excluída ou está num drive/nuvem desconectado. Use "CONECTAR OUTRO VAULT" para escolher a pasta de novo.'
+        : (err.message || 'falha ao varrer o vault'));
       setStatus('error');
     }
   }, []);

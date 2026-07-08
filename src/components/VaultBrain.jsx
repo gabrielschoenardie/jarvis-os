@@ -2,23 +2,12 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { C, display } from '../lib/constants.js';
 import { createBrainScene } from '../lib/brain-scene.js';
 import { pruneGraph, computeMetrics } from '../lib/vault-graph.js';
+import { HoloPanel as HudHoloPanel } from './hud/index.js';
 
+// Wrapper fino: mantém os defaults dos painéis do VAULT (drift + largura mínima)
+// enquanto delega a superfície glass + cantoneiras à primitiva compartilhada.
 function HoloPanel({ children }) {
-  return (
-    <div className="jv-holo-glass jv-drift" style={{ padding: '16px 18px', position: 'relative', minWidth: 200 }}>
-      {['tl','tr','bl','br'].map(p => {
-        const s = { position: 'absolute', width: 8, height: 8 };
-        const styles = {
-          tl: { ...s, top:-1,left:-1,borderTop:`1px solid ${C.accent}`,borderLeft:`1px solid ${C.accent}` },
-          tr: { ...s, top:-1,right:-1,borderTop:`1px solid ${C.accent}`,borderRight:`1px solid ${C.accent}` },
-          bl: { ...s, bottom:-1,left:-1,borderBottom:`1px solid ${C.accent}`,borderLeft:`1px solid ${C.accent}` },
-          br: { ...s, bottom:-1,right:-1,borderBottom:`1px solid ${C.accent}`,borderRight:`1px solid ${C.accent}` },
-        };
-        return <span key={p} style={styles[p]} />;
-      })}
-      {children}
-    </div>
-  );
+  return <HudHoloPanel drift style={{ minWidth: 200 }}>{children}</HudHoloPanel>;
 }
 
 function HoloRow({ label, value }) {

@@ -1,4 +1,4 @@
-import { C, display } from '../lib/constants.js';
+import { C, display, MODEL } from '../lib/constants.js';
 import { WeatherCard } from './WeatherCard.jsx';
 
 function AIText({ text }) {
@@ -146,7 +146,7 @@ function BootSequence({ stage }) {
     'reatores de arco · pressão nominal · OK',
     'matriz neural · sincronizada · L1·L2·L3 ativos',
     'stark industries DB · 847.293 registros · online',
-    'api claude · sonnet-4.6 · handshake completo',
+    `api claude · ${MODEL.label} · handshake completo`,
   ];
   return (
     <div style={{ marginBottom: 36 }}>
@@ -166,7 +166,7 @@ function BootSequence({ stage }) {
             J.A.R.V.I.S. <span style={{ color: C.accent }}>online</span>. Pronto para servir, Sir.
           </div>
           <div style={{ marginTop: 12, fontSize: 12.5, color: C.muted, letterSpacing: '0.04em', lineHeight: 1.7 }}>
-            Núcleo <span style={{ color: C.accent }}>Stark Industries</span> conectado via <span style={{ color: C.accent }}>claude-sonnet-4.6</span>. Histórico mantido durante a sessão.
+            Núcleo <span style={{ color: C.accent }}>Stark Industries</span> conectado via <span style={{ color: C.accent }}>claude-{MODEL.label}</span>. Histórico mantido durante a sessão.
           </div>
         </div>
       )}

@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>J.A.R.V.I.S. · Stark Industries</title>
     <meta name="description" content="Stark Industries AI System — J.A.R.V.I.S." />
+
+    <!-- Fontes self-hosted (same-origin → sem exposição COEP require-corp, sem FOUT
+         de injeção em runtime). Preload das 3 usadas no boot: mono do corpo +
+         Rajdhani display (numerais 300 / título 700). -->
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/jetbrainsmono-400-latin.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/rajdhani-300-latin.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/rajdhani-700-latin.woff2" crossorigin />
+    <link rel="stylesheet" href="/fonts/fonts.css" />
+
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { background: #050a14; overflow-x: hidden; }

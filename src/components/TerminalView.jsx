@@ -1,7 +1,10 @@
+import { memo, useMemo } from 'react';
 import { C, display, MODEL } from '../lib/constants.js';
 import { WeatherCard } from './WeatherCard.jsx';
 
-function AIText({ text }) {
+// memo: o parser de markdown roda de novo só quando o `text` daquela mensagem
+// muda. Antes, cada delta do stream re-parseava TODO o histórico.
+const AIText = memo(function AIText({ text }) {
   if (!text) return null;
   const lines = text.split('\n');
   const elements = [];
@@ -42,7 +45,7 @@ function AIText({ text }) {
   });
 
   return <div>{elements}</div>;
-}
+});
 
 function JarvisLabel({ children }) {
   return (
@@ -175,14 +178,23 @@ function BootSequence({ stage }) {
 }
 
 export function TerminalView({ scrollRef, bootStage, history, thinking, streamText, toolStatus, onOpenHud }) {
+  // As linhas do histórico só são recriadas quando o próprio histórico muda
+  // (ou o onOpenHud, que agora é estável). Durante o stream, `streamText` muda
+  // a cada frame mas `history` não — então esta lista é reaproveitada e não
+  // re-renderiza nem re-parseia nada do que já foi dito.
+  const rows = useMemo(
+    () => history.map((msg, i) => (
+      <div key={i} className="jv-fade" style={{ marginBottom: 28 }}>
+        {msg.role === 'operator' ? <OperatorLine msg={msg} /> : <JarvisResponse msg={msg} onOpenHud={onOpenHud} />}
+      </div>
+    )),
+    [history, onOpenHud]
+  );
+
   return (
     <div ref={scrollRef} className="jv-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '36px 56px 24px 56px' }}>
       <BootSequence stage={bootStage} />
-      {history.map((msg, i) => (
-        <div key={i} className="jv-fade" style={{ marginBottom: 28 }}>
-          {msg.role === 'operator' ? <OperatorLine msg={msg} /> : <JarvisResponse msg={msg} onOpenHud={onOpenHud} />}
-        </div>
-      ))}
+      {rows}
       {thinking && !streamText && <ThinkingIndicator toolStatus={toolStatus} />}
       {thinking && streamText && (
         <div style={{ marginBottom: 28 }}>

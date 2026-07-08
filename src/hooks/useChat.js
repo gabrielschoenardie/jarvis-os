@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { callClaude, splitIntoSpeakableChunks } from '../lib/anthropic.js';
 import { isWeatherQuery } from '../lib/weather.js';
 import { stripImageAttachment } from '../lib/attachments.js';
@@ -8,7 +8,7 @@ const BACKOFF_MS = [2000, 4000, 8000];
 
 const TOOL_LABELS = { web_search: 'BUSCA WEB', calcular: 'CÁLCULO', abrir_site: 'NAVEGADOR', hud_display: 'HUD DISPLAY' };
 
-export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiHistoryRef }) {
+export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef }) {
   const [history, setHistory] = useState([]);
   const [apiHistory, setApiHistory] = useState([]);
   const [thinking, setThinking] = useState(false);
@@ -25,10 +25,12 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
   // {type:'hud'} no history é o registro durável que sobrevive a F5).
   const [hudMedia, setHudMedia] = useState(null);
 
-  const openHudMedia = media => {
+  // useCallback → referências estáveis, pra o TerminalView memoizar as linhas
+  // do histórico sem quebrar quando o onOpenHud muda de identidade a cada render.
+  const openHudMedia = useCallback(media => {
     if (media?.videoId) setHudMedia({ videoId: media.videoId, title: media.title, channel: media.channel });
-  };
-  const closeHudMedia = () => setHudMedia(null);
+  }, []);
+  const closeHudMedia = useCallback(() => setHudMedia(null), []);
 
   // Fase 10: restaurar histórico no mount
   useEffect(() => {
@@ -165,6 +167,26 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
     setApiHistory(newApiHistory);
     if (apiHistoryRef) apiHistoryRef.current = newApiHistory;
 
+    // Coalesce dos deltas SSE: no máximo um setStreamText por frame de vídeo.
+    // Muitos chunks chegam no mesmo frame; sem isso, cada um força um render.
+    // A lógica de TTS (abaixo, em onChunk) continua rodando por chunk — só a
+    // atualização visual do texto é agrupada.
+    let streamRaf = 0;
+    let streamPending = null;
+    const flushStream = () => {
+      streamRaf = 0;
+      if (streamPending !== null) { setStreamText(streamPending); streamPending = null; }
+    };
+    const pushStream = (t) => {
+      streamPending = t;
+      if (!streamRaf) streamRaf = requestAnimationFrame(flushStream);
+    };
+    const cancelStream = () => {
+      if (streamRaf) cancelAnimationFrame(streamRaf);
+      streamRaf = 0;
+      streamPending = null;
+    };
+
     try {
       let ttsBuffer = '';
       let attempt = 0;
@@ -173,7 +195,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
       let tokenUsage = null;
 
       const onChunk = (_chunk, fullText) => {
-        setStreamText(fullText);
+        pushStream(fullText);
         if (speakChunks) {
           const lastBoundary = Math.max(
             fullText.lastIndexOf('. '),
@@ -222,6 +244,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
           if (err.message.includes('API 429') && attempt < BACKOFF_MS.length) {
             const wait = BACKOFF_MS[attempt];
             ttsBuffer = '';
+            cancelStream();
             setStreamText(`⟳ aguardando ${wait / 1000}s · tentativa ${attempt + 1}/${BACKOFF_MS.length}...`);
             await new Promise(r => setTimeout(r, wait));
             setStreamText('');
@@ -232,6 +255,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
         }
       }
 
+      cancelStream();
       setStreamText('');
       setToolStatus(null);
 
@@ -267,6 +291,7 @@ export function useChat({ speakChunks, setTelemetry, startTimer, stopTimer, apiH
         }
       }
     } catch (err) {
+      cancelStream();
       setStreamText('');
       setToolStatus(null);
       setThinking(false);

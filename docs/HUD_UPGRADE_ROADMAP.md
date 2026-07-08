@@ -1,15 +1,17 @@
 # JARVIS OS — Hollywood HUD Upgrade · Roadmap
 
-> Status: **APROVADO PENDENTE** — nenhuma fase iniciada.
+> Status: **Fase 1 CONCLUÍDA** (commit `feat(hud): Phase 1`) · próximas: Fase 2 → 6.
 > Origem: auditoria completa do repositório (07/07/2026).
 > Regra: uma fase por vez, commits pequenos, verificar `npm run dev` + `npm run build` antes de avançar.
 > Invariantes CLAUDE.md sempre valem: nunca tocar `require-corp`, pipeline de streaming/TTS intocado na lógica, `dispose()` simétrico no three.js.
 
 ---
 
-## Fase 1 — Foundation & Quick Wins
+## Fase 1 — Foundation & Quick Wins ✅ CONCLUÍDA
 
 **Objetivo**: sistema de tokens, primitivas HUD compartilhadas, correções de instrumentos, fontes self-hosted, piso de acessibilidade.
+
+> Entregue: tokens em `constants.js` (z/motion/space/radius/glass/type/MODEL/clampPct); `src/components/hud/` (Corners/HoloPanel/HudButton/HudLabel) com dedup das cantoneiras nos 3 arquivos; fontes self-hosted em `public/fonts/` (latin+latin-ext, preload no boot, sem `<link>` runtime); Meter com `max`/clamp; label do modelo single-source; boot com cleanup+skip; auto-scroll grudento; `:focus-visible` + `prefers-reduced-motion`. Build OK (186 módulos), VaultBrain segue lazy-split. Sem mudança de lógica em streaming/voz/VAD.
 
 - Estender `src/lib/constants.js`: tokens de spacing / type scale / z-index / motion (durações 150/300/450ms + easings).
 - Criar `src/components/hud/`: `Corners`, `HoloPanel`, `HudButton`, `HudLabel` (hoje os corner brackets estão duplicados 3× em `HudMediaWindow`, `WeatherCard`, `VaultBrain`; ~15 variantes inline de botão).

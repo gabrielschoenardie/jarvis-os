@@ -75,6 +75,30 @@ const NODE_FRAG = `
   }
 `;
 
+const CORE_VERT = `
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vView = normalize(-mv.xyz);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+const CORE_FRAG = `
+  uniform vec3 uColor;
+  uniform float uFresnelPower;
+  uniform float uFresnelBoost;
+  uniform float uBase;
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    float f = pow(1.0 - clamp(dot(vNormal, vView), 0.0, 1.0), uFresnelPower);
+    float intensity = uBase + f * uFresnelBoost;
+    gl_FragColor = vec4(uColor * intensity, 1.0);
+  }
+`;
+
 function baseIntensity(node, maxDegree) {
   if (node.ghost) return 0.15;
   return 0.35 + 0.65 * Math.sqrt(node.degree / Math.max(1, maxDegree));
@@ -125,13 +149,30 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
 
   // ── Núcleo arc reactor ────────────────────────────────────────────────
   const nucleus = new Group();
-  const core = new Mesh(new SphereGeometry(4.5, 32, 32), new MeshBasicMaterial({ color: ACCENT }));
+  const coreMat = new ShaderMaterial({
+    uniforms: {
+      uColor: { value: new Color(ACCENT) },
+      uFresnelPower: { value: TUNING.FRESNEL_POWER },
+      uFresnelBoost: { value: TUNING.FRESNEL_BOOST },
+      uBase: { value: TUNING.FRESNEL_BASE },
+    },
+    vertexShader: CORE_VERT,
+    fragmentShader: CORE_FRAG,
+  });
+  const core = new Mesh(new SphereGeometry(4.5, 32, 32), coreMat);
   const coreInner = new Mesh(new SphereGeometry(1.8, 24, 24), new MeshBasicMaterial({ color: 0xffffff }));
   nucleus.add(core, coreInner);
   const rings = [8, 11, 14].map((r, i) => {
+    const k = TUNING.RING_EMISSIVE * (1 - i * TUNING.RING_FALLOFF);
     const ring = new Mesh(
       new TorusGeometry(r, 0.12, 8, 96),
-      new MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.5 - i * 0.1 })
+      new MeshBasicMaterial({
+        color: new Color(ACCENT).multiplyScalar(k),
+        transparent: true,
+        opacity: 0.5 - i * 0.1,
+        blending: AdditiveBlending,
+        depthWrite: false,
+      })
     );
     ring.rotation.x = Math.PI / 2 + (i - 1) * 0.4;
     nucleus.add(ring);
@@ -456,6 +497,8 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
     // Núcleo: respiração / pulso de pensamento / ondulação de fala
     const breathe = pulse.thinking ? 1 + 0.10 * Math.sin(t * 9) : 1 + 0.04 * Math.sin(t * 1.2);
     core.scale.setScalar(breathe);
+    core.material.uniforms.uFresnelBoost.value =
+      TUNING.FRESNEL_BOOST * (pulse.thinking ? 1.4 : pulse.speaking ? 1.15 : 1.0);
     coreInner.scale.setScalar(pulse.thinking ? 1 + 0.15 * Math.sin(t * 9 + 1) : 1);
     const ringSpeed = pulse.thinking ? 3 : 1;
     rings[0].rotation.z = t * 0.4 * ringSpeed;

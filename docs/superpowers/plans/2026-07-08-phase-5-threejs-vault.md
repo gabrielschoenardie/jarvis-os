@@ -388,7 +388,7 @@ git commit -m "feat(vault): link brightness gradient toward higher-degree endpoi
 - Consumes: `TUNING.DOLLY_START`, `TUNING.DOLLY_MS`, `prefersReducedMotion`, `controls`, `camera`.
 - Produces: estado `dollyT`, `dollyStart`, `dollyCancelled`.
 
-- [ ] **Step 1: Adicionar estado do dolly** (junto de `let focusTarget = null;` etc.)
+- [ ] **Step 1: Adicionar estado do dolly** — declarar **antes** do bloco de init da câmera/dolly (Step 2), logo após `const camera = new PerspectiveCamera(...)`. O Step 2 atribui `dollyT`/`dollyStart` cedo; se as declarações `let` vierem depois (junto do restante do estado mutável), dá `ReferenceError` por temporal dead zone.
 
 ```js
   let dollyT = 1;            // 1 = concluído (default: sem dolly)

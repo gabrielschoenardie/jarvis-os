@@ -129,7 +129,20 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   scene.fog = new FogExp2(BG, 0.006);
 
   const camera = new PerspectiveCamera(55, width / height, 0.1, 1000);
-  camera.position.set(0, 25, 140);
+
+  // Dolly state — declare before assignment in init block below
+  let dollyT = 1;            // 1 = concluído (default: sem dolly)
+  let dollyStart = 0;
+  let dollyCancelled = false;
+
+  const SETTLE_DIST = 140;
+  if (!prefersReducedMotion) {
+    camera.position.set(0, 25, TUNING.DOLLY_START);
+    dollyT = 0;
+    dollyStart = performance.now();
+  } else {
+    camera.position.set(0, 25, SETTLE_DIST);
+  }
 
   const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -344,18 +357,24 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
 
     const idx = new Map(simNodes.map((n, i) => [n.id, i]));
     const colAttr = lines.geometry.getAttribute('color');
+    const degK = (i) => {
+      const d = simNodes[i]?.degree || 0;
+      const t = Math.sqrt(d / Math.max(1, maxDegree)); // sqrt: hubs não estouram
+      return TUNING.LINK_GRADIENT_MIN + (TUNING.LINK_GRADIENT_MAX - TUNING.LINK_GRADIENT_MIN) * t;
+    };
     for (let li = 0; li < simLinks.length; li++) {
       const l = simLinks[li];
       const si = idx.get(typeof l.source === 'object' ? l.source.id : l.source);
       const ti = idx.get(typeof l.target === 'object' ? l.target.id : l.target);
       const hot = active >= 0 && (si === active || ti === active);
-      const k = hot ? 0.6 : 0.1;
-      colAttr.array[li * 6] = accent.r * k;
-      colAttr.array[li * 6 + 1] = accent.g * k;
-      colAttr.array[li * 6 + 2] = accent.b * k;
-      colAttr.array[li * 6 + 3] = accent.r * k;
-      colAttr.array[li * 6 + 4] = accent.g * k;
-      colAttr.array[li * 6 + 5] = accent.b * k;
+      const ks = hot ? TUNING.LINK_HOT : degK(si);
+      const kt = hot ? TUNING.LINK_HOT : degK(ti);
+      colAttr.array[li * 6]     = accent.r * ks;
+      colAttr.array[li * 6 + 1] = accent.g * ks;
+      colAttr.array[li * 6 + 2] = accent.b * ks;
+      colAttr.array[li * 6 + 3] = accent.r * kt;
+      colAttr.array[li * 6 + 4] = accent.g * kt;
+      colAttr.array[li * 6 + 5] = accent.b * kt;
     }
     colAttr.needsUpdate = true;
   }
@@ -465,7 +484,7 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   renderer.domElement.addEventListener('pointerdown', onPointerDown);
   renderer.domElement.addEventListener('pointerup', onPointerUp);
   // Usuário pegou a câmera → cancela o tween de foco
-  controls.addEventListener('start', () => { focusTarget = null; });
+  controls.addEventListener('start', () => { focusTarget = null; dollyCancelled = true; });
 
   const resizeObserver = new ResizeObserver(() => {
     const w = container.clientWidth, h = container.clientHeight;
@@ -533,6 +552,14 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
         camera.position.lerp(desired, 0.06);
       }
       if (controls.target.distanceTo(focusTarget) < 0.1) focusTarget = null;
+    }
+
+    if (dollyT < 1 && !dollyCancelled && !focusTarget) {
+      dollyT = Math.min(1, (performance.now() - dollyStart) / TUNING.DOLLY_MS);
+      const e = 1 - Math.pow(1 - dollyT, 3); // ease-out cubic
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      const r = TUNING.DOLLY_START + (SETTLE_DIST - TUNING.DOLLY_START) * e;
+      camera.position.copy(controls.target).add(dir.multiplyScalar(r));
     }
 
     if (pointerDirty) { pointerDirty = false; doRaycast(); }

@@ -129,6 +129,12 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   scene.fog = new FogExp2(BG, 0.006);
 
   const camera = new PerspectiveCamera(55, width / height, 0.1, 1000);
+
+  // Dolly state — declare before assignment in init block below
+  let dollyT = 1;            // 1 = concluído (default: sem dolly)
+  let dollyStart = 0;
+  let dollyCancelled = false;
+
   const SETTLE_DIST = 140;
   if (!prefersReducedMotion) {
     camera.position.set(0, 25, TUNING.DOLLY_START);
@@ -212,9 +218,6 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   let focusTarget = null;
   let disposed = false;
   let rafId = 0;
-  let dollyT = 1;            // 1 = concluído (default: sem dolly)
-  let dollyStart = 0;
-  let dollyCancelled = false;
 
   const raycaster = new Raycaster();
   raycaster.params.Points = { threshold: 1.5 };

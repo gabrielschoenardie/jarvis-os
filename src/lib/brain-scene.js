@@ -129,7 +129,14 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   scene.fog = new FogExp2(BG, 0.006);
 
   const camera = new PerspectiveCamera(55, width / height, 0.1, 1000);
-  camera.position.set(0, 25, 140);
+  const SETTLE_DIST = 140;
+  if (!prefersReducedMotion) {
+    camera.position.set(0, 25, TUNING.DOLLY_START);
+    dollyT = 0;
+    dollyStart = performance.now();
+  } else {
+    camera.position.set(0, 25, SETTLE_DIST);
+  }
 
   const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -205,6 +212,9 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   let focusTarget = null;
   let disposed = false;
   let rafId = 0;
+  let dollyT = 1;            // 1 = concluído (default: sem dolly)
+  let dollyStart = 0;
+  let dollyCancelled = false;
 
   const raycaster = new Raycaster();
   raycaster.params.Points = { threshold: 1.5 };
@@ -471,7 +481,7 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   renderer.domElement.addEventListener('pointerdown', onPointerDown);
   renderer.domElement.addEventListener('pointerup', onPointerUp);
   // Usuário pegou a câmera → cancela o tween de foco
-  controls.addEventListener('start', () => { focusTarget = null; });
+  controls.addEventListener('start', () => { focusTarget = null; dollyCancelled = true; });
 
   const resizeObserver = new ResizeObserver(() => {
     const w = container.clientWidth, h = container.clientHeight;
@@ -539,6 +549,14 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
         camera.position.lerp(desired, 0.06);
       }
       if (controls.target.distanceTo(focusTarget) < 0.1) focusTarget = null;
+    }
+
+    if (dollyT < 1 && !dollyCancelled && !focusTarget) {
+      dollyT = Math.min(1, (performance.now() - dollyStart) / TUNING.DOLLY_MS);
+      const e = 1 - Math.pow(1 - dollyT, 3); // ease-out cubic
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      const r = TUNING.DOLLY_START + (SETTLE_DIST - TUNING.DOLLY_START) * e;
+      camera.position.copy(controls.target).add(dir.multiplyScalar(r));
     }
 
     if (pointerDirty) { pointerDirty = false; doRaycast(); }

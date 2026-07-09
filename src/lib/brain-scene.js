@@ -344,18 +344,24 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
 
     const idx = new Map(simNodes.map((n, i) => [n.id, i]));
     const colAttr = lines.geometry.getAttribute('color');
+    const degK = (i) => {
+      const d = simNodes[i]?.degree || 0;
+      const t = Math.sqrt(d / Math.max(1, maxDegree)); // sqrt: hubs não estouram
+      return TUNING.LINK_GRADIENT_MIN + (TUNING.LINK_GRADIENT_MAX - TUNING.LINK_GRADIENT_MIN) * t;
+    };
     for (let li = 0; li < simLinks.length; li++) {
       const l = simLinks[li];
       const si = idx.get(typeof l.source === 'object' ? l.source.id : l.source);
       const ti = idx.get(typeof l.target === 'object' ? l.target.id : l.target);
       const hot = active >= 0 && (si === active || ti === active);
-      const k = hot ? 0.6 : 0.1;
-      colAttr.array[li * 6] = accent.r * k;
-      colAttr.array[li * 6 + 1] = accent.g * k;
-      colAttr.array[li * 6 + 2] = accent.b * k;
-      colAttr.array[li * 6 + 3] = accent.r * k;
-      colAttr.array[li * 6 + 4] = accent.g * k;
-      colAttr.array[li * 6 + 5] = accent.b * k;
+      const ks = hot ? TUNING.LINK_HOT : degK(si);
+      const kt = hot ? TUNING.LINK_HOT : degK(ti);
+      colAttr.array[li * 6]     = accent.r * ks;
+      colAttr.array[li * 6 + 1] = accent.g * ks;
+      colAttr.array[li * 6 + 2] = accent.b * ks;
+      colAttr.array[li * 6 + 3] = accent.r * kt;
+      colAttr.array[li * 6 + 4] = accent.g * kt;
+      colAttr.array[li * 6 + 5] = accent.b * kt;
     }
     colAttr.needsUpdate = true;
   }

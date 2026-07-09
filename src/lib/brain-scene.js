@@ -22,6 +22,30 @@ const BG = 0x050a14;
 const ACCENT = 0x00d4ff;
 const NUCLEUS_RADIUS = 22; // zona de exclusão — nós são empurrados pra fora
 
+// Constantes de ajuste visual/perf da Fase 5 — ajustáveis a quente no dev.
+const TUNING = {
+  // Fresnel do núcleo (Task 2)
+  FRESNEL_POWER: 2.2,      // expoente do rim — maior = borda mais fina
+  FRESNEL_BOOST: 1.8,      // intensidade do brilho de borda
+  FRESNEL_BASE: 0.35,      // preenchimento interno (evita núcleo "oco")
+  RING_EMISSIVE: 1.6,      // multiplicador de brilho do anel mais interno
+  RING_FALLOFF: 0.28,      // quanto cada anel externo escurece (0..1)
+  // Halo dos nós (Task 3)
+  HALO_CORE: 0.26,         // raio do disco brilhante dentro do sprite (0..0.5)
+  HALO_SOFTNESS: 0.5,      // força do halo suave até a borda do sprite
+  // Gradiente dos links (Task 4)
+  LINK_GRADIENT_MIN: 0.06, // brilho no endpoint de menor grau
+  LINK_GRADIENT_MAX: 0.30, // brilho no endpoint de maior grau
+  LINK_HOT: 0.6,           // brilho de link destacado (hover/seleção)
+  // Dolly de entrada (Task 5)
+  DOLLY_START: 240,        // distância inicial da câmera
+  DOLLY_MS: 1500,          // duração do ease-out
+  // Perf (Task 7)
+  FRAME_BUDGET_MS: 20,     // acima disso por N frames → baixa o pixelRatio
+  PIXEL_RATIO_LOW: 1.5,    // pixelRatio degradado
+  IDLE_FPS: 30,            // fps em repouso (throttle)
+};
+
 const NODE_VERT = `
   attribute float aSize;
   attribute float aIntensity;
@@ -40,14 +64,42 @@ const NODE_VERT = `
 const NODE_FRAG = `
   uniform vec3 uColor;
   uniform float uTime;
+  uniform float uHaloCore;
+  uniform float uHaloSoftness;
   varying float vIntensity;
   varying float vSeed;
   void main() {
     float dist = length(gl_PointCoord - vec2(0.5));
     if (dist > 0.5) discard;
-    float disc = 1.0 - smoothstep(0.25, 0.5, dist);
+    float coreDisc = 1.0 - smoothstep(uHaloCore * 0.5, uHaloCore, dist);
+    float halo = (1.0 - smoothstep(uHaloCore, 0.5, dist)) * uHaloSoftness;
+    float alpha = coreDisc + halo;
     float twinkle = 0.85 + 0.15 * sin(uTime * (1.5 + fract(vSeed) * 2.0) + vSeed * 6.28);
-    gl_FragColor = vec4(uColor * vIntensity * twinkle, disc);
+    gl_FragColor = vec4(uColor * vIntensity * twinkle, alpha);
+  }
+`;
+
+const CORE_VERT = `
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vView = normalize(-mv.xyz);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+const CORE_FRAG = `
+  uniform vec3 uColor;
+  uniform float uFresnelPower;
+  uniform float uFresnelBoost;
+  uniform float uBase;
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    float f = pow(1.0 - clamp(dot(vNormal, vView), 0.0, 1.0), uFresnelPower);
+    float intensity = uBase + f * uFresnelBoost;
+    gl_FragColor = vec4(uColor * intensity, 1.0);
   }
 `;
 
@@ -60,6 +112,16 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   const width = container.clientWidth || 800;
   const height = container.clientHeight || 500;
 
+  const mediaQuery = typeof window !== 'undefined' && window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)')
+    : null;
+  let prefersReducedMotion = !!mediaQuery?.matches;
+  const onReducedMotionChange = (e) => {
+    prefersReducedMotion = e.matches;
+    controls.autoRotate = !e.matches; // reflete em runtime
+  };
+  // (o addEventListener vai após a criação de `controls`, no Step 3)
+
   const scene = new Scene();
   // scene.background (Color gerenciado) em vez de setClearColor — o clear
   // color cru é re-codificado pra sRGB pelo OutputPass e lavaria o preto.
@@ -69,7 +131,7 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   const camera = new PerspectiveCamera(55, width / height, 0.1, 1000);
   camera.position.set(0, 25, 140);
 
-  const renderer = new WebGLRenderer({ antialias: true });
+  const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
@@ -81,6 +143,7 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   controls.autoRotateSpeed = 0.3;
   controls.minDistance = 25;
   controls.maxDistance = 320;
+  mediaQuery?.addEventListener?.('change', onReducedMotionChange);
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -90,13 +153,30 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
 
   // ── Núcleo arc reactor ────────────────────────────────────────────────
   const nucleus = new Group();
-  const core = new Mesh(new SphereGeometry(4.5, 32, 32), new MeshBasicMaterial({ color: ACCENT }));
+  const coreMat = new ShaderMaterial({
+    uniforms: {
+      uColor: { value: new Color(ACCENT) },
+      uFresnelPower: { value: TUNING.FRESNEL_POWER },
+      uFresnelBoost: { value: TUNING.FRESNEL_BOOST },
+      uBase: { value: TUNING.FRESNEL_BASE },
+    },
+    vertexShader: CORE_VERT,
+    fragmentShader: CORE_FRAG,
+  });
+  const core = new Mesh(new SphereGeometry(4.5, 32, 32), coreMat);
   const coreInner = new Mesh(new SphereGeometry(1.8, 24, 24), new MeshBasicMaterial({ color: 0xffffff }));
   nucleus.add(core, coreInner);
   const rings = [8, 11, 14].map((r, i) => {
+    const k = TUNING.RING_EMISSIVE * (1 - i * TUNING.RING_FALLOFF);
     const ring = new Mesh(
       new TorusGeometry(r, 0.12, 8, 96),
-      new MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.5 - i * 0.1 })
+      new MeshBasicMaterial({
+        color: new Color(ACCENT).multiplyScalar(k),
+        transparent: true,
+        opacity: 0.5 - i * 0.1,
+        blending: AdditiveBlending,
+        depthWrite: false,
+      })
     );
     ring.rotation.x = Math.PI / 2 + (i - 1) * 0.4;
     nucleus.add(ring);
@@ -211,7 +291,12 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
     pGeo.setAttribute('aIntensity', new BufferAttribute(intArr, 1));
     pGeo.setAttribute('aSeed', new BufferAttribute(seedArr, 1));
     const pMat = new ShaderMaterial({
-      uniforms: { uColor: { value: new Color(ACCENT) }, uTime: { value: 0 } },
+      uniforms: {
+        uColor: { value: new Color(ACCENT) },
+        uTime: { value: 0 },
+        uHaloCore: { value: TUNING.HALO_CORE },
+        uHaloSoftness: { value: TUNING.HALO_SOFTNESS },
+      },
       vertexShader: NODE_VERT,
       fragmentShader: NODE_FRAG,
       transparent: true,
@@ -421,6 +506,8 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
     // Núcleo: respiração / pulso de pensamento / ondulação de fala
     const breathe = pulse.thinking ? 1 + 0.10 * Math.sin(t * 9) : 1 + 0.04 * Math.sin(t * 1.2);
     core.scale.setScalar(breathe);
+    core.material.uniforms.uFresnelBoost.value =
+      TUNING.FRESNEL_BOOST * (pulse.thinking ? 1.4 : pulse.speaking ? 1.15 : 1.0);
     coreInner.scale.setScalar(pulse.thinking ? 1 + 0.15 * Math.sin(t * 9 + 1) : 1);
     const ringSpeed = pulse.thinking ? 3 : 1;
     rings[0].rotation.z = t * 0.4 * ringSpeed;
@@ -462,6 +549,7 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
     renderer.domElement.removeEventListener('pointerdown', onPointerDown);
     renderer.domElement.removeEventListener('pointerup', onPointerUp);
     renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
+    mediaQuery?.removeEventListener?.('change', onReducedMotionChange);
     resizeObserver.disconnect();
     controls.dispose();
     clearGraphObjects();

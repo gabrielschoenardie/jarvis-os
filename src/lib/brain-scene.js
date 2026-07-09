@@ -64,14 +64,18 @@ const NODE_VERT = `
 const NODE_FRAG = `
   uniform vec3 uColor;
   uniform float uTime;
+  uniform float uHaloCore;
+  uniform float uHaloSoftness;
   varying float vIntensity;
   varying float vSeed;
   void main() {
     float dist = length(gl_PointCoord - vec2(0.5));
     if (dist > 0.5) discard;
-    float disc = 1.0 - smoothstep(0.25, 0.5, dist);
+    float coreDisc = 1.0 - smoothstep(uHaloCore * 0.5, uHaloCore, dist);
+    float halo = (1.0 - smoothstep(uHaloCore, 0.5, dist)) * uHaloSoftness;
+    float alpha = coreDisc + halo;
     float twinkle = 0.85 + 0.15 * sin(uTime * (1.5 + fract(vSeed) * 2.0) + vSeed * 6.28);
-    gl_FragColor = vec4(uColor * vIntensity * twinkle, disc);
+    gl_FragColor = vec4(uColor * vIntensity * twinkle, alpha);
   }
 `;
 
@@ -287,7 +291,12 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
     pGeo.setAttribute('aIntensity', new BufferAttribute(intArr, 1));
     pGeo.setAttribute('aSeed', new BufferAttribute(seedArr, 1));
     const pMat = new ShaderMaterial({
-      uniforms: { uColor: { value: new Color(ACCENT) }, uTime: { value: 0 } },
+      uniforms: {
+        uColor: { value: new Color(ACCENT) },
+        uTime: { value: 0 },
+        uHaloCore: { value: TUNING.HALO_CORE },
+        uHaloSoftness: { value: TUNING.HALO_SOFTNESS },
+      },
       vertexShader: NODE_VERT,
       fragmentShader: NODE_FRAG,
       transparent: true,

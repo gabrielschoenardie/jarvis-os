@@ -14,6 +14,8 @@ export function HudMediaWindow({ media, onClose }) {
   // Deslocamento do arraste (a janela nasce centralizada; isto a move a partir daí).
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef(null);
+  const closeBtnRef = useRef(null);
+  const restoreFocusRef = useRef(null);
 
   // Troca de vídeo com a janela aberta: novo conteúdo cancela um fechamento em
   // curso e recentraliza.
@@ -25,6 +27,18 @@ export function HudMediaWindow({ media, onClose }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [media]);
+
+  // A11y de teclado: ao abrir, leva o foco pro botão de fechar; ao fechar/
+  // desmontar, devolve o foco a quem abriu a janela (sem trap de foco).
+  useEffect(() => {
+    if (!media) return;
+    restoreFocusRef.current = document.activeElement;
+    closeBtnRef.current?.focus();
+    return () => {
+      const el = restoreFocusRef.current;
+      if (el && typeof el.focus === 'function') el.focus();
+    };
+  }, [media?.videoId]);
 
   if (!media) return null;
 
@@ -79,6 +93,7 @@ export function HudMediaWindow({ media, onClose }) {
               <span style={{ fontSize: 9, color: C.muted, letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>{media.channel}</span>
             )}
             <button
+              ref={closeBtnRef}
               onClick={() => setClosing(true)}
               aria-label="Fechar"
               style={{

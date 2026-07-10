@@ -16,13 +16,15 @@ No lint or test scripts exist in this project.
 
 As the Orchestrator of JARVIS OS, you must strictly follow the Metodologia Gabriel for every task:
 
-1. **Analysis**: Use the `scout_worker` (Haiku) to read logs, map state, and analyze Vite/React errors.
+1. **Analysis**: Use the `scout_worker` (Haiku) to read logs, map state, and analyze Vite/React errors. Use `performance-monitor` (Haiku) after changes near the tool loop, prompt caching, or VAD/COOP-COEP config to catch cache-invalidation or voice-input regressions.
 2. **Planning**: Design the AI/ML architecture, state management for Voice/Three.js, and API security.
 3. **Implementation**: Delegate coding entirely to `ui_graph_worker` or `ai_ml_worker` (Sonnet 5).
-4. **Validation**: Review workers' code to ensure it meets requirements and runs flawlessly in the browser/Vercel.
+4. **Validation**: Review workers' code to ensure it meets requirements and runs flawlessly in the browser/Vercel. `architecture-guardian` and `security-reviewer` (Sonnet) run proactively against their own trigger conditions — see each agent's `description` — to check the diff before it's committed or merged.
 5. **Documentation**: Record the architectural decisions and updates in the repository's memory.
 
 Never waste Fable 5 tokens typing repetitive React boilerplate or reading raw Vite logs.
+
+See `.claude/agents/README.md` for the full agent registry and escalation pattern.
 
 ## Architecture
 

@@ -112,7 +112,7 @@ export function useSpeech({ onTranscriptReady, setInput }) {
     voiceError, voicePanelOpen, setVoicePanelOpen,
     rate, setRate, pitch, setPitch,
     speechSupported,
-    recogSupported: speechInput.deepgramSupported,
+    recogSupported: speechInput.voiceSupported,
     vadLoading: speechInput.vadLoading,
     speak, speakChunks, toggleVoiceOut, stopSpeaking,
     startListening: speechInput.startListening,

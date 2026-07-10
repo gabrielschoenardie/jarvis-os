@@ -103,6 +103,12 @@ export default function JarvisOS() {
   // de <link> em runtime, sem FOUT, sem origem third-party sob COEP.
 
   useEffect(() => {
+    // Sob reduced-motion, o boot revela instantaneamente — o staging por
+    // setTimeout é JS, então a regra CSS global de reduced-motion não o encurta.
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setBootStage(5);
+      return;
+    }
     const stages = [700, 900, 700, 700, 800];
     let acc = 0;
     const timers = stages.map((d, i) => { acc += d; return setTimeout(() => setBootStage(i + 1), acc); });
@@ -380,6 +386,7 @@ export default function JarvisOS() {
           conversationMode={speech.conversationMode}
           setConversationMode={speech.setConversationMode}
           vadLoading={speech.vadLoading}
+          recogSupported={speech.recogSupported}
           apiError={chat.apiError}
           apiHistoryLength={apiHistoryRef.current.length / 2 | 0}
           onClearHistory={chat.clearHistory}
@@ -525,6 +532,9 @@ export default function JarvisOS() {
                 style={{ ...mono, flex: 1, minWidth: 140, background: 'transparent', border: 'none', color: C.text, fontSize: 14, letterSpacing: '0.02em', padding: '4px 0' }}
               />
               <MicButton listening={speech.listening} onStart={speech.startListening} onStop={speech.stopListening} disabled={!speech.recogSupported || chat.thinking || !ready || !!speech.partialTranscript || speech.vadLoading} />
+              {!speech.recogSupported && (
+                <span title="Requer navegador Chromium com isolamento cross-origin (SharedArrayBuffer)" style={{ fontSize: 9, letterSpacing: '0.18em', color: C.dim, whiteSpace: 'nowrap' }}>voz não suportada</span>
+              )}
               <input ref={fileInputRef} type="file" hidden accept="image/png,image/jpeg,image/webp,.json,.txt,.cube,.srt,.log,.csv,.md,.js,.py" onChange={handleFileSelect} />
               <button
                 onClick={() => fileInputRef.current?.click()}

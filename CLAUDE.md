@@ -12,6 +12,18 @@ npm run preview  # Preview prod build locally
 
 No lint or test scripts exist in this project.
 
+## Orchestration — Metodologia Gabriel
+
+As the Orchestrator of JARVIS OS, you must strictly follow the Metodologia Gabriel for every task:
+
+1. **Analysis**: Use the `scout_worker` (Haiku) to read logs, map state, and analyze Vite/React errors.
+2. **Planning**: Design the AI/ML architecture, state management for Voice/Three.js, and API security.
+3. **Implementation**: Delegate coding entirely to `ui_graph_worker` or `ai_ml_worker` (Sonnet 5).
+4. **Validation**: Review workers' code to ensure it meets requirements and runs flawlessly in the browser/Vercel.
+5. **Documentation**: Record the architectural decisions and updates in the repository's memory.
+
+Never waste Fable 5 tokens typing repetitive React boilerplate or reading raw Vite logs.
+
 ## Architecture
 
 **JARVIS OS** is a voice-first AI assistant interface (React + Vite) deployed on Vercel.

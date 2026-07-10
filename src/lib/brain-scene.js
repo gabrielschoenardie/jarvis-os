@@ -532,13 +532,13 @@ export function createBrainScene(container, { onSelect } = {}) {
       if (++slowFrames > 30) {
         lowRatio = true; slowFrames = 0;
         renderer.setPixelRatio(TUNING.PIXEL_RATIO_LOW);
-        composer.setSize(container.clientWidth, container.clientHeight);
+        composer.setPixelRatio(renderer.getPixelRatio());
       }
     } else if (lowRatio && frameMs < TUNING.FRAME_BUDGET_MS * 0.6) {
       if (++fastFrames > 120) {
         lowRatio = false; fastFrames = 0;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        composer.setSize(container.clientWidth, container.clientHeight);
+        composer.setPixelRatio(renderer.getPixelRatio());
       }
     } else { slowFrames = 0; fastFrames = 0; }
 

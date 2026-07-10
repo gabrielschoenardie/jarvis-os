@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
 
+// Voz requer getUserMedia + isolamento cross-origin (SharedArrayBuffer, exigido
+// pelo VAD WASM sob COEP). Sem isso (Firefox/Safari, contexto não isolado) o VAD
+// nunca inicializa — expomos como não-suportado em vez de prender o mic em
+// "inicializando VAD...". Mesmo padrão do `unsupported` do vault.
+export const voiceSupported =
+  typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia &&
+  typeof window !== 'undefined' && window.crossOriginIsolated === true &&
+  typeof SharedArrayBuffer !== 'undefined';
+
 function float32ToBase64PCM(float32) {
   const int16 = new Int16Array(float32.length);
   for (let i = 0; i < float32.length; i++) {
@@ -75,7 +84,7 @@ export function useSpeechInput({ onFinalTranscript, onInterrupt, elState }) {
   }, []);
 
   const vad = useMicVAD({
-    startOnLoad: conversationMode,
+    startOnLoad: voiceSupported && conversationMode,
     baseAssetPath: '/',
     onnxWASMBasePath: '/',
     additionalAudioConstraints: {
@@ -193,7 +202,7 @@ export function useSpeechInput({ onFinalTranscript, onInterrupt, elState }) {
     setConversationMode,
     startListening,
     stopListening,
-    deepgramSupported: typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia,
-    vadLoading: vad.loading,
+    voiceSupported,
+    vadLoading: voiceSupported ? vad.loading : false,
   };
 }

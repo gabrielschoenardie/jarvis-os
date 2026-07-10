@@ -386,6 +386,7 @@ export default function JarvisOS() {
           conversationMode={speech.conversationMode}
           setConversationMode={speech.setConversationMode}
           vadLoading={speech.vadLoading}
+          recogSupported={speech.recogSupported}
           apiError={chat.apiError}
           apiHistoryLength={apiHistoryRef.current.length / 2 | 0}
           onClearHistory={chat.clearHistory}
@@ -531,6 +532,9 @@ export default function JarvisOS() {
                 style={{ ...mono, flex: 1, minWidth: 140, background: 'transparent', border: 'none', color: C.text, fontSize: 14, letterSpacing: '0.02em', padding: '4px 0' }}
               />
               <MicButton listening={speech.listening} onStart={speech.startListening} onStop={speech.stopListening} disabled={!speech.recogSupported || chat.thinking || !ready || !!speech.partialTranscript || speech.vadLoading} />
+              {!speech.recogSupported && (
+                <span title="Requer navegador Chromium com isolamento cross-origin (SharedArrayBuffer)" style={{ fontSize: 9, letterSpacing: '0.18em', color: C.dim, whiteSpace: 'nowrap' }}>voz não suportada</span>
+              )}
               <input ref={fileInputRef} type="file" hidden accept="image/png,image/jpeg,image/webp,.json,.txt,.cube,.srt,.log,.csv,.md,.js,.py" onChange={handleFileSelect} />
               <button
                 onClick={() => fileInputRef.current?.click()}

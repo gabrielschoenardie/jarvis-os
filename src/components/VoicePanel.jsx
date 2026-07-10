@@ -11,7 +11,7 @@ export function VoicePanel({
   voices, selectedVoiceURI, setSelectedVoiceURI, rate, setRate, pitch, setPitch,
   speak, voiceError, sttError, apiError,
   conversationMode, setConversationMode,
-  vadLoading,
+  vadLoading, recogSupported,
   apiHistoryLength, onClearHistory,
 }) {
   return (
@@ -101,6 +101,9 @@ export function VoicePanel({
         </div>
       )}
 
+      {recogSupported === false && (
+        <div style={{ marginTop: 4, fontSize: 10, color: C.warn, letterSpacing: '0.12em' }}>⚠ voz não suportada neste navegador · requer Chromium com isolamento cross-origin</div>
+      )}
       {vadLoading && !sttError && (
         <div style={{ marginTop: 4, fontSize: 9, color: C.dim, letterSpacing: '0.22em' }}>▸ INICIALIZANDO VAD...</div>
       )}

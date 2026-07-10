@@ -103,6 +103,12 @@ export default function JarvisOS() {
   // de <link> em runtime, sem FOUT, sem origem third-party sob COEP.
 
   useEffect(() => {
+    // Sob reduced-motion, o boot revela instantaneamente — o staging por
+    // setTimeout é JS, então a regra CSS global de reduced-motion não o encurta.
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setBootStage(5);
+      return;
+    }
     const stages = [700, 900, 700, 700, 800];
     let acc = 0;
     const timers = stages.map((d, i) => { acc += d; return setTimeout(() => setBootStage(i + 1), acc); });

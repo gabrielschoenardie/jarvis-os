@@ -488,7 +488,7 @@ export function createBrainScene(container, { onSelect } = {}) {
   function clearFocus() {
     selectedIndex = -1;
     focusTarget = new Vector3(0, 0, 0);
-    controls.autoRotate = true;
+    controls.autoRotate = !prefersReducedMotion;
     refreshHighlights();
     onSelect?.(null);
   }

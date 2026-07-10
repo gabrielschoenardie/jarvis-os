@@ -162,6 +162,7 @@ export function createBrainScene(container, { onSelect } = {}) {
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
   controls.autoRotate = true;
+  if (prefersReducedMotion) controls.autoRotate = false;
   controls.autoRotateSpeed = 0.3;
   controls.minDistance = 25;
   controls.maxDistance = 320;
@@ -227,6 +228,9 @@ export function createBrainScene(container, { onSelect } = {}) {
   let focusTarget = null;
   let disposed = false;
   let rafId = 0;
+  let lastFrameStamp = performance.now();
+  let slowFrames = 0, fastFrames = 0, lowRatio = false;
+  let lastRenderStamp = 0;
 
   const raycaster = new Raycaster();
   raycaster.params.Points = { threshold: 1.5 };
@@ -519,6 +523,31 @@ export function createBrainScene(container, { onSelect } = {}) {
     rafId = requestAnimationFrame(animate);
     const t = (performance.now() - t0) / 1000;
 
+    const now = performance.now();
+    const frameMs = now - lastFrameStamp;
+    lastFrameStamp = now;
+
+    // pixelRatio adaptativo com histerese
+    if (!lowRatio && frameMs > TUNING.FRAME_BUDGET_MS) {
+      if (++slowFrames > 30) {
+        lowRatio = true; slowFrames = 0;
+        renderer.setPixelRatio(TUNING.PIXEL_RATIO_LOW);
+        composer.setSize(container.clientWidth, container.clientHeight);
+      }
+    } else if (lowRatio && frameMs < TUNING.FRAME_BUDGET_MS * 0.6) {
+      if (++fastFrames > 120) {
+        lowRatio = false; fastFrames = 0;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        composer.setSize(container.clientWidth, container.clientHeight);
+      }
+    } else { slowFrames = 0; fastFrames = 0; }
+
+    // Throttle 30fps em repouso (settled, sem interação/foco/fala/pensamento)
+    const idle = settled && hoveredIndex < 0 && !downPos && !focusTarget
+      && !pulse.thinking && !pulse.speaking;
+    if (idle && now - lastRenderStamp < 1000 / TUNING.IDLE_FPS) return;
+    lastRenderStamp = now;
+
     // Física: budget de 8ms/frame enquanto quente — assentamento orgânico
     if (sim && sim.alpha() > 0.03) {
       const frameStart = performance.now();
@@ -531,16 +560,18 @@ export function createBrainScene(container, { onSelect } = {}) {
       }
     }
 
-    // Núcleo: respiração / pulso de pensamento / ondulação de fala
-    const breathe = pulse.thinking ? 1 + 0.10 * Math.sin(t * 9) : 1 + 0.04 * Math.sin(t * 1.2);
+    // Núcleo: respiração / pulso / ondulação — congelado sob reduced-motion
+    const mt = prefersReducedMotion ? 0 : t;
+    const breathe = prefersReducedMotion ? 1
+      : (pulse.thinking ? 1 + 0.10 * Math.sin(t * 9) : 1 + 0.04 * Math.sin(t * 1.2));
     core.scale.setScalar(breathe);
     core.material.uniforms.uFresnelBoost.value =
       TUNING.FRESNEL_BOOST * (pulse.thinking ? 1.4 : pulse.speaking ? 1.15 : 1.0);
-    coreInner.scale.setScalar(pulse.thinking ? 1 + 0.15 * Math.sin(t * 9 + 1) : 1);
+    coreInner.scale.setScalar(pulse.thinking ? 1 + 0.15 * Math.sin(mt * 9 + 1) : 1);
     const ringSpeed = pulse.thinking ? 3 : 1;
-    rings[0].rotation.z = t * 0.4 * ringSpeed;
-    rings[1].rotation.z = -t * 0.6 * ringSpeed;
-    rings[2].rotation.z = t * 0.25 * ringSpeed;
+    rings[0].rotation.z = mt * 0.4 * ringSpeed;
+    rings[1].rotation.z = -mt * 0.6 * ringSpeed;
+    rings[2].rotation.z = mt * 0.25 * ringSpeed;
     if (pulse.speaking) {
       rippleT = (rippleT + 1 / 72) % 1; // ~1.2s por ciclo a 60fps
       ripple.scale.setScalar(1 + rippleT * 2);
@@ -550,7 +581,7 @@ export function createBrainScene(container, { onSelect } = {}) {
       ripple.scale.setScalar(1 + rippleT * 2);
     }
 
-    if (points) points.material.uniforms.uTime.value = t;
+    if (points) points.material.uniforms.uTime.value = mt;
 
     // Tween de foco da câmera
     if (focusTarget) {

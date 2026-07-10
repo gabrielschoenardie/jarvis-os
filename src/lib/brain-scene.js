@@ -108,7 +108,7 @@ function baseIntensity(node, maxDegree) {
   return 0.35 + 0.65 * Math.sqrt(node.degree / Math.max(1, maxDegree));
 }
 
-export function createBrainScene(container, { onHover, onSelect } = {}) {
+export function createBrainScene(container, { onSelect } = {}) {
   const width = container.clientWidth || 800;
   const height = container.clientHeight || 500;
 
@@ -149,10 +149,20 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
 
+  const hoverLabel = document.createElement('div');
+  hoverLabel.style.cssText = [
+    'position:absolute', 'pointer-events:none', 'z-index:3', 'display:none',
+    'font-size:10px', 'letter-spacing:0.12em', 'color:#c8e8f8',
+    'background:rgba(5,10,20,0.85)', 'border:1px solid rgba(0,212,255,0.26)',
+    'padding:3px 8px', 'white-space:nowrap', 'transform:translate(12px,-8px)',
+  ].join(';');
+  container.appendChild(hoverLabel);
+
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
   controls.autoRotate = true;
+  if (prefersReducedMotion) controls.autoRotate = false;
   controls.autoRotateSpeed = 0.3;
   controls.minDistance = 25;
   controls.maxDistance = 320;
@@ -218,6 +228,9 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   let focusTarget = null;
   let disposed = false;
   let rafId = 0;
+  let lastFrameStamp = performance.now();
+  let slowFrames = 0, fastFrames = 0, lowRatio = false;
+  let lastRenderStamp = 0;
 
   const raycaster = new Raycaster();
   raycaster.params.Points = { threshold: 1.5 };
@@ -454,10 +467,10 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
       refreshHighlights();
       if (idx >= 0) {
         const node = simNodes[idx];
-        const sp = screenPos(node);
-        onHover?.(node, sp.x, sp.y);
+        hoverLabel.textContent = node.ghost ? `▸ ${node.title} · não criada` : `▸ ${node.title}`;
+        hoverLabel.style.display = 'block';
       } else {
-        onHover?.(null, 0, 0);
+        hoverLabel.style.display = 'none';
       }
     }
   }
@@ -510,6 +523,31 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
     rafId = requestAnimationFrame(animate);
     const t = (performance.now() - t0) / 1000;
 
+    const now = performance.now();
+    const frameMs = now - lastFrameStamp;
+    lastFrameStamp = now;
+
+    // pixelRatio adaptativo com histerese
+    if (!lowRatio && frameMs > TUNING.FRAME_BUDGET_MS) {
+      if (++slowFrames > 30) {
+        lowRatio = true; slowFrames = 0;
+        renderer.setPixelRatio(TUNING.PIXEL_RATIO_LOW);
+        composer.setPixelRatio(renderer.getPixelRatio());
+      }
+    } else if (lowRatio && frameMs < TUNING.FRAME_BUDGET_MS * 0.6) {
+      if (++fastFrames > 120) {
+        lowRatio = false; fastFrames = 0;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        composer.setPixelRatio(renderer.getPixelRatio());
+      }
+    } else { slowFrames = 0; fastFrames = 0; }
+
+    // Throttle 30fps em repouso (settled, sem interação/foco/fala/pensamento)
+    const idle = settled && hoveredIndex < 0 && !downPos && !focusTarget
+      && !pulse.thinking && !pulse.speaking;
+    if (idle && now - lastRenderStamp < 1000 / TUNING.IDLE_FPS) return;
+    lastRenderStamp = now;
+
     // Física: budget de 8ms/frame enquanto quente — assentamento orgânico
     if (sim && sim.alpha() > 0.03) {
       const frameStart = performance.now();
@@ -522,16 +560,18 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
       }
     }
 
-    // Núcleo: respiração / pulso de pensamento / ondulação de fala
-    const breathe = pulse.thinking ? 1 + 0.10 * Math.sin(t * 9) : 1 + 0.04 * Math.sin(t * 1.2);
+    // Núcleo: respiração / pulso / ondulação — congelado sob reduced-motion
+    const mt = prefersReducedMotion ? 0 : t;
+    const breathe = prefersReducedMotion ? 1
+      : (pulse.thinking ? 1 + 0.10 * Math.sin(t * 9) : 1 + 0.04 * Math.sin(t * 1.2));
     core.scale.setScalar(breathe);
     core.material.uniforms.uFresnelBoost.value =
       TUNING.FRESNEL_BOOST * (pulse.thinking ? 1.4 : pulse.speaking ? 1.15 : 1.0);
-    coreInner.scale.setScalar(pulse.thinking ? 1 + 0.15 * Math.sin(t * 9 + 1) : 1);
+    coreInner.scale.setScalar(pulse.thinking ? 1 + 0.15 * Math.sin(mt * 9 + 1) : 1);
     const ringSpeed = pulse.thinking ? 3 : 1;
-    rings[0].rotation.z = t * 0.4 * ringSpeed;
-    rings[1].rotation.z = -t * 0.6 * ringSpeed;
-    rings[2].rotation.z = t * 0.25 * ringSpeed;
+    rings[0].rotation.z = mt * 0.4 * ringSpeed;
+    rings[1].rotation.z = -mt * 0.6 * ringSpeed;
+    rings[2].rotation.z = mt * 0.25 * ringSpeed;
     if (pulse.speaking) {
       rippleT = (rippleT + 1 / 72) % 1; // ~1.2s por ciclo a 60fps
       ripple.scale.setScalar(1 + rippleT * 2);
@@ -541,7 +581,7 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
       ripple.scale.setScalar(1 + rippleT * 2);
     }
 
-    if (points) points.material.uniforms.uTime.value = t;
+    if (points) points.material.uniforms.uTime.value = mt;
 
     // Tween de foco da câmera
     if (focusTarget) {
@@ -563,6 +603,12 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
     }
 
     if (pointerDirty) { pointerDirty = false; doRaycast(); }
+
+    if (hoveredIndex >= 0 && hoverLabel.style.display !== 'none') {
+      const sp = screenPos(simNodes[hoveredIndex]);
+      hoverLabel.style.left = sp.x + 'px';
+      hoverLabel.style.top = sp.y + 'px';
+    }
 
     controls.update();
     composer.render();
@@ -588,6 +634,7 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
     composer.dispose?.();
     renderer.dispose();
     if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
+    if (hoverLabel.parentNode === container) container.removeChild(hoverLabel);
   }
 
   return {

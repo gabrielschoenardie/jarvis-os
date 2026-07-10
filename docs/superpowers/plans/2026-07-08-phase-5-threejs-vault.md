@@ -589,13 +589,13 @@ E trocar as referências de `t` dentro do bloco do núcleo (coreInner scale, rin
       if (++slowFrames > 30) {
         lowRatio = true; slowFrames = 0;
         renderer.setPixelRatio(TUNING.PIXEL_RATIO_LOW);
-        composer.setSize(container.clientWidth, container.clientHeight);
+        composer.setPixelRatio(renderer.getPixelRatio()); // não setSize: só setPixelRatio re-dimensiona os render targets do bloom
       }
     } else if (lowRatio && frameMs < TUNING.FRAME_BUDGET_MS * 0.6) {
       if (++fastFrames > 120) {
         lowRatio = false; fastFrames = 0;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        composer.setSize(container.clientWidth, container.clientHeight);
+        composer.setPixelRatio(renderer.getPixelRatio()); // não setSize: só setPixelRatio re-dimensiona os render targets do bloom
       }
     } else { slowFrames = 0; fastFrames = 0; }
 

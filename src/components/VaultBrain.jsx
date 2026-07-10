@@ -40,7 +40,6 @@ function placeholderGraph() {
 export default function VaultBrain({ vault, history, thinking, speaking, listening, ready, onAnalyzeNote }) {
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
-  const [hovered, setHovered] = useState(null); // { title, ghost, x, y }
   const [selectedNote, setSelectedNote] = useState(null); // { id, title, path, degree, mtime }
   const [noteContent, setNoteContent] = useState(null); // { content } | { error }
   const [resetKey, setResetKey] = useState(0);
@@ -67,7 +66,6 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
     const container = containerRef.current;
     if (!container) return;
     const scene = createBrainScene(container, {
-      onHover: (node, x, y) => setHovered(node ? { title: node.title, ghost: !!node.ghost, x, y } : null),
       onSelect: node => {
         setNoteContent(null);
         setSelectedNote(node && !node.ghost && node.path
@@ -177,13 +175,6 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
     <div style={{ flex: 1, minHeight: '400px', position: 'relative', overflow: 'hidden' }}>
       {/* Canvas three.js */}
       <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
-
-      {/* Label de hover */}
-      {hovered && (
-        <div style={{ position: 'absolute', left: hovered.x + 12, top: hovered.y - 8, pointerEvents: 'none', fontSize: 10, letterSpacing: '0.12em', color: C.text, background: 'rgba(5,10,20,0.85)', border: `1px solid ${C.lineStrong}`, padding: '3px 8px', whiteSpace: 'nowrap', zIndex: 3 }}>
-          ▸ {hovered.title}{hovered.ghost ? <span style={{ color: C.muted }}> · não criada</span> : null}
-        </div>
-      )}
 
       {/* Overlays HUD */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>

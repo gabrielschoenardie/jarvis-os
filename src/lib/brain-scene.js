@@ -108,7 +108,7 @@ function baseIntensity(node, maxDegree) {
   return 0.35 + 0.65 * Math.sqrt(node.degree / Math.max(1, maxDegree));
 }
 
-export function createBrainScene(container, { onHover, onSelect } = {}) {
+export function createBrainScene(container, { onSelect } = {}) {
   const width = container.clientWidth || 800;
   const height = container.clientHeight || 500;
 
@@ -148,6 +148,15 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(width, height);
   container.appendChild(renderer.domElement);
+
+  const hoverLabel = document.createElement('div');
+  hoverLabel.style.cssText = [
+    'position:absolute', 'pointer-events:none', 'z-index:3', 'display:none',
+    'font-size:10px', 'letter-spacing:0.12em', 'color:#c8e8f8',
+    'background:rgba(5,10,20,0.85)', 'border:1px solid rgba(0,212,255,0.26)',
+    'padding:3px 8px', 'white-space:nowrap', 'transform:translate(12px,-8px)',
+  ].join(';');
+  container.appendChild(hoverLabel);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -454,10 +463,10 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
       refreshHighlights();
       if (idx >= 0) {
         const node = simNodes[idx];
-        const sp = screenPos(node);
-        onHover?.(node, sp.x, sp.y);
+        hoverLabel.textContent = node.ghost ? `▸ ${node.title} · não criada` : `▸ ${node.title}`;
+        hoverLabel.style.display = 'block';
       } else {
-        onHover?.(null, 0, 0);
+        hoverLabel.style.display = 'none';
       }
     }
   }
@@ -564,6 +573,12 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
 
     if (pointerDirty) { pointerDirty = false; doRaycast(); }
 
+    if (hoveredIndex >= 0 && hoverLabel.style.display !== 'none') {
+      const sp = screenPos(simNodes[hoveredIndex]);
+      hoverLabel.style.left = sp.x + 'px';
+      hoverLabel.style.top = sp.y + 'px';
+    }
+
     controls.update();
     composer.render();
   }
@@ -588,6 +603,7 @@ export function createBrainScene(container, { onHover, onSelect } = {}) {
     composer.dispose?.();
     renderer.dispose();
     if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
+    if (hoverLabel.parentNode === container) container.removeChild(hoverLabel);
   }
 
   return {

@@ -20,6 +20,21 @@ import { forceSimulation, forceManyBody, forceLink, forceCenter, forceRadial } f
 
 const BG = 0x050a14;
 const ACCENT = 0x00d4ff;
+const DOMAIN_COLORS = {
+  'jarvis-os-core': 0x22e6ff,
+  'architecture': 0x3b82f6,
+  'ai-models': 0xa855f7,
+  'prompt-engineering': 0xf59e0b,
+  'automation': 0x2dd4bf,
+  'memory-system': 0x34d399,
+  'principles': 0xa3e635,
+  'knowledge-base': 0x38bdf8,
+  'video-engineering': 0xf43f5e,
+  'photography': 0xec4899,
+};
+function colorForDomain(domain) {
+  return new Color(DOMAIN_COLORS[domain] ?? ACCENT);
+}
 const NUCLEUS_RADIUS = 22; // zona de exclusão — nós são empurrados pra fora
 
 // Constantes de ajuste visual/perf da Fase 5 — ajustáveis a quente no dev.
@@ -50,11 +65,14 @@ const NODE_VERT = `
   attribute float aSize;
   attribute float aIntensity;
   attribute float aSeed;
+  attribute vec3 aColor;
   varying float vIntensity;
   varying float vSeed;
+  varying vec3 vColor;
   void main() {
     vIntensity = aIntensity;
     vSeed = aSeed;
+    vColor = aColor;
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     gl_PointSize = aSize * (300.0 / -mvPosition.z);
     gl_Position = projectionMatrix * mvPosition;
@@ -62,12 +80,12 @@ const NODE_VERT = `
 `;
 
 const NODE_FRAG = `
-  uniform vec3 uColor;
   uniform float uTime;
   uniform float uHaloCore;
   uniform float uHaloSoftness;
   varying float vIntensity;
   varying float vSeed;
+  varying vec3 vColor;
   void main() {
     float dist = length(gl_PointCoord - vec2(0.5));
     if (dist > 0.5) discard;
@@ -75,7 +93,7 @@ const NODE_FRAG = `
     float halo = (1.0 - smoothstep(uHaloCore, 0.5, dist)) * uHaloSoftness;
     float alpha = coreDisc + halo;
     float twinkle = 0.85 + 0.15 * sin(uTime * (1.5 + fract(vSeed) * 2.0) + vSeed * 6.28);
-    gl_FragColor = vec4(uColor * vIntensity * twinkle, alpha);
+    gl_FragColor = vec4(vColor * vIntensity * twinkle, alpha);
   }
 `;
 
@@ -316,6 +334,12 @@ export function createBrainScene(container, { onSelect } = {}) {
     pGeo.setAttribute('aSize', new BufferAttribute(sizeArr, 1));
     pGeo.setAttribute('aIntensity', new BufferAttribute(intArr, 1));
     pGeo.setAttribute('aSeed', new BufferAttribute(seedArr, 1));
+    const colArr = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const c = colorForDomain(simNodes[i].domain);
+      colArr[i * 3] = c.r; colArr[i * 3 + 1] = c.g; colArr[i * 3 + 2] = c.b;
+    }
+    pGeo.setAttribute('aColor', new BufferAttribute(colArr, 3));
     const pMat = new ShaderMaterial({
       uniforms: {
         uColor: { value: new Color(ACCENT) },
@@ -382,12 +406,14 @@ export function createBrainScene(container, { onSelect } = {}) {
       const hot = active >= 0 && (si === active || ti === active);
       const ks = hot ? TUNING.LINK_HOT : degK(si);
       const kt = hot ? TUNING.LINK_HOT : degK(ti);
-      colAttr.array[li * 6]     = accent.r * ks;
-      colAttr.array[li * 6 + 1] = accent.g * ks;
-      colAttr.array[li * 6 + 2] = accent.b * ks;
-      colAttr.array[li * 6 + 3] = accent.r * kt;
-      colAttr.array[li * 6 + 4] = accent.g * kt;
-      colAttr.array[li * 6 + 5] = accent.b * kt;
+      const cs = colorForDomain(simNodes[si]?.domain);
+      const ct = colorForDomain(simNodes[ti]?.domain);
+      colAttr.array[li * 6]     = cs.r * ks;
+      colAttr.array[li * 6 + 1] = cs.g * ks;
+      colAttr.array[li * 6 + 2] = cs.b * ks;
+      colAttr.array[li * 6 + 3] = ct.r * kt;
+      colAttr.array[li * 6 + 4] = ct.g * kt;
+      colAttr.array[li * 6 + 5] = ct.b * kt;
     }
     colAttr.needsUpdate = true;
   }

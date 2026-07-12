@@ -13,6 +13,15 @@ const MAX_FILES = 4000;
 const MAX_PARSE_BYTES = 2 * 1024 * 1024;
 const YIELD_EVERY = 25;
 
+function extractDomain(text) {
+  if (!text.startsWith('---')) return null;
+  const end = text.indexOf('\n---', 3);
+  if (end === -1) return null;
+  const fm = text.slice(3, end);
+  const m = fm.match(/^domain:\s*(.+)$/m);
+  return m ? m[1].trim() : null;
+}
+
 async function walkVault(dirHandle, onProgress) {
   const files = [];
   async function walk(handle, prefix) {
@@ -25,15 +34,18 @@ async function walkVault(dirHandle, onProgress) {
         const file = await entry.getFile();
         let targets = [];
         let words;
+        let domain;
         if (file.size > MAX_PARSE_BYTES) {
           words = Math.round(file.size / 6); // estimativa — pula o parse
+          domain = null;
         } else {
           const text = await file.text();
           targets = parseWikilinks(text);
           words = text.split(/\s+/).filter(Boolean).length;
+          domain = extractDomain(text);
           // corpo descartado aqui — só metadata + targets ficam em memória
         }
-        files.push({ path: prefix + entry.name, name: entry.name, mtime: file.lastModified, size: file.size, targets, words });
+        files.push({ path: prefix + entry.name, name: entry.name, mtime: file.lastModified, size: file.size, targets, words, domain });
         if (files.length % YIELD_EVERY === 0) {
           onProgress?.(files.length);
           await new Promise(r => setTimeout(r, 0));

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { idbGet, idbSet } from '../lib/idb.js';
 import { parseWikilinks, buildGraph } from '../lib/vault-graph.js';
+import { selectRecentNotes, buildMemoryContext } from '../lib/memoryContext.js';
 
 // Conexão com o vault Obsidian local via File System Access API (Chromium).
 // 100% client-side: as notas nunca saem do navegador — só o conteúdo de UMA
@@ -69,6 +70,10 @@ export function useVault() {
   // conversas em 00-Inbox/ (ver src/lib/chatCapture.js). 'read' continua
   // sendo suficiente pro scan/grafo; 'readwrite' é só o que a Captura exige.
   const [canWrite, setCanWrite] = useState(false);
+  // Resumo narrativo das notas mais recentes do vault (ver
+  // src/lib/memoryContext.js), injetado no system prompt como memória de
+  // curto prazo — recalculado a cada scan bem-sucedido (efeito abaixo).
+  const [memoryContext, setMemoryContext] = useState('');
 
   const handleRef = useRef(null);
   const scanTokenRef = useRef(0);
@@ -166,6 +171,29 @@ export function useVault() {
     return { content: await file.text(), mtime: file.lastModified };
   }, []);
 
+  // Recalcula a memória de curto prazo a cada scan bem-sucedido: seleciona
+  // as notas mais recentes do grafo e relê o conteúdo de cada uma (o corpo
+  // já foi descartado do grafo em si — ver walkVault). Roda em background,
+  // sem bloquear status/scanVault; falha em uma nota isolada (sumiu entre o
+  // scan e agora) não derruba as demais.
+  useEffect(() => {
+    if (!graph) return;
+    let cancelled = false;
+    (async () => {
+      const candidates = selectRecentNotes(graph);
+      const entries = [];
+      for (const node of candidates) {
+        if (cancelled) return;
+        try {
+          const { content } = await readNote(node.path);
+          entries.push({ title: node.title, content });
+        } catch (_) { /* nota sumiu entre o scan e agora — ignora */ }
+      }
+      if (!cancelled) setMemoryContext(buildMemoryContext(entries));
+    })();
+    return () => { cancelled = true; };
+  }, [scanId, graph, readNote]);
+
   // Grava (cria ou sobrescreve) uma nota de Captura em 00-Inbox/ — usado pela
   // Captura automática de conversas (src/lib/chatCapture.js). Exige que o
   // handle tenha sido concedido em modo 'readwrite'.
@@ -180,7 +208,7 @@ export function useVault() {
   }, []);
 
   return {
-    status, graph, progress, truncatedScan, error, scanId, canWrite,
+    status, graph, progress, truncatedScan, error, scanId, canWrite, memoryContext,
     connectVault, reconnectVault, rescanVault, readNote, writeCaptureNote,
     layoutCacheRef,
   };

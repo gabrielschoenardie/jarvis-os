@@ -97,7 +97,15 @@ export default function JarvisOS() {
     apiHistoryRef,
     speakChunks: speech.speakChunks,
     onPersistTurns: vault.canWrite ? vault.writeCaptureNote : null,
+    memoryContext: vault.memoryContext,
   });
+
+  // Quantas notas alimentam a memória de curto prazo nesta sessão — só pra
+  // exibir o indicador "🧠 MEMÓRIA" abaixo (transparência: nenhum clique
+  // aciona isso, mas o operador vê que está ativo).
+  const memoryNoteCount = vault.memoryContext
+    ? vault.memoryContext.split('\n').filter(l => l.startsWith('— ')).length
+    : 0;
 
   // Keep ref current on every render so STT callback always calls the latest submitCommand
   submitCommandRef.current = chat.submitCommand;
@@ -471,6 +479,11 @@ export default function JarvisOS() {
             {chat.captureSaved && (
               <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '8px 32px', background: 'rgba(3,7,16,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
                 <span style={{ fontSize: 10, color: C.accent, letterSpacing: '0.3em' }}>💾 CONVERSA SALVA NO VAULT</span>
+              </div>
+            )}
+            {memoryNoteCount > 0 && (
+              <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '6px 32px', background: 'rgba(3,7,16,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
+                <span style={{ fontSize: 9, color: C.muted, letterSpacing: '0.28em' }}>🧠 MEMÓRIA · {memoryNoteCount} {memoryNoteCount === 1 ? 'NOTA RECENTE' : 'NOTAS RECENTES'}</span>
               </div>
             )}
           </div>

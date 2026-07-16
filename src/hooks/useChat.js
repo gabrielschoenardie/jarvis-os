@@ -11,7 +11,7 @@ const BACKOFF_MS = [2000, 4000, 8000];
 
 const TOOL_LABELS = { web_search: 'BUSCA WEB', calcular: 'CÁLCULO', abrir_site: 'NAVEGADOR', hud_display: 'HUD DISPLAY' };
 
-export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onPersistTurns }) {
+export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onPersistTurns, memoryContext }) {
   const [history, setHistory] = useState([]);
   const [apiHistory, setApiHistory] = useState([]);
   const [captureSaved, setCaptureSaved] = useState(false);
@@ -275,7 +275,7 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onP
         try {
           startTimer?.();
           const apiT0 = Date.now();
-          ({ text: responseText, jarvis, tokenUsage } = await callClaude(newApiHistory, { onChunk, onAction, onToolStatus }));
+          ({ text: responseText, jarvis, tokenUsage } = await callClaude(newApiHistory, { onChunk, onAction, onToolStatus, memoryContext }));
           stopTimer?.(Date.now() - apiT0);
           break;
         } catch (err) {

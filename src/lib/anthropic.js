@@ -15,11 +15,11 @@ export function splitIntoSpeakableChunks(text) {
     .filter(s => s.length > 0);
 }
 
-export async function callClaude(messages, { onChunk, onAction, onToolStatus } = {}) {
+export async function callClaude(messages, { onChunk, onAction, onToolStatus, memoryContext } = {}) {
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, stream: !!onChunk }),
+    body: JSON.stringify({ messages, stream: !!onChunk, memoryContext }),
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

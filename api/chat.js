@@ -123,7 +123,7 @@ export default async function handler(req) {
 
   try {
     const body = await req.json();
-    const { messages, stream = false } = body;
+    const { messages, stream = false, memoryContext = null } = body;
 
     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
     const lastUserText = extractMessageText(lastUserMsg?.content);
@@ -167,7 +167,7 @@ export default async function handler(req) {
     const system = buildSystemPrompt({
       deep: cmdConfig.deep,
       tools: TOOL_NAMES,
-      // memoryContext: null — Fase 5
+      memoryContext,
     });
 
     const systemBlocks = [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }];

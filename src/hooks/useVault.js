@@ -65,6 +65,10 @@ export function useVault() {
   const [truncatedScan, setTruncatedScan] = useState(false);
   const [error, setError] = useState(null);
   const [scanId, setScanId] = useState(0);
+  // Permissão de escrita concedida — habilita a Captura automática de
+  // conversas em 00-Inbox/ (ver src/lib/chatCapture.js). 'read' continua
+  // sendo suficiente pro scan/grafo; 'readwrite' é só o que a Captura exige.
+  const [canWrite, setCanWrite] = useState(false);
 
   const handleRef = useRef(null);
   const scanTokenRef = useRef(0);
@@ -108,9 +112,9 @@ export function useVault() {
         const handle = await idbGet(HANDLE_KEY);
         if (cancelled || !handle) return;
         handleRef.current = handle;
-        const perm = await handle.queryPermission({ mode: 'read' });
+        const perm = await handle.queryPermission({ mode: 'readwrite' });
         if (cancelled) return;
-        if (perm === 'granted') scanVault(handle);
+        if (perm === 'granted') { setCanWrite(true); scanVault(handle); }
         else setStatus('permission');
       } catch (_) { /* idb indisponível → segue em 'idle' */ }
     })();
@@ -119,12 +123,14 @@ export function useVault() {
 
   const connectVault = useCallback(async () => {
     try {
-      const handle = await window.showDirectoryPicker({ mode: 'read' });
+      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
       handleRef.current = handle;
       try { await idbSet(HANDLE_KEY, handle); } catch (_) {}
+      setCanWrite(true);
       await scanVault(handle);
     } catch (err) {
       if (err.name === 'AbortError') return; // usuário cancelou o picker
+      setCanWrite(false);
       setError(err.message);
       setStatus('error');
     }
@@ -134,10 +140,11 @@ export function useVault() {
     const handle = handleRef.current;
     if (!handle) return connectVault();
     try {
-      const perm = await handle.requestPermission({ mode: 'read' });
-      if (perm === 'granted') await scanVault(handle);
-      else setStatus('permission');
+      const perm = await handle.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') { setCanWrite(true); await scanVault(handle); }
+      else { setCanWrite(false); setStatus('permission'); }
     } catch (_) {
+      setCanWrite(false);
       setStatus('permission');
     }
   }, [connectVault, scanVault]);
@@ -159,9 +166,22 @@ export function useVault() {
     return { content: await file.text(), mtime: file.lastModified };
   }, []);
 
+  // Grava (cria ou sobrescreve) uma nota de Captura em 00-Inbox/ — usado pela
+  // Captura automática de conversas (src/lib/chatCapture.js). Exige que o
+  // handle tenha sido concedido em modo 'readwrite'.
+  const writeCaptureNote = useCallback(async (filename, content) => {
+    const handle = handleRef.current;
+    if (!handle) throw new Error('vault desconectado');
+    const inboxDir = await handle.getDirectoryHandle('00-Inbox');
+    const fileHandle = await inboxDir.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(content);
+    await writable.close();
+  }, []);
+
   return {
-    status, graph, progress, truncatedScan, error, scanId,
-    connectVault, reconnectVault, rescanVault, readNote,
+    status, graph, progress, truncatedScan, error, scanId, canWrite,
+    connectVault, reconnectVault, rescanVault, readNote, writeCaptureNote,
     layoutCacheRef,
   };
 }

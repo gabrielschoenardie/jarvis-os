@@ -86,15 +86,18 @@ export default function JarvisOS() {
     setInput,
   });
 
+  // Vault Obsidian — vive no App para sobreviver às trocas de modo. Definido
+  // antes do useChat porque a Captura automática de conversas (abaixo)
+  // precisa de vault.writeCaptureNote/canWrite.
+  const vault = useVault();
+
   const chat = useChat({
     startTimer,
     stopTimer,
     apiHistoryRef,
     speakChunks: speech.speakChunks,
+    onPersistTurns: vault.canWrite ? vault.writeCaptureNote : null,
   });
-
-  // Vault Obsidian — vive no App para sobreviver às trocas de modo
-  const vault = useVault();
 
   // Keep ref current on every render so STT callback always calls the latest submitCommand
   submitCommandRef.current = chat.submitCommand;
@@ -463,6 +466,11 @@ export default function JarvisOS() {
                 </span>
                 <span style={{ fontSize: 10, color: C.accent, letterSpacing: '0.3em' }}>J.A.R.V.I.S. · TRANSMITINDO</span>
                 <button onClick={speech.stopSpeaking} style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accentDim, padding: '3px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>◾ SILENCIAR</button>
+              </div>
+            )}
+            {chat.captureSaved && (
+              <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '8px 32px', background: 'rgba(3,7,16,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
+                <span style={{ fontSize: 10, color: C.accent, letterSpacing: '0.3em' }}>💾 CONVERSA SALVA NO VAULT</span>
               </div>
             )}
           </div>

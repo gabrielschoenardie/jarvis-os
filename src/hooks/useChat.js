@@ -1,16 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { callClaude, splitIntoSpeakableChunks } from '../lib/anthropic.js';
 import { isWeatherQuery } from '../lib/weather.js';
 import { stripImageAttachment } from '../lib/attachments.js';
 import { MODEL } from '../lib/constants.js';
+import { buildCaptureFilename, buildCaptureMarkdown } from '../lib/chatCapture.js';
+
+const CAPTURE_DEBOUNCE_MS = 2000;
 
 const BACKOFF_MS = [2000, 4000, 8000];
 
 const TOOL_LABELS = { web_search: 'BUSCA WEB', calcular: 'CÁLCULO', abrir_site: 'NAVEGADOR', hud_display: 'HUD DISPLAY' };
 
-export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef }) {
+export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onPersistTurns }) {
   const [history, setHistory] = useState([]);
   const [apiHistory, setApiHistory] = useState([]);
+  const [captureSaved, setCaptureSaved] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [streamText, setStreamText] = useState('');
   const [apiError, setApiError] = useState(null);
@@ -24,6 +28,13 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef }) {
   // Janela flutuante de vídeo no HUD — estado vivo, nunca persistido (o chip
   // {type:'hud'} no history é o registro durável que sobrevive a F5).
   const [hudMedia, setHudMedia] = useState(null);
+
+  // Vault Capture: uma nota por sessão (mesmo arquivo sobrescrito conforme a
+  // conversa cresce), não uma nota por turno. Ver efeito de debounce abaixo.
+  const captureSessionStartRef = useRef(null);
+  const captureTimeoutRef = useRef(null);
+  const captureDisabledRef = useRef(false);
+  const captureFlashedRef = useRef(false);
 
   // useCallback → referências estáveis, pra o TerminalView memoizar as linhas
   // do histórico sem quebrar quando o onOpenHud muda de identidade a cada render.
@@ -60,6 +71,35 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef }) {
       }));
     } catch (_) {}
   }, [history, apiHistory]);
+
+  // Vault Capture: espelha a conversa como nota em 00-Inbox/ (ver
+  // src/lib/chatCapture.js), com debounce, pra sobreviver além do
+  // localStorage. Só roda se onPersistTurns existir (permissão de escrita
+  // concedida — ver useVault.js). Uma falha de escrita desativa novas
+  // tentativas nesta sessão; o localStorage continua sendo a fonte de
+  // verdade em qualquer caso, então nada se perde.
+  useEffect(() => {
+    if (!onPersistTurns || captureDisabledRef.current || history.length === 0) return;
+    if (!captureSessionStartRef.current) captureSessionStartRef.current = new Date();
+
+    if (captureTimeoutRef.current) clearTimeout(captureTimeoutRef.current);
+    captureTimeoutRef.current = setTimeout(() => {
+      const startedAt = captureSessionStartRef.current;
+      const filename = buildCaptureFilename(startedAt);
+      const content = buildCaptureMarkdown({ startedAt, turns: history });
+      onPersistTurns(filename, content).then(() => {
+        if (!captureFlashedRef.current) {
+          captureFlashedRef.current = true;
+          setCaptureSaved(true);
+          setTimeout(() => setCaptureSaved(false), 6000);
+        }
+      }).catch(() => {
+        captureDisabledRef.current = true;
+      });
+    }, CAPTURE_DEBOUNCE_MS);
+
+    return () => { if (captureTimeoutRef.current) clearTimeout(captureTimeoutRef.current); };
+  }, [history, onPersistTurns]);
 
   const handleLocalCommand = (cmd, currentApiHistory) => {
     const lower = cmd.trim().toLowerCase();
@@ -333,6 +373,12 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef }) {
     setSessionTokens(0);
     if (apiHistoryRef) apiHistoryRef.current = [];
     localStorage.removeItem('jarvis-history');
+    // Próxima mensagem inicia uma nova sessão de Captura (novo arquivo em
+    // 00-Inbox/), e uma falha antiga não deve mais bloquear a nova sessão.
+    captureSessionStartRef.current = null;
+    captureDisabledRef.current = false;
+    captureFlashedRef.current = false;
+    setCaptureSaved(false);
   };
 
   return {
@@ -340,7 +386,7 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef }) {
     thinking, streamText, activeBadge, toolStatus,
     hudMedia, openHudMedia, closeHudMedia,
     apiError, errorDetails, showErrorDetails,
-    lastFailedCmd, sessionTokens,
+    lastFailedCmd, sessionTokens, captureSaved,
     setShowErrorDetails, setApiError, setErrorDetails,
     submitCommand, retryLastCommand, clearHistory,
   };

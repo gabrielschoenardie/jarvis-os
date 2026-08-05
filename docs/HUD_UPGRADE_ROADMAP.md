@@ -2,6 +2,8 @@
 
 > Status: **Fases 1, 2 e 3 CONCLUÍDAS** · próximas: Fase 4 → 6.
 > Origem: auditoria completa do repositório (07/07/2026).
+> **Fase 4b/4c**: o que ficou aberto está detalhado em [`HUD_AUDIT_PLAN.md`](./HUD_AUDIT_PLAN.md)
+> (auditoria de HUD de 29/07/2026, 11 achados) — é a "passada guiada" que a 4b adiou.
 > Regra: uma fase por vez, commits pequenos, verificar `npm run dev` + `npm run build` antes de avançar.
 > Invariantes CLAUDE.md sempre valem: nunca tocar `require-corp`, pipeline de streaming/TTS intocado na lógica, `dispose()` simétrico no three.js.
 

@@ -141,7 +141,7 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
       case 'idle': return (
         <>
           <div style={{ fontSize: 10, letterSpacing: '0.32em', color: C.muted, marginBottom: 6 }}>NENHUM VAULT CONECTADO</div>
-          <div style={{ fontSize: 10, color: C.dim, letterSpacing: '0.08em', marginBottom: 16, maxWidth: 320, lineHeight: 1.7 }}>
+          <div style={{ fontSize: 10, color: C.quiet, letterSpacing: '0.08em', marginBottom: 16, maxWidth: 320, lineHeight: 1.7 }}>
             As notas são lidas localmente no navegador — nada é enviado a servidor algum.
           </div>
           <button style={holoButton} onClick={vault.connectVault}>▸ CONECTAR VAULT</button>
@@ -180,10 +180,10 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
         <div className="jv-holo-in" style={{ position: 'absolute', top: 20, left: 28 }}>
           <div style={{ ...display, fontSize: 20, fontWeight: 700, letterSpacing: '0.12em', color: C.accent }}>OBSIDIAN VAULT</div>
-          <div style={{ fontSize: 9, color: C.muted, letterSpacing: '0.32em', marginTop: 4 }}>J.A.R.V.I.S. · NÚCLEO NEURAL · GRAFO</div>
+          <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.32em', marginTop: 4 }}>J.A.R.V.I.S. · NÚCLEO NEURAL · GRAFO</div>
         </div>
 
-        <div className="jv-holo-in" style={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 18, fontSize: 9, letterSpacing: '0.28em', color: C.muted }}>
+        <div className="jv-holo-in" style={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 18, fontSize: 10, letterSpacing: '0.28em', color: C.muted }}>
           {['MATRIX','ARCHIVE','SYNTHESIA'].map(l => (
             <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.accent }} />
@@ -192,7 +192,7 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
           ))}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: speaking || listening ? C.accent : C.dim }} className={speaking || listening ? 'jv-pulse' : ''} />
-            <span style={{ color: speaking || listening ? C.muted : C.dim }}>VOZ</span>
+            <span style={{ color: speaking || listening ? C.muted : C.quiet }}>VOZ</span>
           </div>
         </div>
 
@@ -200,7 +200,7 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
         {vault.status === 'ready' && recentNotes.length > 0 && !selectedNote && (
           <div className="jv-holo-in" style={{ position: 'absolute', top: 20, right: 28, pointerEvents: 'auto' }}>
             <HoloPanel>
-              <div style={{ fontSize: 9, color: C.muted, letterSpacing: '0.32em', marginBottom: 10 }}>NOTAS RECENTES</div>
+              <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.32em', marginBottom: 10 }}>NOTAS RECENTES</div>
               {recentNotes.map(n => (
                 <button key={n.id} onClick={() => openNote(n)}
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', color: C.text, fontFamily: 'inherit', fontSize: 10.5, padding: '3px 0', cursor: 'pointer', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
@@ -215,13 +215,13 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
         {vault.status === 'ready' && metrics && (
           <div className="jv-holo-in" style={{ position: 'absolute', bottom: 24, left: 28, pointerEvents: 'auto' }}>
             <HoloPanel>
-              <div style={{ fontSize: 9, color: C.muted, letterSpacing: '0.32em', marginBottom: 10 }}>VAULT · MÉTRICAS</div>
+              <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.32em', marginBottom: 10 }}>VAULT · MÉTRICAS</div>
               <HoloRow label="NOTAS" value={metrics.notes.toLocaleString('pt-BR')} />
               <HoloRow label="CONEXÕES" value={metrics.links.toLocaleString('pt-BR')} />
               <HoloRow label="ÓRFÃS" value={metrics.orphans.toLocaleString('pt-BR')} />
               {metrics.shown < metrics.total && <HoloRow label="EXIBINDO" value={`${metrics.shown} / ${metrics.total}`} />}
-              {vault.truncatedScan && <div style={{ fontSize: 9, color: C.warn, marginTop: 6, letterSpacing: '0.1em' }}>⚠ scan parcial (4000 arquivos)</div>}
-              <button onClick={vault.rescanVault} style={{ marginTop: 10, background: 'transparent', border: `1px solid ${C.line}`, color: C.accentDim, padding: '3px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>↺ REESCANEAR</button>
+              {vault.truncatedScan && <div style={{ fontSize: 10, color: C.warn, marginTop: 6, letterSpacing: '0.1em' }}>⚠ scan parcial (4000 arquivos)</div>}
+              <button onClick={vault.rescanVault} style={{ marginTop: 10, background: 'transparent', border: `1px solid ${C.line}`, color: C.accentDim, padding: '3px 10px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: 'pointer' }}>↺ REESCANEAR</button>
             </HoloPanel>
           </div>
         )}
@@ -232,7 +232,7 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
             <div style={{ ...display, fontSize: 34, fontWeight: 300, color: C.text, lineHeight: 1 }}>
               {metrics.totalWords.toLocaleString('pt-BR')}
             </div>
-            <div style={{ fontSize: 9, color: C.muted, letterSpacing: '0.36em', marginTop: 4 }}>PALAVRAS NO VAULT</div>
+            <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.36em', marginTop: 4 }}>PALAVRAS NO VAULT</div>
           </div>
         )}
 
@@ -242,23 +242,23 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
             <HoloPanel>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 9, color: C.muted, letterSpacing: '0.32em', marginBottom: 6 }}>NOTA · VAULT</div>
+                  <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.32em', marginBottom: 6 }}>NOTA · VAULT</div>
                   <div style={{ ...display, fontSize: 16, fontWeight: 600, color: C.accent, letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedNote.title}</div>
-                  <div style={{ fontSize: 9, color: C.dim, marginTop: 3, letterSpacing: '0.08em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedNote.path}</div>
+                  <div style={{ fontSize: 10, color: C.quiet, marginTop: 3, letterSpacing: '0.08em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedNote.path}</div>
                 </div>
                 <button onClick={closeNote} style={{ background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accentDim, padding: '2px 8px', fontFamily: 'inherit', fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>✕</button>
               </div>
-              <div style={{ display: 'flex', gap: 16, fontSize: 9.5, color: C.muted, letterSpacing: '0.1em', margin: '8px 0' }}>
+              <div style={{ display: 'flex', gap: 16, fontSize: 10, color: C.muted, letterSpacing: '0.1em', margin: '8px 0' }}>
                 <span>CONEXÕES · {selectedNote.degree}</span>
                 <span>{new Date(selectedNote.mtime).toLocaleDateString('pt-BR')}</span>
               </div>
               <div className="jv-scrollbar" style={{ fontSize: 11, lineHeight: 1.65, color: C.text, maxHeight: 140, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 {noteContent === null && <span className="jv-pulse" style={{ color: C.muted }}>lendo nota…</span>}
                 {noteContent?.error === 'permission' && (
-                  <span style={{ color: C.warn }}>permissão revogada · <button onClick={vault.reconnectVault} style={{ ...holoButton, padding: '2px 8px', fontSize: 9 }}>RECONECTAR</button></span>
+                  <span style={{ color: C.warn }}>permissão revogada · <button onClick={vault.reconnectVault} style={{ ...holoButton, padding: '2px 8px', fontSize: 10 }}>RECONECTAR</button></span>
                 )}
                 {noteContent?.error === 'notfound' && (
-                  <span style={{ color: C.warn }}>arquivo não encontrado · <button onClick={vault.rescanVault} style={{ ...holoButton, padding: '2px 8px', fontSize: 9 }}>REESCANEAR</button></span>
+                  <span style={{ color: C.warn }}>arquivo não encontrado · <button onClick={vault.rescanVault} style={{ ...holoButton, padding: '2px 8px', fontSize: 10 }}>REESCANEAR</button></span>
                 )}
                 {noteContent?.error && noteContent.error !== 'permission' && noteContent.error !== 'notfound' && (
                   <span style={{ color: C.warn }}>⚠ {noteContent.error}</span>
@@ -276,7 +276,7 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
         ) : lastMessage && (
           <div className="jv-holo-in" style={{ position: 'absolute', bottom: 24, right: 28, maxWidth: 380, pointerEvents: 'auto' }} key={history.length}>
             <HoloPanel>
-              <div style={{ fontSize: 9, color: C.muted, letterSpacing: '0.32em', marginBottom: 10 }}>ÚLTIMA TRANSMISSÃO</div>
+              <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.32em', marginBottom: 10 }}>ÚLTIMA TRANSMISSÃO</div>
               <div style={{ fontSize: 12, lineHeight: 1.65, color: C.text, maxHeight: 150, overflowY: 'auto' }} className="jv-scrollbar">
                 {lastMessage.type === 'ai'
                   ? lastMessage.text?.slice(0, 380) + (lastMessage.text?.length > 380 ? '…' : '')

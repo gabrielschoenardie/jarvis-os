@@ -4,11 +4,12 @@ export const C = {
   bgDeep: '#030710', // bordas mais fundas
   line: 'rgba(0,212,255,0.10)',
   lineStrong: 'rgba(0,212,255,0.26)',
-  text: '#c8e8f8',
-  muted: '#4a7a99',
-  dim: '#1e3a4a',
-  accent: '#00d4ff',
-  accentDim: '#007a99',
+  text: '#c8e8f8',    // 15,4:1 — conteúdo primário
+  muted: '#7fa8bf',   // 7,8:1 — rótulo de seção legível (era #4a7a99, 4,3:1)
+  quiet: '#517a92',   // 4,3:1 — piso AA de texto silencioso (novo)
+  dim: '#1e3a4a',     // 1,7:1 — NUNCA texto. Só hairline e ponto inativo/estrutura.
+  accent: '#00d4ff',  // 11,2:1 — vivo / mudou de estado
+  accentDim: '#0090b3', // 5,3:1 — borda/ação secundária (era #007a99, 4,0:1)
   critical: '#ff3c3c',
   warn: '#ffaa00',
   ok: '#00ff9d',
@@ -63,7 +64,7 @@ export const glass = {
 // Presets de tipografia (spreadable). Hierarquia por tracking, como o app já faz.
 export const type = {
   eyebrow: { fontSize: 10, letterSpacing: '0.32em', textTransform: 'uppercase' },
-  micro: { fontSize: 9, letterSpacing: '0.28em' },
+  micro: { fontSize: 10, letterSpacing: '0.28em' }, // piso de acessibilidade: era 9
   label: { fontSize: 11, letterSpacing: '0.22em' },
 };
 

@@ -11,7 +11,7 @@ export function Meter({ label, value, unit, max = 100, display }) {
   const shown = display != null ? display : `${value}${unit || ''}`;
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: C.dim, letterSpacing: '0.28em', marginBottom: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.quiet, letterSpacing: '0.28em', marginBottom: 6 }}>
         <span>{label}</span><span style={{ color: C.accent, fontVariantNumeric: 'tabular-nums' }}>{shown}</span>
       </div>
       <div style={{ display: 'flex', gap: 2 }}>

@@ -194,7 +194,7 @@ if (data._jarvis?.badge) {
 // no JSX, próximo ao input:
 {activeBadge && (
   <div className="jv-fade" style={{
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: '0.32em',
     color: C.accent,
     border: `1px solid ${C.accent}`,

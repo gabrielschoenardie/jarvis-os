@@ -90,7 +90,7 @@ export function HudMediaWindow({ media, onClose }) {
               ◉ HUD DISPLAY · {media.title}
             </span>
             {media.channel && (
-              <span style={{ fontSize: 9, color: C.muted, letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>{media.channel}</span>
+              <span style={{ fontSize: 10, color: C.muted, letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>{media.channel}</span>
             )}
             <button
               ref={closeBtnRef}

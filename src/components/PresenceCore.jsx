@@ -110,7 +110,7 @@ export function PresenceCore({ size = 120, thinking, speaking, listening, toolSt
         </g>
       </svg>
 
-      <div style={{ ...mono, fontSize: 9, letterSpacing: '0.32em', color: s.active ? C.accent : C.dim, transition: 'color 400ms ease', whiteSpace: 'nowrap' }}>
+      <div style={{ ...mono, fontSize: 10, letterSpacing: '0.32em', color: s.active ? C.accent : C.quiet, transition: 'color 400ms ease', whiteSpace: 'nowrap' }}>
         {caption}
       </div>
     </div>

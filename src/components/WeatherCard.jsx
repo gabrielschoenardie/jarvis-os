@@ -76,10 +76,12 @@ function TempChart({ hourly, onHover, hover }) {
           <stop offset="100%" stopColor={C.accent} stopOpacity="0" />
         </linearGradient>
       </defs>
+      {/* Rótulos de eixo — isentos do piso de 10px (design-lint: allowlist SVG
+          de dados), mas a cor segue a rampa de contraste normalmente. */}
       {gridTemps.map(t => (
         <g key={t}>
           <line x1={M.left} y1={y(t)} x2={W - M.right} y2={y(t)} stroke="rgba(0,212,255,0.07)" strokeWidth="1" />
-          <text x={M.left - 6} y={y(t) + 3} textAnchor="end" fill={C.dim} fontSize="8" fontFamily="JetBrains Mono, monospace">{Math.round(t)}°</text>
+          <text x={M.left - 6} y={y(t) + 3} textAnchor="end" fill={C.quiet} fontSize="8" fontFamily="JetBrains Mono, monospace">{Math.round(t)}°</text>
         </g>
       ))}
       {pts.map((p, i) => {
@@ -87,7 +89,7 @@ function TempChart({ hourly, onHover, hover }) {
         if (i % 6 !== 0) return null;
         const isMidnight = hour === '00';
         return (
-          <text key={i} x={x(i)} y={H - 6} textAnchor="middle" fill={isMidnight ? C.muted : C.dim} fontSize="8" fontFamily="JetBrains Mono, monospace">
+          <text key={i} x={x(i)} y={H - 6} textAnchor="middle" fill={isMidnight ? C.muted : C.quiet} fontSize="8" fontFamily="JetBrains Mono, monospace">
             {isMidnight ? weekdayAbbrev(p.time.slice(0, 10)) : `${hour}h`}
           </text>
         );
@@ -119,7 +121,7 @@ function DailyBars({ daily, field, unit, max, onHover, hover }) {
       {[0, max / 2, max].map(v => (
         <g key={v}>
           <line x1={M.left} y1={y(v)} x2={W - M.right} y2={y(v)} stroke="rgba(0,212,255,0.07)" strokeWidth="1" />
-          <text x={M.left - 6} y={y(v) + 3} textAnchor="end" fill={C.dim} fontSize="8" fontFamily="JetBrains Mono, monospace">{Math.round(v)}</text>
+          <text x={M.left - 6} y={y(v) + 3} textAnchor="end" fill={C.quiet} fontSize="8" fontFamily="JetBrains Mono, monospace">{Math.round(v)}</text>
         </g>
       ))}
       {daily.map((d, i) => {
@@ -131,7 +133,7 @@ function DailyBars({ daily, field, unit, max, onHover, hover }) {
           <g key={d.date}>
             <path d={topRoundedBar(bx, by, barW, M.top + PH - by)} fill={C.accent} opacity={isHover ? 0.95 : 0.65} />
             <text x={bx + barW / 2} y={by - 5} textAnchor="middle" fill={C.text} fontSize="9" fontFamily="JetBrains Mono, monospace">{Math.round(v)}</text>
-            <text x={bx + barW / 2} y={H - 6} textAnchor="middle" fill={C.dim} fontSize="8" fontFamily="JetBrains Mono, monospace">{weekdayAbbrev(d.date)}</text>
+            <text x={bx + barW / 2} y={H - 6} textAnchor="middle" fill={C.quiet} fontSize="8" fontFamily="JetBrains Mono, monospace">{weekdayAbbrev(d.date)}</text>
             <rect
               x={M.left + i * band} y={M.top} width={band} height={PH} fill="transparent"
               tabIndex={0}
@@ -172,7 +174,7 @@ export function WeatherCard({ forecast }) {
       <Corners />
 
       {/* Header */}
-      <div style={{ fontSize: 9, color: C.muted, letterSpacing: '0.28em', marginBottom: 12 }}>
+      <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.28em', marginBottom: 12 }}>
         ◉ PREVISÃO · 7 DIAS · {location}
       </div>
 
@@ -199,7 +201,7 @@ export function WeatherCard({ forecast }) {
               background: tab === t.key ? C.accent : 'transparent',
               color: tab === t.key ? C.bg : C.muted,
               border: 'none', padding: '4px 10px', fontFamily: 'inherit',
-              fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer',
+              fontSize: 10, letterSpacing: '0.22em', cursor: 'pointer',
             }}
           >{t.label}</button>
         ))}
@@ -219,7 +221,7 @@ export function WeatherCard({ forecast }) {
             padding: '5px 10px', whiteSpace: 'nowrap', zIndex: 5,
           }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{hover.value}</div>
-            <div style={{ fontSize: 9, color: C.muted, letterSpacing: '0.1em' }}>{hover.label}</div>
+            <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.1em' }}>{hover.label}</div>
           </div>
         )}
       </div>
@@ -239,7 +241,7 @@ export function WeatherCard({ forecast }) {
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
               }}
             >
-              <span style={{ fontSize: 9, color: selected ? C.text : C.muted, letterSpacing: '0.12em' }}>{weekdayAbbrev(d.date)}</span>
+              <span style={{ fontSize: 10, color: selected ? C.text : C.muted, letterSpacing: '0.12em' }}>{weekdayAbbrev(d.date)}</span>
               <span style={{ fontSize: 16, color: C.accent, lineHeight: 1 }}>{glyphFor(d.code)}</span>
               <span style={{ fontSize: 11, color: C.text }}>
                 {Math.round(d.maxC)}° <span style={{ color: C.muted, fontSize: 10 }}>{Math.round(d.minC)}°</span>
@@ -253,11 +255,11 @@ export function WeatherCard({ forecast }) {
       </div>
 
       {/* Rodapé */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 9, letterSpacing: '0.2em' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 10, letterSpacing: '0.2em' }}>
         <span style={{ color: C.muted }}>
           {weekdayAbbrev(sel.date).toUpperCase()} · {sel.conditionText.toUpperCase()} · CHUVA {sel.rainChance ?? 0}%
         </span>
-        <span style={{ color: C.dim }}>FONTE · OPEN-METEO</span>
+        <span style={{ color: C.quiet }}>FONTE · OPEN-METEO</span>
       </div>
     </div>
   );

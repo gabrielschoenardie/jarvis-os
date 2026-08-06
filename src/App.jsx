@@ -177,6 +177,18 @@ export default function JarvisOS() {
   const contextPct = clampPct(Math.round(chat.apiHistory.length / 2 / 20 * 100));
   const sessionTokens = chat.sessionTokens;
 
+  // Void reativo (Etapa 5 da auditoria): --jv-ambient no root, derivada do
+  // mesmo estado real que já alimenta o Presence Core (+ falha de API).
+  // Grade e streams leem essa única variável via CSS — nenhum elemento novo,
+  // nenhum setInterval novo. Sob reduced-motion, congela em 0.30 (repouso).
+  const reducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const ambient = reducedMotion ? 0.30
+    : chat.apiError ? 0.20
+    : (chat.toolStatus || chat.thinking) ? 0.85
+    : speech.speaking ? 0.70
+    : speech.listening ? 0.55
+    : 0.30;
+
   const handleSubmit = () => {
     if (!ready || !input.trim()) return;
     const cmd = input;
@@ -242,13 +254,12 @@ export default function JarvisOS() {
   const fmtDate = d => d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
   return (
-    <div style={{ ...mono, background: `radial-gradient(ellipse at 50% 28%, ${C.bgSoft} 0%, ${C.bg} 55%, ${C.bgDeep} 100%)`, color: C.text, minHeight: '100vh', width: '100%', position: 'relative', overflow: 'hidden' }}>
+    <div className={chat.apiError ? 'jv-ambient-fail' : ''} style={{ ...mono, '--jv-ambient': ambient, background: `radial-gradient(ellipse at 50% 28%, ${C.bgSoft} 0%, ${C.bg} 55%, ${C.bgDeep} 100%)`, color: C.text, minHeight: '100vh', width: '100%', position: 'relative', overflow: 'hidden' }}>
       <style>{`
         @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
         @keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeInScale { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
-        @keyframes scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
         @keyframes wave1 { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
         @keyframes wave2 { 0%, 100% { transform: scaleY(0.6); } 50% { transform: scaleY(0.4); } }
         @keyframes wave3 { 0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(0.9); } }
@@ -280,12 +291,14 @@ export default function JarvisOS() {
         @keyframes hudOut { from { opacity: 1; transform: scale(1); filter: blur(0); } to { opacity: 0; transform: scale(0.94); filter: blur(6px); } }
         .jv-hud-in { animation: hudIn 0.45s ease-out both; }
         .jv-hud-out { animation: hudOut 0.3s ease-in both; }
-        .jv-scanline { position: fixed; inset: 0; pointer-events: none; z-index: 5; background: linear-gradient(180deg, transparent, rgba(0,212,255,0.018) 50%, transparent); height: 120px; animation: scan 9s linear infinite; opacity: 0.7; }
         .jv-grain { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0.025; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>"); }
         .jv-input::placeholder { color: ${C.quiet}; }
         .jv-input { caret-color: #00d4ff; }
         .jv-input:focus { outline: none; }
-        .jv-grid-bg { position: fixed; inset: 0; pointer-events: none; z-index: 1; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='115'><polygon points='50,2 98,26 98,74 50,98 2,74 2,26' fill='none' stroke='rgba(0,212,255,0.13)' stroke-width='0.8'/></svg>"); background-size: 100px 115px; animation: hexGlow 8s ease-in-out infinite; mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%); }
+        /* Grade + vinheta (a máscara radial abaixo) reagem à mesma variável
+           única --jv-ambient (Etapa 5) — void que respira com a máquina, sem
+           elemento novo nem setInterval novo. */
+        .jv-grid-bg { position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: var(--jv-ambient, 0.3); transition: opacity 900ms ease; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='115'><polygon points='50,2 98,26 98,74 50,98 2,74 2,26' fill='none' stroke='rgba(0,212,255,0.13)' stroke-width='0.8'/></svg>"); background-size: 100px 115px; animation: hexGlow 8s ease-in-out infinite; mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%); }
         .jv-wave-bar { display: inline-block; width: 2px; background: #00d4ff; transform-origin: center; }
         .jv-wave-bar:nth-child(1) { animation: wave1 0.9s ease-in-out infinite; }
         .jv-wave-bar:nth-child(2) { animation: wave2 0.7s ease-in-out infinite; }
@@ -302,7 +315,14 @@ export default function JarvisOS() {
         .jv-scrollbar::-webkit-scrollbar { width: 4px; }
         .jv-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .jv-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.18); border-radius: 2px; }
-        .jv-data-stream { position: fixed; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+        /* Some em repouso/falha (ambient ≤ 0.30) — "apenas grade e vinheta" — e
+           ganha corpo a partir de ouvindo. Mesma variável, mesma Etapa 5. */
+        .jv-data-stream { position: fixed; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; opacity: calc((var(--jv-ambient, 0.3) - 0.3) * 2); transition: opacity 900ms ease; }
+        /* Falha (chat.apiError): "void esfria, âmbar assume" — desvia o matiz
+           ciano da grade/streams pro âmbar de C.warn, em vez de só apagar a
+           mesma cor. Reaproveita a classe condicional do root, não é elemento
+           novo nem outra variável — só um filtro CSS sobre os dois já existentes. */
+        .jv-ambient-fail .jv-grid-bg, .jv-ambient-fail .jv-data-stream { filter: hue-rotate(-150deg) saturate(0.85); transition: filter 900ms ease; }
         /* Foco visível pra teclado (não aparece em clique de mouse). O input mantém
            outline:none no :focus, mas ganha anel no :focus-visible. */
         .jv-input:focus-visible { outline: 1px solid ${C.accent}; outline-offset: 2px; }
@@ -318,7 +338,7 @@ export default function JarvisOS() {
             transition-duration: 0.001ms !important;
             scroll-behavior: auto !important;
           }
-          .jv-scanline, .jv-data-stream, .jv-grid-bg { animation: none !important; }
+          .jv-data-stream, .jv-grid-bg { animation: none !important; }
         }
         /* ── Responsividade (Fase 4a) ──────────────────────────────────────
            Base = 3 colunas. <1280 esconde o rail direito (telemetria/sentinelas,
@@ -352,10 +372,12 @@ export default function JarvisOS() {
 
       <div className="jv-grid-bg" />
       <div className="jv-grain" />
-      <div className="jv-scanline" />
+      {/* Streams: invisíveis em repouso ("apenas grade e vinheta"), aparecem a
+          partir de ouvindo e aceleram até processando — via calc() sobre
+          --jv-ambient, sem JS recomputando por tick. */}
       <div className="jv-data-stream">
         {[...Array(10)].map((_, i) => (
-          <div key={i} style={{ position: 'absolute', left: `${(i / 10) * 100 + (i % 3) * 2}%`, top: 0, width: 1, height: `${55 + (i % 4) * 35}px`, background: `linear-gradient(180deg, transparent, rgba(0,212,255,${0.25 + (i % 3) * 0.12}), transparent)`, animation: `dataStream ${5 + (i % 5) * 1.8}s linear ${(i % 7) * 0.9}s infinite` }} />
+          <div key={i} style={{ position: 'absolute', left: `${(i / 10) * 100 + (i % 3) * 2}%`, top: 0, width: 1, height: `${55 + (i % 4) * 35}px`, background: `linear-gradient(180deg, transparent, rgba(0,212,255,${0.25 + (i % 3) * 0.12}), transparent)`, animation: `dataStream calc(${5 + (i % 5) * 1.8}s * (0.3 / var(--jv-ambient, 0.3))) linear ${(i % 7) * 0.9}s infinite` }} />
         ))}
       </div>
 

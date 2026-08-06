@@ -104,17 +104,21 @@ function ruleContrastRamp() {
   return violations;
 }
 
-// ── Regra 4 · Orçamento de pulso (informativa até a Etapa 2) ─────────────
-// Conta className="jv-pulse" incondicional (sem ternário condicionando por
-// estado) — hoje isso é esperado nos 9 subsistemas-lore e nas 4 sentinelas;
-// a Etapa 2 zera isso, e aí a regra vira enforced.
+// ── Regra 4 · Orçamento de pulso ──────────────────────────────────────────
+// Não é "zero jv-pulse" — spinners de carregamento (VaultBrain escaneando,
+// lendo nota, TerminalView pensando) são sinal real (só existem enquanto o
+// estado assíncrono dura) e devem continuar pulsando. O que a auditoria
+// mira é o PONTO DE STATUS (dot redondo, `borderRadius: '50%'`) que pulsa
+// de forma incondicional — `className="jv-pulse"` literal na mesma linha,
+// sem ternário amarrando o pulso a um estado real. Isso é precisamente o
+// padrão das sentinelas (fecha na Etapa 2); o VAULT e o núcleo continuam
+// pulsando, mas via className={cond ? 'jv-pulse' : ''}, não capturado aqui.
 function rulePulseBudget() {
   const hits = [];
-  const re = /className="jv-pulse"/g;
+  const re = /borderRadius:\s*'50%'.*className="jv-pulse"|className="jv-pulse".*borderRadius:\s*'50%'/;
   for (const f of files) {
     f.lines.forEach((line, i) => {
       if (re.test(line)) hits.push(`${f.rel}:${i + 1}`);
-      re.lastIndex = 0;
     });
   }
   return hits;
@@ -153,7 +157,7 @@ console.log('── design-lint · auditoria de HUD (docs/HUD_AUDIT_PLAN.md) ─
 report('Regra 1 · C.dim nunca é texto', ruleNoTextDim());
 report('Regra 2 · piso tipográfico 10px (SVG de dados isento)', ruleTypeFloor());
 report('Regra 3 · rampa de contraste WCAG 2.1', ruleContrastRamp());
-report('Regra 4 · orçamento de pulso (fecha na Etapa 2)', rulePulseBudget(), { enforced: false });
+report('Regra 4 · orçamento de pulso · dot de status incondicional', rulePulseBudget());
 report('Regra 5 · disciplina de blur (fecha na Etapa 3/4)', ruleBlurDiscipline(), { enforced: false });
 
 console.log(failed ? '\n✗ design-lint falhou.' : '\n✓ design-lint passou.');

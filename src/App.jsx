@@ -15,17 +15,19 @@ import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 // Lazy: o chunk do three.js (~680kB min) só carrega ao entrar no modo VAULT
 const VaultBrain = lazy(() => import('./components/VaultBrain.jsx'));
 
+// VAULT tem sinal vivo real (vault.status); os outros nove são cenário —
+// sem campo de status próprio, porque nenhum dado real está por trás deles.
 const modules = [
-  { id: '01', name: 'MATRIX', status: 'online' },
-  { id: '02', name: 'NEXUS', status: 'online' },
-  { id: '03', name: 'ARCHIVE', status: 'online' },
-  { id: '04', name: 'DEFESA', status: 'online' },
-  { id: '05', name: 'OVERWATCH', status: 'online' },
-  { id: '06', name: 'VAULT', status: 'idle' },
-  { id: '07', name: 'SYNTHESIA', status: 'online' },
-  { id: '08', name: 'TRIBUNAL', status: 'online' },
-  { id: '09', name: 'CRONOS', status: 'online' },
-  { id: '10', name: 'FORGE', status: 'online' },
+  { id: '01', name: 'MATRIX' },
+  { id: '02', name: 'NEXUS' },
+  { id: '03', name: 'ARCHIVE' },
+  { id: '04', name: 'DEFESA' },
+  { id: '05', name: 'OVERWATCH' },
+  { id: '06', name: 'VAULT' },
+  { id: '07', name: 'SYNTHESIA' },
+  { id: '08', name: 'TRIBUNAL' },
+  { id: '09', name: 'CRONOS' },
+  { id: '10', name: 'FORGE' },
 ];
 
 const sentinels = [
@@ -352,7 +354,7 @@ export default function JarvisOS() {
       {/* TOP BAR */}
       <header className="jv-header" style={{ position: 'relative', zIndex: 10, borderBottom: `1px solid ${C.line}`, padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5,10,20,0.88)', backdropFilter: 'blur(8px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ ...display, fontSize: 22, fontWeight: 700, letterSpacing: '0.18em', color: C.accent }}>STARK INDUSTRIES</div>
+          <div style={{ ...display, fontSize: 22, fontWeight: 500, letterSpacing: '0.18em', color: C.text }}>STARK INDUSTRIES</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.36em', textTransform: 'uppercase' }}>J.A.R.V.I.S. · Núcleo {MODEL.core}</div>
           </div>
@@ -412,11 +414,20 @@ export default function JarvisOS() {
           <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 18 }}>SUBSISTEMAS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 11 }}>
             {modules.map((m, i) => {
-              // VAULT reflete a conexão real do vault Obsidian; o resto é lore Stark.
-              const st = m.name === 'VAULT'
-                ? (vault.status === 'ready' ? 'online' : vault.status === 'scanning' ? 'scanning' : 'idle')
-                : m.status;
-              const on = st === 'online', scanning = st === 'scanning';
+              // VAULT é o único subsistema com sinal vivo real (vault.status) — ponto
+              // cheio, cor, pulso. Os outros nove são cenário: lore Stark sem dado por
+              // trás, tratado como tal (tick fino estático, sem cor, sem animação) em
+              // vez de fingir o mesmo grau de informação do sinal real.
+              if (m.name !== 'VAULT') {
+                return (
+                  <div key={m.id} className="jv-fade" style={{ display: 'flex', alignItems: 'center', gap: 10, animationDelay: `${i * 80}ms` }}>
+                    <span style={{ color: C.quiet, width: 18 }}>{m.id}</span>
+                    <span style={{ color: C.muted, flex: 1, letterSpacing: '0.08em' }}>{m.name}</span>
+                    <span style={{ width: 6, height: 1, background: C.dim }} />
+                  </div>
+                );
+              }
+              const on = vault.status === 'ready', scanning = vault.status === 'scanning';
               return (
                 <div key={m.id} className="jv-fade" style={{ display: 'flex', alignItems: 'center', gap: 10, animationDelay: `${i * 80}ms` }}>
                   <span style={{ color: C.quiet, width: 18 }}>{m.id}</span>
@@ -595,10 +606,13 @@ export default function JarvisOS() {
         {/* RIGHT RAIL */}
         <aside className="jv-rail-right" style={{ borderLeft: `1px solid ${C.line}`, padding: '24px 20px', background: 'rgba(0,0,0,0.22)' }}>
           <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 18 }}>TELEMETRIA</div>
+          {/* CONTEXTO IA: turnos/20 é uma fração real (20 é o teto de truncamento
+              de verdade, ver MAX_TURNS em api/chat.js) — segmentos nítidos, sem ≈. */}
           <Meter label="CONTEXTO IA" value={contextPct} unit="%" />
-          {/* max = orçamento macio da sessão só pra dar escala à barra — o valor
-              exibido é a contagem real de tokens acumulados. */}
-          <Meter label="TOKENS SESSÃO" value={sessionTokens} max={100000} display={`${sessionTokens.toLocaleString('pt-BR')} tk`} />
+          {/* TOKENS SESSÃO: a contagem é real (soma do usage da API), mas não
+              existe orçamento real de 100k por sessão — é só escala visual. Modo
+              contínuo + "≈" deixam isso explícito em vez de fingir precisão. */}
+          <Meter label="TOKENS SESSÃO" value={sessionTokens} max={100000} display={`${sessionTokens.toLocaleString('pt-BR')} tk`} continuous />
           <div style={{ marginTop: 16, marginBottom: 22 }}>
             <div style={{ fontSize: 10, color: C.quiet, letterSpacing: '0.28em', marginBottom: 6 }}>LATÊNCIA API</div>
             <LatencyReadout subscribe={subscribeLatency} getInitial={getLatency} />
@@ -606,10 +620,12 @@ export default function JarvisOS() {
           <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 20, marginBottom: 22 }}>
             <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 14 }}>SENTINELAS</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 11 }}>
+              {/* Sem fonte de dado real por trás (array estático) — cenário, não
+                  sinal: tick fino, sem cor, sem pulso. Ver subsistemas acima. */}
               {sentinels.map(s => (
                 <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.state === 'ok' ? C.ok : C.warn }} className="jv-pulse" />
-                  <span style={{ color: C.text, flex: 1, letterSpacing: '0.06em' }}>{s.name}</span>
+                  <span style={{ width: 6, height: 1, background: C.dim }} />
+                  <span style={{ color: C.muted, flex: 1, letterSpacing: '0.06em' }}>{s.name}</span>
                   <span style={{ color: C.quiet, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.2em' }}>{s.state}</span>
                 </div>
               ))}

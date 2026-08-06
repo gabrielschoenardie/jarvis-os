@@ -140,10 +140,10 @@ function JarvisResponse({ msg, onOpenHud }) {
 function OperatorLine({ msg }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
-      <span style={{ color: C.dim, fontSize: 10, letterSpacing: '0.22em', minWidth: 88 }}>SIR · GABRIEL</span>
+      <span style={{ color: C.quiet, fontSize: 10, letterSpacing: '0.22em', minWidth: 88 }}>SIR · GABRIEL</span>
       <span style={{ color: C.text, fontSize: 13.5 }}>{msg.content}</span>
       {msg.attachment && (
-        <span style={{ fontSize: 9, color: C.accentDim, letterSpacing: '0.1em', border: `1px solid ${C.line}`, padding: '2px 8px' }}>
+        <span style={{ fontSize: 10, color: C.accentDim, letterSpacing: '0.1em', border: `1px solid ${C.line}`, padding: '2px 8px' }}>
           ▸ ANEXO · {msg.attachment.name}
         </span>
       )}
@@ -177,10 +177,10 @@ function BootSequence({ stage }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11.5, color: C.muted }}>
         {lines.map((l, i) => (
           <div key={i} className="jv-fade" style={{ display: stage > i ? 'flex' : 'none', alignItems: 'center', gap: 12, letterSpacing: '0.08em' }}>
-            <span style={{ color: C.accent, fontSize: 9 }}>◉</span>
+            <span style={{ color: C.accent, fontSize: 10 }}>◉</span>
             <span>{l}</span>
             <span style={{ flex: 1, height: 1, background: C.line }} />
-            <span style={{ color: C.accentDim, fontSize: 9, letterSpacing: '0.2em' }}>OK</span>
+            <span style={{ color: C.accentDim, fontSize: 10, letterSpacing: '0.2em' }}>OK</span>
           </div>
         ))}
       </div>

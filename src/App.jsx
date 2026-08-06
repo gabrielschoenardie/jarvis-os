@@ -354,14 +354,14 @@ export default function JarvisOS() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ ...display, fontSize: 22, fontWeight: 700, letterSpacing: '0.18em', color: C.accent }}>STARK INDUSTRIES</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <div style={{ color: C.muted, fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase' }}>J.A.R.V.I.S. · Núcleo {MODEL.core}</div>
+            <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.36em', textTransform: 'uppercase' }}>J.A.R.V.I.S. · Núcleo {MODEL.core}</div>
           </div>
-          <div style={{ fontSize: 9, letterSpacing: '0.22em', color: C.ok, border: `1px solid ${C.ok}`, padding: '2px 7px', opacity: 0.85 }}>◉ ONLINE</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.22em', color: C.ok, border: `1px solid ${C.ok}`, padding: '2px 7px', opacity: 0.85 }}>◉ ONLINE</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 22, rowGap: 8, justifyContent: 'flex-end', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${C.line}`, padding: 2 }}>
-            <button onClick={() => setMode('terminal')} style={{ background: mode === 'terminal' ? C.accent : 'transparent', color: mode === 'terminal' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>TERMINAL</button>
-            <button onClick={() => setMode('holographic')} style={{ background: mode === 'holographic' ? C.accent : 'transparent', color: mode === 'holographic' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>VAULT</button>
+            <button onClick={() => setMode('terminal')} style={{ background: mode === 'terminal' ? C.accent : 'transparent', color: mode === 'terminal' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: 'pointer' }}>TERMINAL</button>
+            <button onClick={() => setMode('holographic')} style={{ background: mode === 'holographic' ? C.accent : 'transparent', color: mode === 'holographic' ? C.bg : C.muted, border: 'none', padding: '4px 10px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: 'pointer' }}>VAULT</button>
           </div>
           <VoiceIndicator voiceOut={speech.voiceOut} speaking={speech.speaking} listening={speech.listening} onToggle={speech.toggleVoiceOut} onPanel={() => speech.setVoicePanelOpen(o => !o)} supported={speech.speechSupported} />
           <div className="jv-hide-sm" style={{ color: C.muted }}>{fmtDate(time)}</div>
@@ -419,7 +419,7 @@ export default function JarvisOS() {
               const on = st === 'online', scanning = st === 'scanning';
               return (
                 <div key={m.id} className="jv-fade" style={{ display: 'flex', alignItems: 'center', gap: 10, animationDelay: `${i * 80}ms` }}>
-                  <span style={{ color: C.dim, width: 18 }}>{m.id}</span>
+                  <span style={{ color: C.quiet, width: 18 }}>{m.id}</span>
                   <span style={{ color: on || scanning ? C.text : C.muted, flex: 1, letterSpacing: '0.08em' }}>{m.name}</span>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: on ? C.accent : scanning ? C.warn : C.dim }} className={on || scanning ? 'jv-pulse' : ''} />
                 </div>
@@ -430,9 +430,9 @@ export default function JarvisOS() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 10.5 }}>
             {[['T0','J.A.R.V.I.S.','1'],['T1','Stark (Sir)','1'],['T2','Agentes','5'],['T3','Subsistemas','12'],['T4','Sentinelas','4']].map(([tier, name, count]) => (
               <div key={tier} style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ color: C.accentDim, width: 22, fontSize: 9, letterSpacing: '0.1em' }}>{tier}</span>
+                <span style={{ color: C.accentDim, width: 22, fontSize: 10, letterSpacing: '0.1em' }}>{tier}</span>
                 <span style={{ color: C.muted, flex: 1 }}>{name}</span>
-                <span style={{ color: C.dim }}>{count}</span>
+                <span style={{ color: C.quiet }}>{count}</span>
               </div>
             ))}
           </div>
@@ -440,16 +440,16 @@ export default function JarvisOS() {
             <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 10 }}>CONTEXTO API</div>
             <div style={{ fontSize: 10, color: C.text }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ color: C.dim }}>TURNOS</span>
+                <span style={{ color: C.quiet }}>TURNOS</span>
                 <span style={{ color: C.accent, fontVariantNumeric: 'tabular-nums' }}>{Math.floor(apiHistoryRef.current.length / 2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ color: C.dim }}>TOKENS EST.</span>
+                <span style={{ color: C.quiet }}>TOKENS EST.</span>
                 <span style={{ color: C.accent, fontVariantNumeric: 'tabular-nums' }}>{apiHistoryRef.current.reduce((a, m) => a + (m.content?.length || 0), 0) / 4 | 0}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: C.dim }}>MODELO</span>
-                <span style={{ color: C.accentDim, fontSize: 9 }}>{MODEL.label}</span>
+                <span style={{ color: C.quiet }}>MODELO</span>
+                <span style={{ color: C.accentDim, fontSize: 10 }}>{MODEL.label}</span>
               </div>
             </div>
           </div>
@@ -473,7 +473,7 @@ export default function JarvisOS() {
                   {[14,14,14,14,14].map((h,i) => <span key={i} className="jv-wave-bar" style={{ height: h }} />)}
                 </span>
                 <span style={{ fontSize: 10, color: C.accent, letterSpacing: '0.3em' }}>J.A.R.V.I.S. · TRANSMITINDO</span>
-                <button onClick={speech.stopSpeaking} style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accentDim, padding: '3px 10px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.22em', cursor: 'pointer' }}>◾ SILENCIAR</button>
+                <button onClick={speech.stopSpeaking} style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accentDim, padding: '3px 10px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: 'pointer' }}>◾ SILENCIAR</button>
               </div>
             )}
             {chat.captureSaved && (
@@ -483,7 +483,7 @@ export default function JarvisOS() {
             )}
             {memoryNoteCount > 0 && (
               <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '6px 32px', background: 'rgba(3,7,16,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
-                <span style={{ fontSize: 9, color: C.muted, letterSpacing: '0.28em' }}>🧠 MEMÓRIA · {memoryNoteCount} {memoryNoteCount === 1 ? 'NOTA RECENTE' : 'NOTAS RECENTES'}</span>
+                <span style={{ fontSize: 10, color: C.muted, letterSpacing: '0.28em' }}>🧠 MEMÓRIA · {memoryNoteCount} {memoryNoteCount === 1 ? 'NOTA RECENTE' : 'NOTAS RECENTES'}</span>
               </div>
             )}
           </div>
@@ -521,22 +521,22 @@ export default function JarvisOS() {
                 <div style={{ flex: 1 }}>
                   <div>⚠ {chat.apiError}</div>
                   {chat.showErrorDetails && chat.errorDetails && (
-                    <div style={{ marginTop: 6, fontSize: 9, color: C.muted, fontFamily: 'monospace', wordBreak: 'break-word' }}>
+                    <div style={{ marginTop: 6, fontSize: 10, color: C.muted, fontFamily: 'monospace', wordBreak: 'break-word' }}>
                       <div><strong>Tipo:</strong> {chat.errorDetails.type}</div>
                       <div><strong>Mensagem:</strong> {chat.errorDetails.fullMessage}</div>
                       {chat.errorDetails.stack && <div><strong>Stack:</strong> {chat.errorDetails.stack.split('\n')[0]}</div>}
                     </div>
                   )}
                 </div>
-                <button onClick={() => chat.setShowErrorDetails(!chat.showErrorDetails)} style={{ background: 'transparent', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>ℹ</button>
+                <button onClick={() => chat.setShowErrorDetails(!chat.showErrorDetails)} style={{ background: 'transparent', border: 'none', color: C.quiet, cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap' }}>ℹ</button>
                 {chat.lastFailedCmd && (
-                  <button onClick={() => { chat.setApiError(null); chat.setErrorDetails(null); chat.setShowErrorDetails(false); chat.retryLastCommand(); }} style={{ background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accent, padding: '2px 8px', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.18em', cursor: 'pointer', whiteSpace: 'nowrap' }}>↺ RETRY</button>
+                  <button onClick={() => { chat.setApiError(null); chat.setErrorDetails(null); chat.setShowErrorDetails(false); chat.retryLastCommand(); }} style={{ background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accent, padding: '2px 8px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.18em', cursor: 'pointer', whiteSpace: 'nowrap' }}>↺ RETRY</button>
                 )}
-                <button onClick={() => { chat.setApiError(null); chat.setErrorDetails(null); chat.setShowErrorDetails(false); }} style={{ background: 'transparent', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 12 }}>✕</button>
+                <button onClick={() => { chat.setApiError(null); chat.setErrorDetails(null); chat.setShowErrorDetails(false); }} style={{ background: 'transparent', border: 'none', color: C.quiet, cursor: 'pointer', fontSize: 12 }}>✕</button>
               </div>
             )}
             {chat.activeBadge && (
-              <div className="jv-fade" style={{ fontSize: 9, letterSpacing: '0.32em', color: C.accent, border: `1px solid ${C.accent}`, padding: '4px 10px', marginBottom: 8, display: 'inline-block' }}>
+              <div className="jv-fade" style={{ fontSize: 10, letterSpacing: '0.32em', color: C.accent, border: `1px solid ${C.accent}`, padding: '4px 10px', marginBottom: 8, display: 'inline-block' }}>
                 ◉ {chat.activeBadge}
               </div>
             )}
@@ -554,7 +554,7 @@ export default function JarvisOS() {
               />
               <MicButton listening={speech.listening} onStart={speech.startListening} onStop={speech.stopListening} disabled={!speech.recogSupported || chat.thinking || !ready || !!speech.partialTranscript || speech.vadLoading} />
               {!speech.recogSupported && (
-                <span title="Requer navegador Chromium com isolamento cross-origin (SharedArrayBuffer)" style={{ fontSize: 9, letterSpacing: '0.18em', color: C.dim, whiteSpace: 'nowrap' }}>voz não suportada</span>
+                <span title="Requer navegador Chromium com isolamento cross-origin (SharedArrayBuffer)" style={{ fontSize: 10, letterSpacing: '0.18em', color: C.quiet, whiteSpace: 'nowrap' }}>voz não suportada</span>
               )}
               <input ref={fileInputRef} type="file" hidden accept="image/png,image/jpeg,image/webp,.json,.txt,.cube,.srt,.log,.csv,.md,.js,.py" onChange={handleFileSelect} />
               <button
@@ -563,7 +563,7 @@ export default function JarvisOS() {
                 title="Anexar arquivo ou imagem"
                 style={{ background: attachment ? C.accent : 'transparent', color: attachment ? C.bg : C.accentDim, border: `1px solid ${C.accentDim}`, padding: '6px 12px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.18em', cursor: !ready || chat.thinking ? 'not-allowed' : 'pointer' }}
               >▸ ANEXO</button>
-              <button onClick={handleSubmit} disabled={!ready || chat.thinking || !input.trim()} style={{ background: 'transparent', border: `1px solid ${input.trim() ? C.accentDim : C.dim}`, color: input.trim() ? C.accent : C.dim, padding: '6px 14px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: input.trim() && !chat.thinking ? 'pointer' : 'not-allowed' }}>
+              <button onClick={handleSubmit} disabled={!ready || chat.thinking || !input.trim()} style={{ background: 'transparent', border: `1px solid ${input.trim() ? C.accentDim : C.dim}`, color: input.trim() ? C.accent : C.quiet, padding: '6px 14px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: input.trim() && !chat.thinking ? 'pointer' : 'not-allowed' }}>
                 ▸ ENVIAR
               </button>
               <span className="jv-blink" style={{ color: C.accent, fontSize: 14 }}>▌</span>
@@ -576,7 +576,7 @@ export default function JarvisOS() {
             {attachment && (
               <div className="jv-fade" style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, fontSize: 10, color: C.accentDim, letterSpacing: '0.08em', border: `1px solid ${C.line}`, padding: '5px 10px', width: 'fit-content' }}>
                 <span>▸ {attachment.name} · {attachment.sizeLabel}</span>
-                <button onClick={() => setAttachment(null)} style={{ background: 'transparent', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 11 }}>✕</button>
+                <button onClick={() => setAttachment(null)} style={{ background: 'transparent', border: 'none', color: C.quiet, cursor: 'pointer', fontSize: 11 }}>✕</button>
               </div>
             )}
             {attachmentError && (
@@ -584,10 +584,10 @@ export default function JarvisOS() {
                 ⚠ {attachmentError}
               </div>
             )}
-            <div className="jv-cmd-hints" style={{ marginTop: 10, display: 'flex', gap: 18, fontSize: 9.5, color: C.dim, letterSpacing: '0.22em', flexWrap: 'wrap' }}>
+            <div className="jv-cmd-hints" style={{ marginTop: 10, display: 'flex', gap: 18, fontSize: 10, color: C.quiet, letterSpacing: '0.22em', flexWrap: 'wrap' }}>
               <span>/VAULT</span><span>/HOLO</span><span>/TERMINAL</span><span>/FOCO [tema]</span><span>/STATUS</span><span>/SAIR</span>
               <span style={{ color: C.accentDim }}>↵ tudo mais vai para a IA</span>
-              <span style={{ marginLeft: 'auto', color: speech.voiceOut ? C.accent : C.dim }}>{speech.voiceOut ? '◉ VOZ ATIVA' : '○ VOZ'}</span>
+              <span style={{ marginLeft: 'auto', color: speech.voiceOut ? C.accent : C.quiet }}>{speech.voiceOut ? '◉ VOZ ATIVA' : '○ VOZ'}</span>
             </div>
           </div>
         </main>
@@ -600,7 +600,7 @@ export default function JarvisOS() {
               exibido é a contagem real de tokens acumulados. */}
           <Meter label="TOKENS SESSÃO" value={sessionTokens} max={100000} display={`${sessionTokens.toLocaleString('pt-BR')} tk`} />
           <div style={{ marginTop: 16, marginBottom: 22 }}>
-            <div style={{ fontSize: 9, color: C.dim, letterSpacing: '0.28em', marginBottom: 6 }}>LATÊNCIA API</div>
+            <div style={{ fontSize: 10, color: C.quiet, letterSpacing: '0.28em', marginBottom: 6 }}>LATÊNCIA API</div>
             <LatencyReadout subscribe={subscribeLatency} getInitial={getLatency} />
           </div>
           <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 20, marginBottom: 22 }}>
@@ -610,7 +610,7 @@ export default function JarvisOS() {
                 <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.state === 'ok' ? C.ok : C.warn }} className="jv-pulse" />
                   <span style={{ color: C.text, flex: 1, letterSpacing: '0.06em' }}>{s.name}</span>
-                  <span style={{ color: C.dim, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.2em' }}>{s.state}</span>
+                  <span style={{ color: C.quiet, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.2em' }}>{s.state}</span>
                 </div>
               ))}
             </div>
@@ -619,8 +619,8 @@ export default function JarvisOS() {
             <div style={{ color: C.muted, fontSize: 10, letterSpacing: '0.32em', marginBottom: 8 }}>OPERADOR</div>
             <div style={{ ...display, color: C.accent, fontSize: 11, fontWeight: 500, letterSpacing: '0.28em' }}>SIR · GABRIEL</div>
             <div style={{ ...display, color: C.text, fontSize: 18, marginTop: 2 }}>Schoenardie</div>
-            <div style={{ fontSize: 10, color: C.dim, marginTop: 4, letterSpacing: '0.12em' }}>engenharia de vídeo · cinema</div>
-            <div style={{ marginTop: 14, fontSize: 9, color: C.accentDim, letterSpacing: '0.16em' }}>Canoas · BRT -3</div>
+            <div style={{ fontSize: 10, color: C.quiet, marginTop: 4, letterSpacing: '0.12em' }}>engenharia de vídeo · cinema</div>
+            <div style={{ marginTop: 14, fontSize: 10, color: C.accentDim, letterSpacing: '0.16em' }}>Canoas · BRT -3</div>
           </div>
         </aside>
       </div>

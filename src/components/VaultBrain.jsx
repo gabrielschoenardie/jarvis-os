@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { C, display } from '../lib/constants.js';
 import { createBrainScene } from '../lib/brain-scene.js';
 import { pruneGraph, computeMetrics } from '../lib/vault-graph.js';
-import { HoloPanel as HudHoloPanel } from './hud/index.js';
+import { HoloPanel as HudHoloPanel, Corners } from './hud/index.js';
 
 // Wrapper fino: mantém os defaults dos painéis do VAULT (drift + largura mínima)
 // enquanto delega a superfície glass + cantoneiras à primitiva compartilhada.
@@ -289,7 +289,8 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
         {/* Estado do vault (conectar/scan/erro) */}
         {statusPanel && (
           <div className="jv-holo-in" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'auto' }}>
-            <div style={{ display: 'inline-block', padding: '22px 34px', border: `1px solid ${C.lineStrong}`, background: 'rgba(5,10,20,0.78)', backdropFilter: 'blur(6px)' }}>
+            <div style={{ position: 'relative', display: 'inline-block', padding: '22px 34px', border: `1px solid ${C.lineStrong}`, background: 'rgba(5,10,20,0.78)', backdropFilter: 'blur(6px)' }}>
+              <Corners />
               {statusPanel}
             </div>
           </div>
@@ -298,7 +299,8 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
         {/* Overlay de processamento */}
         {thinking && !statusPanel && (
           <div className="jv-holo-in" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-            <div style={{ display: 'inline-block', padding: '14px 28px', border: `1px solid ${C.lineStrong}`, background: 'rgba(5,10,20,0.75)', backdropFilter: 'blur(6px)' }}>
+            <div style={{ position: 'relative', display: 'inline-block', padding: '14px 28px', border: `1px solid ${C.lineStrong}`, background: 'rgba(5,10,20,0.75)', backdropFilter: 'blur(6px)' }}>
+              <Corners />
               <div style={{ fontSize: 10, letterSpacing: '0.32em', color: C.accent }} className="jv-pulse">PROCESSANDO · VAULT NEURAL · J.A.R.V.I.S.</div>
             </div>
           </div>

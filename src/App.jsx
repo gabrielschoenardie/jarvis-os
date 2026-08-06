@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { C, display, mono, MODEL, clampPct } from './lib/constants.js';
+import { C, display, mono, glass, MODEL, clampPct } from './lib/constants.js';
+import { Corners, HudButton } from './components/hud/index.js';
 import { useTelemetry } from './hooks/useTelemetry.js';
 import { useSpeech } from './hooks/useSpeech.js';
 import { useChat } from './hooks/useChat.js';
@@ -36,6 +37,8 @@ const sentinels = [
   { name: 'POTÊNCIA ARC', state: 'ok' },
   { name: 'BEM-ESTAR', state: 'watch' },
 ];
+
+const COMMANDS = ['/VAULT', '/HOLO', '/TERMINAL', '/FOCO [tema]', '/STATUS', '/SAIR'];
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_TEXT_CHARS = 30000;
@@ -278,7 +281,7 @@ export default function JarvisOS() {
         .jv-hud-out { animation: hudOut 0.3s ease-in both; }
         .jv-scanline { position: fixed; inset: 0; pointer-events: none; z-index: 5; background: linear-gradient(180deg, transparent, rgba(0,212,255,0.018) 50%, transparent); height: 120px; animation: scan 9s linear infinite; opacity: 0.7; }
         .jv-grain { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0.025; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>"); }
-        .jv-input::placeholder { color: #1e3a4a; }
+        .jv-input::placeholder { color: ${C.quiet}; }
         .jv-input { caret-color: #00d4ff; }
         .jv-input:focus { outline: none; }
         .jv-grid-bg { position: fixed; inset: 0; pointer-events: none; z-index: 1; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='115'><polygon points='50,2 98,26 98,74 50,98 2,74 2,26' fill='none' stroke='rgba(0,212,255,0.13)' stroke-width='0.8'/></svg>"); background-size: 100px 115px; animation: hexGlow 8s ease-in-out infinite; mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%); }
@@ -517,7 +520,7 @@ export default function JarvisOS() {
           </div>
 
           {/* COMMAND INPUT */}
-          <div className="jv-cmd" style={{ borderTop: `1px solid ${C.line}`, background: 'rgba(5,10,20,0.92)', backdropFilter: 'blur(8px)', position: 'relative', zIndex: 20 }}>
+          <div className="jv-cmd" style={{ borderTop: `1px solid ${C.line}`, background: 'rgba(5,10,20,0.92)', position: 'relative', zIndex: 20 }}>
             {/* Presence Core — hero flutuante ancorado logo acima do prompt.
                 Só no modo terminal: no VAULT, o núcleo 3D é a outra projeção
                 do mesmo ser (o handoff acontece no fade de troca de modo).
@@ -551,33 +554,36 @@ export default function JarvisOS() {
                 ◉ {chat.activeBadge}
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 10, gap: 12 }}>
-              <span style={{ color: chat.thinking ? C.warn : C.accent, fontSize: 13 }}>{chat.thinking ? '⟳' : '⟢'}</span>
-              <input
-                ref={inputRef}
-                className="jv-input"
-                disabled={!ready || chat.thinking}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKey}
-                placeholder={speech.partialTranscript ? 'ouvindo...' : speech.listening ? 'canal de voz aberto...' : speech.vadLoading ? 'inicializando VAD...' : chat.thinking ? 'processando na matrix neural...' : ready ? 'aguardando instrução, Sir...' : 'inicializando...'}
-                style={{ ...mono, flex: 1, minWidth: 140, background: 'transparent', border: 'none', color: C.text, fontSize: 14, letterSpacing: '0.02em', padding: '4px 0' }}
-              />
-              <MicButton listening={speech.listening} onStart={speech.startListening} onStop={speech.stopListening} disabled={!speech.recogSupported || chat.thinking || !ready || !!speech.partialTranscript || speech.vadLoading} />
-              {!speech.recogSupported && (
-                <span title="Requer navegador Chromium com isolamento cross-origin (SharedArrayBuffer)" style={{ fontSize: 10, letterSpacing: '0.18em', color: C.quiet, whiteSpace: 'nowrap' }}>voz não suportada</span>
-              )}
-              <input ref={fileInputRef} type="file" hidden accept="image/png,image/jpeg,image/webp,.json,.txt,.cube,.srt,.log,.csv,.md,.js,.py" onChange={handleFileSelect} />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={!ready || chat.thinking}
-                title="Anexar arquivo ou imagem"
-                style={{ background: attachment ? C.accent : 'transparent', color: attachment ? C.bg : C.accentDim, border: `1px solid ${C.accentDim}`, padding: '6px 12px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.18em', cursor: !ready || chat.thinking ? 'not-allowed' : 'pointer' }}
-              >▸ ANEXO</button>
-              <button onClick={handleSubmit} disabled={!ready || chat.thinking || !input.trim()} style={{ background: 'transparent', border: `1px solid ${input.trim() ? C.accentDim : C.dim}`, color: input.trim() ? C.accent : C.quiet, padding: '6px 14px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: input.trim() && !chat.thinking ? 'pointer' : 'not-allowed' }}>
-                ▸ ENVIAR
-              </button>
-              <span className="jv-blink" style={{ color: C.accent, fontSize: 14 }}>▌</span>
+            {/* Cockpit: única superfície projetada da barra de comando (cantoneiras +
+                glass legítimos aqui — é o que a regra de profundidade da Etapa 3/4
+                reserva pra superfícies projetadas). O gutter de 88px antes do campo
+                herda a largura do rótulo SIR · GABRIEL/J.A.R.V.I.S. da conversa
+                acima, alinhando onde o texto digitado começa com onde o texto da
+                conversa começa. */}
+            <div style={{ position: 'relative', padding: '10px 16px', ...glass }}>
+              <Corners />
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 10, gap: 12 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', minWidth: 88, color: chat.thinking ? C.warn : C.accent, fontSize: 13 }}>{chat.thinking ? '⟳' : '⟢'}</span>
+                <input
+                  ref={inputRef}
+                  className="jv-input"
+                  disabled={!ready || chat.thinking}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKey}
+                  placeholder={speech.partialTranscript ? 'ouvindo...' : speech.listening ? 'canal de voz aberto...' : speech.vadLoading ? 'inicializando VAD...' : chat.thinking ? 'processando na matrix neural...' : ready ? 'aguardando instrução, Sir...' : 'inicializando...'}
+                  style={{ ...mono, flex: 1, minWidth: 140, background: 'transparent', border: 'none', color: C.text, fontSize: 14, letterSpacing: '0.02em', padding: '4px 0' }}
+                />
+                <MicButton listening={speech.listening} onStart={speech.startListening} onStop={speech.stopListening} disabled={!speech.recogSupported || chat.thinking || !ready || !!speech.partialTranscript || speech.vadLoading} />
+                {!speech.recogSupported && (
+                  <span title="Requer navegador Chromium com isolamento cross-origin (SharedArrayBuffer)" style={{ fontSize: 10, letterSpacing: '0.18em', color: C.quiet, whiteSpace: 'nowrap' }}>voz não suportada</span>
+                )}
+                <input ref={fileInputRef} type="file" hidden accept="image/png,image/jpeg,image/webp,.json,.txt,.cube,.srt,.log,.csv,.md,.js,.py" onChange={handleFileSelect} />
+                {/* Fantasma sempre — se há anexo, o chip abaixo do input já confirma;
+                    ENVIAR é a única coisa preenchida da tela. */}
+                <HudButton onClick={() => fileInputRef.current?.click()} disabled={!ready || chat.thinking} title="Anexar arquivo ou imagem">▸ ANEXO</HudButton>
+                <HudButton onClick={handleSubmit} disabled={!ready || chat.thinking || !input.trim()} active={!!input.trim()}>▸ ENVIAR</HudButton>
+              </div>
             </div>
             {speech.partialTranscript && (
               <div className="jv-fade" style={{ marginTop: 6, fontSize: 12, color: C.muted, letterSpacing: '0.04em', fontStyle: 'italic' }}>
@@ -595,10 +601,14 @@ export default function JarvisOS() {
                 ⚠ {attachmentError}
               </div>
             )}
-            <div className="jv-cmd-hints" style={{ marginTop: 10, display: 'flex', gap: 18, fontSize: 10, color: C.quiet, letterSpacing: '0.22em', flexWrap: 'wrap' }}>
-              <span>/VAULT</span><span>/HOLO</span><span>/TERMINAL</span><span>/FOCO [tema]</span><span>/STATUS</span><span>/SAIR</span>
-              <span style={{ color: C.accentDim }}>↵ tudo mais vai para a IA</span>
-              <span style={{ marginLeft: 'auto', color: speech.voiceOut ? C.accent : C.quiet }}>{speech.voiceOut ? '◉ VOZ ATIVA' : '○ VOZ'}</span>
+            {/* Comandos como teclas — visíveis porque são a porta de entrada de tudo,
+                não hints de 9,5px ilegíveis. "VOZ ATIVA" saiu daqui: é redundante
+                com o caption do Presence Core, que já mostra OUVINDO/TRANSMITINDO. */}
+            <div className="jv-cmd-hints" style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', fontSize: 10, letterSpacing: '0.12em', flexWrap: 'wrap' }}>
+              {COMMANDS.map(cmd => (
+                <span key={cmd} style={{ border: `1px solid ${C.line}`, color: C.muted, padding: '3px 9px' }}>{cmd}</span>
+              ))}
+              <span style={{ color: C.accentDim, marginLeft: 4 }}>↵ tudo mais vai para a IA</span>
             </div>
           </div>
         </main>

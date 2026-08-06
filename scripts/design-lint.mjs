@@ -48,13 +48,22 @@ function contrast(a, b) {
 // background continuam livres para usar C.dim (é o papel dele: hairline e
 // ponto inativo). Ternários simples (`a ? b : c`) ficam contidos no valor
 // porque só cortamos em vírgula/chave — não atravessam pra próxima prop.
+//
+// Cobre duas formas: o token `C.dim` em JS/JSX, E o hex bruto de C.dim (ex.:
+// dentro de blocos <style>{`...`}</style> embutidos, que são só uma grande
+// string JS — um `.jv-input::placeholder { color: #1e3a4a; }` passa batido
+// pelo primeiro regex porque não referencia `C.dim` como token. Foi
+// exatamente esse buraco que deixou o placeholder do input (citado no
+// achado original da auditoria) sem ser pego na Etapa 1.
 function ruleNoTextDim() {
   const violations = [];
-  const re = /\b(color|fill)\s*[:=]\s*\{?[^,}]*\bC\.dim\b/g;
+  const reToken = /\b(color|fill)\s*[:=]\s*\{?[^,}]*\bC\.dim\b/g;
+  const reHex = new RegExp(`\\b(color|fill)\\s*:\\s*${C.dim}\\b`, 'gi');
   for (const f of files) {
     f.lines.forEach((line, i) => {
-      if (re.test(line)) violations.push(`${f.rel}:${i + 1}`);
-      re.lastIndex = 0;
+      if (reToken.test(line) || reHex.test(line)) violations.push(`${f.rel}:${i + 1}`);
+      reToken.lastIndex = 0;
+      reHex.lastIndex = 0;
     });
   }
   return violations;

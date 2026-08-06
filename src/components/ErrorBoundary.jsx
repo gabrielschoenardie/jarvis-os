@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import { C } from '../lib/constants.js';
+import { Corners } from './hud/index.js';
 
 // Blinda o chunk lazy do VaultBrain (three.js ~540kB): se o carregamento do
 // chunk falhar (rede) ou a cena estourar em render, mostra um fallback do HUD
@@ -25,7 +26,8 @@ export class ErrorBoundary extends Component {
       if (this.props.fallback) return this.props.fallback(this.state.error, this.reset);
       return (
         <div style={{ flex: 1, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ display: 'inline-block', padding: '22px 34px', border: `1px solid ${C.lineStrong}`, background: 'rgba(5,10,20,0.78)', backdropFilter: 'blur(6px)', textAlign: 'center' }}>
+          <div style={{ position: 'relative', display: 'inline-block', padding: '22px 34px', border: `1px solid ${C.lineStrong}`, background: 'rgba(5,10,20,0.78)', backdropFilter: 'blur(6px)', textAlign: 'center' }}>
+            <Corners />
             <div style={{ fontSize: 10, letterSpacing: '0.32em', color: C.warn, marginBottom: 14 }}>NÚCLEO GRÁFICO INTERROMPIDO</div>
             <button onClick={this.reset} style={{ background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accent, padding: '8px 18px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: 'pointer' }}>▸ REINICIAR</button>
           </div>

@@ -6,6 +6,7 @@ import { useSpeech } from './hooks/useSpeech.js';
 import { useChat } from './hooks/useChat.js';
 import { useVault } from './hooks/useVault.js';
 import { TerminalView } from './components/TerminalView.jsx';
+import { StatusStrip } from './components/StatusStrip.jsx';
 import { HudMediaWindow } from './components/HudMediaWindow.jsx';
 import { VoicePanel } from './components/VoicePanel.jsx';
 import { VoiceIndicator, MicButton } from './components/VoiceIndicator.jsx';
@@ -336,6 +337,10 @@ export default function JarvisOS() {
           .jv-layout { grid-template-columns: 1fr; }
           .jv-rail-left { display: none; }
           .jv-header { flex-wrap: wrap; row-gap: 10px; padding: 12px 16px; }
+          /* .jv-strip NÃO some aqui — vive fora dos rails de propósito: é o
+             único instrumento (vault, memória, voz, contexto, latência) que
+             sobrevive abaixo de 900px (achado P1 · MOBILE). */
+          .jv-strip { padding: 0 16px; gap: 10px; }
           .jv-term-scroll { padding: 26px 18px 140px 18px; }
           .jv-cmd { padding: 16px 16px 18px 16px; }
         }
@@ -355,7 +360,7 @@ export default function JarvisOS() {
       </div>
 
       {/* TOP BAR */}
-      <header className="jv-header" style={{ position: 'relative', zIndex: 10, borderBottom: `1px solid ${C.line}`, padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5,10,20,0.88)', backdropFilter: 'blur(8px)' }}>
+      <header className="jv-header" style={{ position: 'relative', zIndex: 10, borderBottom: `1px solid ${C.line}`, padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5,10,20,0.94)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ ...display, fontSize: 22, fontWeight: 500, letterSpacing: '0.18em', color: C.text }}>STARK INDUSTRIES</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -377,6 +382,16 @@ export default function JarvisOS() {
           </div>
         </div>
       </header>
+
+      <StatusStrip
+        vault={vault}
+        memoryNoteCount={memoryNoteCount}
+        focusMode={focusMode}
+        speech={speech}
+        contextPct={contextPct}
+        subscribeLatency={subscribeLatency}
+        getLatency={getLatency}
+      />
 
       {/* VOICE PANEL */}
       {speech.voicePanelOpen && (
@@ -471,33 +486,23 @@ export default function JarvisOS() {
 
         {/* CENTER */}
         <main style={{ display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
-          {/* Banners como overlay: deslizam sobre o topo do conteúdo em vez de
-              inserir no fluxo — antes cada um empurrava a coluna inteira pra
-              baixo (o momento mais visível, o layout jump da fala). */}
+          {/* Banners: só eventos transitórios com ação disponível — estado
+              persistente (foco, memória) foi pra cinta abaixo do header (Etapa
+              4). Nunca mais de um por vez: falando tem prioridade sobre o flash
+              de captura salva, porque oferece uma ação (silenciar) — captura
+              salva é só informativa. */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, pointerEvents: 'none' }}>
-            {focusMode && (
-              <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '10px 32px', background: 'rgba(3,7,16,0.92)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'auto' }}>
-                <div style={{ fontSize: 10, letterSpacing: '0.32em', color: C.accent }}>◆ MODO FOCO · {focusMode.toUpperCase()}</div>
-                <div style={{ fontSize: 10, color: C.muted, letterSpacing: '0.2em' }}>"/sair" para encerrar</div>
-              </div>
-            )}
-            {speech.speaking && (
-              <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '8px 32px', background: 'rgba(3,7,16,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: 14, pointerEvents: 'auto' }}>
+            {speech.speaking ? (
+              <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '8px 32px', background: 'rgba(3,7,16,0.96)', display: 'flex', alignItems: 'center', gap: 14, pointerEvents: 'auto' }}>
                 <span style={{ display: 'inline-flex', gap: 2, alignItems: 'center', height: 14 }}>
                   {[14,14,14,14,14].map((h,i) => <span key={i} className="jv-wave-bar" style={{ height: h }} />)}
                 </span>
                 <span style={{ fontSize: 10, color: C.accent, letterSpacing: '0.3em' }}>J.A.R.V.I.S. · TRANSMITINDO</span>
                 <button onClick={speech.stopSpeaking} style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.accentDim}`, color: C.accentDim, padding: '3px 10px', fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.22em', cursor: 'pointer' }}>◾ SILENCIAR</button>
               </div>
-            )}
-            {chat.captureSaved && (
-              <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '8px 32px', background: 'rgba(3,7,16,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
+            ) : chat.captureSaved && (
+              <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '8px 32px', background: 'rgba(3,7,16,0.96)', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
                 <span style={{ fontSize: 10, color: C.accent, letterSpacing: '0.3em' }}>💾 CONVERSA SALVA NO VAULT</span>
-              </div>
-            )}
-            {memoryNoteCount > 0 && (
-              <div className="jv-banner-in" style={{ borderBottom: `1px solid ${C.lineStrong}`, padding: '6px 32px', background: 'rgba(3,7,16,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
-                <span style={{ fontSize: 10, color: C.muted, letterSpacing: '0.28em' }}>🧠 MEMÓRIA · {memoryNoteCount} {memoryNoteCount === 1 ? 'NOTA RECENTE' : 'NOTAS RECENTES'}</span>
               </div>
             )}
           </div>

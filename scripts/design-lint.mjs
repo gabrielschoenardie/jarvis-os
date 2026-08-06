@@ -133,16 +133,32 @@ function rulePulseBudget() {
   return hits;
 }
 
-// ── Regra 5 · Disciplina de blur (informativa até a Etapa 3/4) ───────────
-// blur() só é legítimo em superfície com cantoneira (projeção). Hoje header,
-// banners e a barra de comando também usam blur — a Etapa 3/4 corrige isso.
+// ── Regra 5 · Disciplina de blur ─────────────────────────────────────────
+// backdropFilter/backdrop-filter (a propriedade de profundidade — turva o
+// que está atrás) só é legítimo em superfície com cantoneira. `filter:
+// blur(...)` dentro de @keyframes é outra coisa — motion blur de transição
+// de entrada/saída, não tem nada a ver com a regra de profundidade — por
+// isso o regex mira especificamente a propriedade backdrop, não `filter:`.
+//
+// Duas construções já SÃO a superfície projetada sancionada (o token
+// `glass` de constants.js e a classe `.jv-holo-glass`, usados por
+// HoloPanel/HudMediaWindow/WeatherCard/o cockpit do comando) — por
+// convenção deste código, ambas sempre vêm com <Corners /> por perto, então
+// ficam isentas aqui. Blur hand-rolled (sem o token) também passa se
+// `<Corners />` aparece na mesma linha ou na seguinte — o padrão usado nos
+// painéis flutuantes do VaultBrain/ErrorBoundary. Sem nenhum dos dois, é
+// blur ad-hoc sem cantoneira: precisa ganhar uma ou virar estrutura opaca.
 function ruleBlurDiscipline() {
   const hits = [];
-  const re = /blur\(/g;
+  const re = /backdrop-?[Ff]ilter\s*:/;
   for (const f of files) {
+    if (f.rel.endsWith('/lib/constants.js')) continue; // fonte do token glass
     f.lines.forEach((line, i) => {
-      if (re.test(line)) hits.push(`${f.rel}:${i + 1}`);
-      re.lastIndex = 0;
+      if (!re.test(line)) return;
+      if (line.includes('jv-holo-glass') || line.includes('...glass')) return;
+      const next = f.lines[i + 1] || '';
+      if (line.includes('<Corners') || next.includes('<Corners')) return;
+      hits.push(`${f.rel}:${i + 1}`);
     });
   }
   return hits;
@@ -167,7 +183,7 @@ report('Regra 1 · C.dim nunca é texto', ruleNoTextDim());
 report('Regra 2 · piso tipográfico 10px (SVG de dados isento)', ruleTypeFloor());
 report('Regra 3 · rampa de contraste WCAG 2.1', ruleContrastRamp());
 report('Regra 4 · orçamento de pulso · dot de status incondicional', rulePulseBudget());
-report('Regra 5 · disciplina de blur (fecha na Etapa 3/4)', ruleBlurDiscipline(), { enforced: false });
+report('Regra 5 · disciplina de blur', ruleBlurDiscipline());
 
 console.log(failed ? '\n✗ design-lint falhou.' : '\n✓ design-lint passou.');
 process.exit(failed ? 1 : 0);

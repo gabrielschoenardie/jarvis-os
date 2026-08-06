@@ -27,11 +27,14 @@ export function ToggleBtn({ label, on, onClick, disabled }) {
   );
 }
 
+// Sempre fantasma (nunca preenchido) — ENVIAR é a única ação sólida da tela
+// (Etapa 3). "Escutando" já é sinalizado pelo anel pulsante (jv-ring) e pelo
+// contorno subindo pra C.accent; não precisa competir por preenchimento.
 export function MicButton({ listening, onStart, onStop, disabled }) {
   return (
     <button onClick={listening ? onStop : onStart} disabled={disabled} className={listening ? 'jv-ring' : ''}
-      style={{ background: listening ? C.accent : 'transparent', border: `1px solid ${listening ? C.accent : (disabled ? C.dim : C.accentDim)}`, color: listening ? C.bg : (disabled ? C.quiet : C.accent), width: 34, height: 34, borderRadius: '50%', cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', fontSize: 14, transition: 'all 0.2s' }}>
-      {listening ? <span style={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', height: 12 }}>{[12,12,12].map((h,i)=><span key={i} className="jv-wave-bar" style={{ height: h, background: C.bg }} />)}</span> : <span style={{ lineHeight: 1, fontSize: 13 }}>◐</span>}
+      style={{ background: 'transparent', border: `1px solid ${listening ? C.accent : (disabled ? C.dim : C.accentDim)}`, color: disabled ? C.quiet : C.accent, width: 34, height: 34, borderRadius: '50%', cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', fontSize: 14, transition: 'all 0.2s' }}>
+      {listening ? <span style={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', height: 12 }}>{[12,12,12].map((h,i)=><span key={i} className="jv-wave-bar" style={{ height: h, background: C.accent }} />)}</span> : <span style={{ lineHeight: 1, fontSize: 13 }}>◐</span>}
     </button>
   );
 }

@@ -30,7 +30,6 @@ export const z = {
   dataStream: 2,
   vaultOverlay: 3,
   grain: 4,
-  scanline: 5,
   base: 10,
   overlay: 20,
   modal: 50,

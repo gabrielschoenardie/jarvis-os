@@ -49,7 +49,12 @@ export function StatusStrip({ vault, memoryNoteCount, onOpenMemory, focusMode, s
     : 'desconectado';
 
   const voiceName = speech.elVoices?.find(v => v.voice_id === speech.selectedVoiceId)?.name;
-  const voiceActive = speech.speaking || speech.listening;
+  // Falando já tem o banner (App.jsx) com TRANSMITINDO + SILENCIAR — mais
+  // proeminente e com ação real, diferente da cinta que é só leitura.
+  // Contando o header (VoiceIndicator) e o Presence Core, virar ciano aqui
+  // também é o 4º sinal repetindo o mesmo fato — achado P1 · redundância da
+  // auditoria de HUD. A cinta acende só pra ouvindo, que não tem banner.
+  const voiceActive = speech.listening;
   const voiceValue = voiceName ? `EL · ${voiceName}` : (speech.voiceOut ? 'ativa' : 'muda');
 
   // Ordem prioriza os 4 itens que precisam sobreviver a 375px sem depender de

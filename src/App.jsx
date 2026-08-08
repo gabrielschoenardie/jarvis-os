@@ -254,7 +254,7 @@ export default function JarvisOS() {
   const fmtDate = d => d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
   return (
-    <div className={chat.apiError ? 'jv-ambient-fail' : ''} style={{ ...mono, '--jv-ambient': ambient, background: `radial-gradient(ellipse at 50% 28%, ${C.bgSoft} 0%, ${C.bg} 55%, ${C.bgDeep} 100%)`, color: C.text, minHeight: '100vh', width: '100%', position: 'relative', overflow: 'hidden' }}>
+    <div className={chat.apiError ? 'jv-ambient-fail' : ''} style={{ ...mono, '--jv-ambient': ambient, background: `radial-gradient(ellipse at 50% 28%, ${C.bgSoft} 0%, ${C.bg} 55%, ${C.bgDeep} 100%)`, color: C.text, height: '100vh', width: '100%', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <style>{`
         @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
         @keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -453,8 +453,15 @@ export default function JarvisOS() {
         />
       )}
 
-      {/* BODY */}
-      <div className="jv-layout" style={{ position: 'relative', zIndex: 10, minHeight: `calc(100vh - ${speech.voicePanelOpen ? '180px' : '56px'})` }}>
+      {/* BODY — flex:1 + minHeight:0 (mesmo idioma do <main> logo abaixo, App.jsx
+          linha ~517) absorve exatamente o espaço que sobra da coluna flex do
+          root, qualquer que seja a altura real de header+cinta+painel de voz.
+          Antes disso era `calc(100vh - Npx)` com N fixo — hardcoded pro
+          header sozinho (56px), ficou defasado quando a cinta de estado
+          (Etapa 4, +28px) entrou, sobrando ~29-33px de conteúdo empurrado
+          pra fora da viewport. Um número fixo sempre vai descalibrar de novo
+          na próxima peça de chrome; isto elimina a classe inteira do bug. */}
+      <div className="jv-layout" style={{ position: 'relative', zIndex: 10, flex: 1, minHeight: 0 }}>
 
         {/* LEFT RAIL */}
         <aside className="jv-rail-left" style={{ borderRight: `1px solid ${C.line}`, padding: '24px 18px', background: 'rgba(0,0,0,0.22)' }}>

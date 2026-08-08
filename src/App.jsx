@@ -7,6 +7,7 @@ import { useChat } from './hooks/useChat.js';
 import { useVault } from './hooks/useVault.js';
 import { TerminalView } from './components/TerminalView.jsx';
 import { StatusStrip } from './components/StatusStrip.jsx';
+import { MemoryPanel } from './components/MemoryPanel.jsx';
 import { HudMediaWindow } from './components/HudMediaWindow.jsx';
 import { VoicePanel } from './components/VoicePanel.jsx';
 import { VoiceIndicator, MicButton } from './components/VoiceIndicator.jsx';
@@ -71,6 +72,7 @@ export default function JarvisOS() {
   const [focusMode, setFocusMode] = useState(null);
   const [attachment, setAttachment] = useState(null);
   const [attachmentError, setAttachmentError] = useState(null);
+  const [memoryPanelOpen, setMemoryPanelOpen] = useState(false);
 
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
@@ -106,12 +108,10 @@ export default function JarvisOS() {
     memoryContext: vault.memoryContext,
   });
 
-  // Quantas notas alimentam a memória de curto prazo nesta sessão — só pra
-  // exibir o indicador "🧠 MEMÓRIA" abaixo (transparência: nenhum clique
-  // aciona isso, mas o operador vê que está ativo).
-  const memoryNoteCount = vault.memoryContext
-    ? vault.memoryContext.split('\n').filter(l => l.startsWith('— ')).length
-    : 0;
+  // Quantas notas alimentam a memória de curto prazo nesta sessão — exibido
+  // na cinta de estado, clicável desde a Etapa 6 pra abrir o MemoryPanel
+  // (mesma contagem que vault.memoryDetail.notes, a fonte de verdade).
+  const memoryNoteCount = vault.memoryDetail.notes.length;
 
   // Keep ref current on every render so STT callback always calls the latest submitCommand
   submitCommandRef.current = chat.submitCommand;
@@ -408,12 +408,19 @@ export default function JarvisOS() {
       <StatusStrip
         vault={vault}
         memoryNoteCount={memoryNoteCount}
+        onOpenMemory={() => setMemoryPanelOpen(o => !o)}
         focusMode={focusMode}
         speech={speech}
         contextPct={contextPct}
         subscribeLatency={subscribeLatency}
         getLatency={getLatency}
       />
+
+      {/* MEMORY PANEL — inspetor só-leitura (Etapa 6), aberto pelo item
+          MEMÓRIA da cinta */}
+      {memoryPanelOpen && (
+        <MemoryPanel detail={vault.memoryDetail} onClose={() => setMemoryPanelOpen(false)} />
+      )}
 
       {/* VOICE PANEL */}
       {speech.voicePanelOpen && (

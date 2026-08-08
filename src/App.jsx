@@ -399,7 +399,10 @@ export default function JarvisOS() {
           <div className="jv-hide-sm" style={{ color: C.muted }}>{fmtDate(time)}</div>
           <div style={{ color: C.text, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(time)} <span style={{ color: C.muted }}>brt</span></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: ready ? C.accent : C.warn }} className={ready ? 'jv-pulse' : ''} />
+            {/* Achado P0·1 (orçamento de pulso): pulsava enquanto ready — ou seja,
+                sempre, depois do boot. O pulso é orçado pra transição real
+                (iniciando); uma vez pronto, o núcleo fica aceso e parado. */}
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: ready ? C.accent : C.warn }} className={!ready ? 'jv-pulse' : ''} />
             <span style={{ color: C.muted }}>{ready ? 'núcleo' : 'iniciando'}</span>
           </div>
         </div>
@@ -486,7 +489,11 @@ export default function JarvisOS() {
                 <div key={m.id} className="jv-fade" style={{ display: 'flex', alignItems: 'center', gap: 10, animationDelay: `${i * 80}ms` }}>
                   <span style={{ color: C.quiet, width: 18 }}>{m.id}</span>
                   <span style={{ color: on || scanning ? C.text : C.muted, flex: 1, letterSpacing: '0.08em' }}>{m.name}</span>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: on ? C.accent : scanning ? C.warn : C.dim }} className={on || scanning ? 'jv-pulse' : ''} />
+                  {/* Achado P0·1: pulsava em "ready" também — indefinidamente,
+                      enquanto a pasta seguisse conectada. O pulso fica só pra
+                      scanning (trabalho real em andamento); conectado e parado
+                      vira ponto cheio, sem piscar. */}
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: on ? C.accent : scanning ? C.warn : C.dim }} className={scanning ? 'jv-pulse' : ''} />
                 </div>
               );
             })}

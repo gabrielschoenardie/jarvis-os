@@ -13,9 +13,19 @@ import { C, MODEL, mono } from '../lib/constants.js';
 // voz ouvindo/falando, foco em curso). Contadores puros (memória, contexto,
 // latência) ficam sempre quiet — são números, não um liga/desliga.
 
-function Item({ label, value, active, className }) {
+// onClick é opcional — só o item MEMÓRIA (Etapa 6) o usa hoje, pra abrir o
+// inspetor. Os demais continuam puramente informativos.
+function Item({ label, value, active, className, onClick }) {
+  const interactive = typeof onClick === 'function';
   return (
-    <span className={className} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap' }}>
+    <span
+      className={className}
+      onClick={onClick}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={interactive ? (e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(e); } }) : undefined}
+      style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap', cursor: interactive ? 'pointer' : 'default' }}
+    >
       <span style={{ color: active ? C.accent : C.muted }}>{label}</span>
       <span style={{ ...mono, color: active ? C.accent : C.quiet, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
     </span>
@@ -31,7 +41,7 @@ function StripLatency({ subscribe, getInitial }) {
   return <Item label="LAT" value={`${Math.round(ms)}ms`} />;
 }
 
-export function StatusStrip({ vault, memoryNoteCount, focusMode, speech, contextPct, subscribeLatency, getLatency }) {
+export function StatusStrip({ vault, memoryNoteCount, onOpenMemory, focusMode, speech, contextPct, subscribeLatency, getLatency }) {
   const noteCount = vault.graph ? vault.graph.nodes.filter(n => !n.ghost).length : 0;
   const vaultActive = vault.status === 'ready' || vault.status === 'scanning';
   const vaultValue = vault.status === 'ready' ? `${noteCount.toLocaleString('pt-BR')} notas`
@@ -53,7 +63,7 @@ export function StatusStrip({ vault, memoryNoteCount, focusMode, speech, context
       <Item label="MODELO" value={MODEL.label} />
       <StripLatency subscribe={subscribeLatency} getInitial={getLatency} />
       {focusMode && <Item label="◆ FOCO" value={focusMode.toUpperCase()} active />}
-      {memoryNoteCount > 0 && <Item label="MEMÓRIA" value={memoryNoteCount} />}
+      {memoryNoteCount > 0 && <Item label="MEMÓRIA" value={memoryNoteCount} onClick={onOpenMemory} />}
       {speech.speechSupported && <Item label="VOZ" value={voiceValue} active={voiceActive} className="jv-hide-sm" />}
     </div>
   );

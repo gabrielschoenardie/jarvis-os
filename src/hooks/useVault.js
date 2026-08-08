@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { idbGet, idbSet } from '../lib/idb.js';
 import { parseWikilinks, buildGraph } from '../lib/vault-graph.js';
-import { selectRecentNotes, buildMemoryContext } from '../lib/memoryContext.js';
+import { selectRecentNotes, buildMemoryContext, buildMemoryDetail } from '../lib/memoryContext.js';
 
 // Conexão com o vault Obsidian local via File System Access API (Chromium).
 // 100% client-side: as notas nunca saem do navegador — só o conteúdo de UMA
@@ -74,6 +74,10 @@ export function useVault() {
   // src/lib/memoryContext.js), injetado no system prompt como memória de
   // curto prazo — recalculado a cada scan bem-sucedido (efeito abaixo).
   const [memoryContext, setMemoryContext] = useState('');
+  // Detalhamento por nota do memoryContext acima (título, trecho, tokens
+  // estimados) — alimenta o MemoryPanel (Etapa 6, só leitura). Deriva do
+  // mesmo cálculo, nunca diverge do que foi pro prompt.
+  const [memoryDetail, setMemoryDetail] = useState({ notes: [], totalChars: 0, totalTokens: 0 });
 
   const handleRef = useRef(null);
   const scanTokenRef = useRef(0);
@@ -189,7 +193,10 @@ export function useVault() {
           entries.push({ title: node.title, content });
         } catch (_) { /* nota sumiu entre o scan e agora — ignora */ }
       }
-      if (!cancelled) setMemoryContext(buildMemoryContext(entries));
+      if (!cancelled) {
+        setMemoryContext(buildMemoryContext(entries));
+        setMemoryDetail(buildMemoryDetail(entries));
+      }
     })();
     return () => { cancelled = true; };
   }, [scanId, graph, readNote]);
@@ -208,7 +215,7 @@ export function useVault() {
   }, []);
 
   return {
-    status, graph, progress, truncatedScan, error, scanId, canWrite, memoryContext,
+    status, graph, progress, truncatedScan, error, scanId, canWrite, memoryContext, memoryDetail,
     connectVault, reconnectVault, rescanVault, readNote, writeCaptureNote,
     layoutCacheRef,
   };

@@ -8,7 +8,8 @@ let worker = null;
 let nextId = 1;
 const pending = new Map();
 let onProgress = null;
-const CALL_TIMEOUT_MS = 15000;
+const CALL_TIMEOUT_MS = 15000; // embed(): consulta contra worker já quente — travar aqui é sinal real de problema
+const WARMUP_TIMEOUT_MS = 120000; // warmup(): pode baixar + inicializar ~135MB (modelo + tokenizer) na primeira vez
 
 function getWorker() {
   if (!worker) {
@@ -25,20 +26,22 @@ function getWorker() {
     worker.onerror = (err) => {
       for (const { reject } of pending.values()) reject(err);
       pending.clear();
+      const dead = worker;
       worker = null; // permite recriar o worker na próxima chamada
+      dead.terminate();
     };
   }
   return worker;
 }
 
-function call(message) {
+function call(message, timeoutMs = CALL_TIMEOUT_MS) {
   const id = nextId++;
   const w = getWorker();
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       pending.delete(id);
       reject(new Error('embedder: timeout aguardando resposta do worker'));
-    }, CALL_TIMEOUT_MS);
+    }, timeoutMs);
     pending.set(id, {
       resolve: (v) => { clearTimeout(timeout); resolve(v); },
       reject: (e) => { clearTimeout(timeout); reject(e); },
@@ -50,7 +53,7 @@ function call(message) {
 export function setProgressListener(fn) { onProgress = fn; }
 
 export async function warmup() {
-  await call({ type: 'warmup' });
+  await call({ type: 'warmup' }, WARMUP_TIMEOUT_MS);
 }
 
 // texts: string[]; kind: 'query' | 'passage'. Retorna um Float32Array por

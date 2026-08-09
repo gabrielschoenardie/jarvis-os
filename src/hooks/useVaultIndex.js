@@ -115,33 +115,39 @@ export function useVaultIndex(graph, scanId, readNote) {
       const finalNotes = { ...keptNotes };
       let done = 0;
 
-      for (const entry of toEmbed) {
-        if (cancelled || buildTokenRef.current !== token) return;
-        let content;
-        try {
-          ({ content } = await readNote(entry.path));
-        } catch (_) {
+      try {
+        for (const entry of toEmbed) {
+          if (cancelled || buildTokenRef.current !== token) return;
+          let content;
+          try {
+            ({ content } = await readNote(entry.path));
+          } catch (_) {
+            done++;
+            setProgress({ done, total: toEmbed.length });
+            continue; // nota sumiu entre o scan e agora
+          }
+          const pieces = chunkText(content);
+          if (pieces.length > 0) {
+            const chunkStart = finalChunks.length;
+            for (let i = 0; i < pieces.length; i += EMBED_BATCH) {
+              if (cancelled || buildTokenRef.current !== token) return;
+              const batch = pieces.slice(i, i + EMBED_BATCH);
+              const vectors = await embedTexts(batch, 'passage');
+              batch.forEach((text, j) => {
+                finalChunks.push({ path: entry.path, text });
+                finalVectorList.push(vectors[j]);
+              });
+            }
+            finalNotes[entry.path] = { mtime: entry.mtime, title: entry.title, chunkStart, chunkCount: pieces.length };
+          }
           done++;
           setProgress({ done, total: toEmbed.length });
-          continue; // nota sumiu entre o scan e agora
+          await new Promise(r => setTimeout(r, 0)); // não trava a aba
         }
-        const pieces = chunkText(content);
-        if (pieces.length > 0) {
-          const chunkStart = finalChunks.length;
-          for (let i = 0; i < pieces.length; i += EMBED_BATCH) {
-            if (cancelled || buildTokenRef.current !== token) return;
-            const batch = pieces.slice(i, i + EMBED_BATCH);
-            const vectors = await embedTexts(batch, 'passage');
-            batch.forEach((text, j) => {
-              finalChunks.push({ path: entry.path, text });
-              finalVectorList.push(vectors[j]);
-            });
-          }
-          finalNotes[entry.path] = { mtime: entry.mtime, title: entry.title, chunkStart, chunkCount: pieces.length };
-        }
-        done++;
-        setProgress({ done, total: toEmbed.length });
-        await new Promise(r => setTimeout(r, 0)); // não trava a aba
+      } catch (_) {
+        if (cancelled || buildTokenRef.current !== token) return;
+        setStatus('unavailable'); // embed falhou no meio da indexação — useVault.js cai no fallback de recência
+        return;
       }
 
       if (cancelled || buildTokenRef.current !== token) return;

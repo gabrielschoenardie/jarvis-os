@@ -11,7 +11,7 @@ const BACKOFF_MS = [2000, 4000, 8000];
 
 const TOOL_LABELS = { web_search: 'BUSCA WEB', calcular: 'CÁLCULO', abrir_site: 'NAVEGADOR', hud_display: 'HUD DISPLAY' };
 
-export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onPersistTurns, memoryContext }) {
+export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onPersistTurns, searchMemory }) {
   const [history, setHistory] = useState([]);
   const [apiHistory, setApiHistory] = useState([]);
   const [captureSaved, setCaptureSaved] = useState(false);
@@ -206,6 +206,12 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onP
     const newApiHistory = [...currentApiHistory, { role: 'user', content: userContent }];
     setApiHistory(newApiHistory);
     if (apiHistoryRef) apiHistoryRef.current = newApiHistory;
+
+    // Fase A (docs/HYBRID_MEMORY_PLAN.md): busca de memória por mensagem,
+    // sobre o texto real digitado — não mais uma string fixa por scan.
+    // Calculada uma única vez por envio, fora do loop de retry de 429
+    // abaixo (não faz sentido buscar de novo a cada tentativa).
+    const memoryContext = searchMemory ? await searchMemory(cmd) : '';
 
     // Coalesce dos deltas SSE: no máximo um setStreamText por frame de vídeo.
     // Muitos chunks chegam no mesmo frame; sem isso, cada um força um render.

@@ -60,6 +60,7 @@ export function useVaultIndex(graph, scanId, readNote) {
         if (cancelled) return;
         await new Promise(r => setTimeout(r, 20));
       }
+      if (cancelled || buildTokenRef.current !== token) return;
       const oldIndex = indexRef.current;
       const { toEmbed, toRemove } = diffIndex(graph, oldIndex);
 
@@ -160,21 +161,25 @@ export function useVaultIndex(graph, scanId, readNote) {
   const searchMemory = useCallback(async (queryText) => {
     const index = indexRef.current;
     if (!index || index.chunks.length === 0) return [];
-    const [queryVec] = await embedTexts([queryText], 'query');
-    const hits = vectorSearch(index, queryVec, MAX_HITS * 3);
-    const now = Date.now();
-    const byNote = new Map();
-    for (const hit of hits) {
-      const note = index.notes[hit.path];
-      const ageDays = note ? (now - note.mtime) / DAY_MS : 999;
-      const recency = Math.exp(-ageDays / RECENCY_HALFLIFE_DAYS);
-      const score = COSINE_WEIGHT * hit.score + RECENCY_WEIGHT * recency;
-      const existing = byNote.get(hit.path);
-      if (!existing || score > existing.score) {
-        byNote.set(hit.path, { title: note?.title || hit.path, content: hit.text, score });
+    try {
+      const [queryVec] = await embedTexts([queryText], 'query');
+      const hits = vectorSearch(index, queryVec, MAX_HITS * 3);
+      const now = Date.now();
+      const byNote = new Map();
+      for (const hit of hits) {
+        const note = index.notes[hit.path];
+        const ageDays = note ? (now - note.mtime) / DAY_MS : 999;
+        const recency = Math.exp(-ageDays / RECENCY_HALFLIFE_DAYS);
+        const score = COSINE_WEIGHT * hit.score + RECENCY_WEIGHT * recency;
+        const existing = byNote.get(hit.path);
+        if (!existing || score > existing.score) {
+          byNote.set(hit.path, { title: note?.title || hit.path, content: hit.text, score });
+        }
       }
+      return [...byNote.values()].sort((a, b) => b.score - a.score).slice(0, MAX_HITS);
+    } catch (_) {
+      return [];
     }
-    return [...byNote.values()].sort((a, b) => b.score - a.score).slice(0, MAX_HITS);
   }, []);
 
   return { indexStatus: status, indexProgress: progress, searchMemory };

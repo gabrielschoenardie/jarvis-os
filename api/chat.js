@@ -1,4 +1,4 @@
-import { buildSystemPrompt, detectCommand, resolveCommandConfig, JARVIS_WEATHER_INTRO } from '../src/lib/jarvis-prompts.js';
+import { buildSystemPrompt, detectCommand, resolveCommandConfig, JARVIS_WEATHER_INTRO, JARVIS_MEMORY_INTRO } from '../src/lib/jarvis-prompts.js';
 import { isWeatherQuery, fetchWeather, formatWeatherContext } from '../src/lib/weather.js';
 import { extractMessageText, replaceMessageText, stripImageAttachment } from '../src/lib/attachments.js';
 import { JARVIS_TOOLS, TOOL_NAMES, executeTool } from '../src/lib/jarvis-tools.js';
@@ -167,10 +167,16 @@ export default async function handler(req) {
     const system = buildSystemPrompt({
       deep: cmdConfig.deep,
       tools: TOOL_NAMES,
-      memoryContext,
     });
 
     const systemBlocks = [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }];
+    // Fora do bloco cacheado de propósito: memoryContext muda a cada mensagem
+    // (busca semântica por request, ver useVault.js), então cachear junto com
+    // a identidade/domínio invalidaria o cache a cada turno. Mesmo padrão de
+    // JARVIS_WEATHER_INTRO abaixo.
+    if (memoryContext && memoryContext.trim().length > 0) {
+      systemBlocks.push({ type: 'text', text: `${JARVIS_MEMORY_INTRO}\n\n${memoryContext}` });
+    }
     if (weatherBlockText) systemBlocks.push({ type: 'text', text: weatherBlockText });
 
     const MAX_TURNS = 20;

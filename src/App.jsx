@@ -105,7 +105,7 @@ export default function JarvisOS() {
     apiHistoryRef,
     speakChunks: speech.speakChunks,
     onPersistTurns: vault.canWrite ? vault.writeCaptureNote : null,
-    memoryContext: vault.memoryContext,
+    searchMemory: vault.searchMemory,
   });
 
   // Quantas notas alimentam a memória de curto prazo nesta sessão — exibido
@@ -417,6 +417,8 @@ export default function JarvisOS() {
         contextPct={contextPct}
         subscribeLatency={subscribeLatency}
         getLatency={getLatency}
+        indexStatus={vault.indexStatus}
+        indexProgress={vault.indexProgress}
       />
 
       {/* MEMORY PANEL — inspetor só-leitura (Etapa 6), aberto pelo item

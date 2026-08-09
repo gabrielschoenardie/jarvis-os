@@ -1,11 +1,15 @@
+// src/hooks/useVault.js
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { idbGet, idbSet } from '../lib/idb.js';
 import { parseWikilinks, buildGraph } from '../lib/vault-graph.js';
 import { selectRecentNotes, buildMemoryContext, buildMemoryDetail } from '../lib/memoryContext.js';
+import { useVaultIndex } from './useVaultIndex.js';
 
 // Conexão com o vault Obsidian local via File System Access API (Chromium).
 // 100% client-side: as notas nunca saem do navegador — só o conteúdo de UMA
-// nota, quando o operador clica explicitamente em "ANALISAR COM JARVIS".
+// nota, quando o operador clica explicitamente em "ANALISAR COM JARVIS", ou
+// automaticamente como memória de curto prazo (ver searchMemory abaixo,
+// nunca sai da máquina pra indexar — só o texto entra no prompt do Claude).
 // O handle da pasta persiste em IndexedDB; nas visitas seguintes basta
 // re-conceder a permissão com um clique (requestPermission exige gesto).
 
@@ -70,14 +74,11 @@ export function useVault() {
   // conversas em 00-Inbox/ (ver src/lib/chatCapture.js). 'read' continua
   // sendo suficiente pro scan/grafo; 'readwrite' é só o que a Captura exige.
   const [canWrite, setCanWrite] = useState(false);
-  // Resumo narrativo das notas mais recentes do vault (ver
-  // src/lib/memoryContext.js), injetado no system prompt como memória de
-  // curto prazo — recalculado a cada scan bem-sucedido (efeito abaixo).
-  const [memoryContext, setMemoryContext] = useState('');
-  // Detalhamento por nota do memoryContext acima (título, trecho, tokens
-  // estimados) — alimenta o MemoryPanel (Etapa 6, só leitura). Deriva do
-  // mesmo cálculo, nunca diverge do que foi pro prompt.
-  const [memoryDetail, setMemoryDetail] = useState({ notes: [], totalChars: 0, totalTokens: 0 });
+  // Detalhamento por nota do que entrou no último prompt (título, trecho,
+  // tokens estimados, score quando veio de busca semântica) — alimenta o
+  // MemoryPanel (Etapa 6). `mode` diz se veio de busca semântica ou do
+  // fallback de recência (ver searchMemory abaixo).
+  const [memoryDetail, setMemoryDetail] = useState({ notes: [], totalChars: 0, totalTokens: 0, mode: 'recency' });
 
   const handleRef = useRef(null);
   const scanTokenRef = useRef(0);
@@ -175,31 +176,44 @@ export function useVault() {
     return { content: await file.text(), mtime: file.lastModified };
   }, []);
 
-  // Recalcula a memória de curto prazo a cada scan bem-sucedido: seleciona
-  // as notas mais recentes do grafo e relê o conteúdo de cada uma (o corpo
-  // já foi descartado do grafo em si — ver walkVault). Roda em background,
-  // sem bloquear status/scanVault; falha em uma nota isolada (sumiu entre o
-  // scan e agora) não derruba as demais.
-  useEffect(() => {
-    if (!graph) return;
-    let cancelled = false;
-    (async () => {
+  // Fase A (docs/HYBRID_MEMORY_PLAN.md): índice semântico local, mantido
+  // incrementalmente a cada scan bem-sucedido. indexStatus/indexProgress
+  // alimentam o item ÍNDICE da cinta (StatusStrip); a busca em si só roda
+  // por mensagem, via searchMemory abaixo.
+  const { indexStatus, indexProgress, searchMemory: semanticSearch } = useVaultIndex(graph, scanId, readNote);
+
+  // Substitui o antigo useEffect que precomputava memoryContext uma vez por
+  // scan (Fase 2): agora é chamado por useChat.js antes de cada mensagem,
+  // pra a busca ser sobre o texto real da pergunta (A5). Sempre grava
+  // memoryDetail como efeito colateral, pro MemoryPanel refletir exatamente
+  // o que foi pro prompt. Fallback de recência (A7) quando o índice não está
+  // pronto (idle/loading-model/indexing/unavailable) ou não devolve hits —
+  // pior caso possível é o comportamento de antes, nunca um chat quebrado.
+  const searchMemory = useCallback(async (queryText) => {
+    if (!graph) return '';
+    let entries = [];
+    let mode = 'recency';
+
+    if (indexStatus === 'ready') {
+      try {
+        const hits = await semanticSearch(queryText);
+        if (hits.length > 0) { entries = hits; mode = 'semantic'; }
+      } catch (_) { /* busca falhou — cai no fallback de recência abaixo */ }
+    }
+
+    if (entries.length === 0) {
       const candidates = selectRecentNotes(graph);
-      const entries = [];
       for (const node of candidates) {
-        if (cancelled) return;
         try {
           const { content } = await readNote(node.path);
           entries.push({ title: node.title, content });
         } catch (_) { /* nota sumiu entre o scan e agora — ignora */ }
       }
-      if (!cancelled) {
-        setMemoryContext(buildMemoryContext(entries));
-        setMemoryDetail(buildMemoryDetail(entries));
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [scanId, graph, readNote]);
+    }
+
+    setMemoryDetail({ ...buildMemoryDetail(entries), mode });
+    return buildMemoryContext(entries);
+  }, [graph, indexStatus, semanticSearch, readNote]);
 
   // Grava (cria ou sobrescreve) uma nota de Captura em 00-Inbox/ — usado pela
   // Captura automática de conversas (src/lib/chatCapture.js). Exige que o
@@ -215,7 +229,8 @@ export function useVault() {
   }, []);
 
   return {
-    status, graph, progress, truncatedScan, error, scanId, canWrite, memoryContext, memoryDetail,
+    status, graph, progress, truncatedScan, error, scanId, canWrite,
+    searchMemory, memoryDetail, indexStatus, indexProgress,
     connectVault, reconnectVault, rescanVault, readNote, writeCaptureNote,
     layoutCacheRef,
   };

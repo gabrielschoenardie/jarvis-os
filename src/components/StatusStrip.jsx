@@ -10,8 +10,9 @@ import { C, MODEL, mono } from '../lib/constants.js';
 //
 // Regra de leitura: em repouso a cinta inteira é quiet. Um item só ganha
 // ciano quando reflete um estado ativo agora (vault conectado/escaneando,
-// voz ouvindo/falando, foco em curso). Contadores puros (memória, contexto,
-// latência) ficam sempre quiet — são números, não um liga/desliga.
+// voz ouvindo/falando, foco em curso, índice semântico construindo).
+// Contadores puros (memória, contexto, latência) ficam sempre quiet — são
+// números, não um liga/desliga.
 
 // onClick é opcional — só o item MEMÓRIA (Etapa 6) o usa hoje, pra abrir o
 // inspetor. Os demais continuam puramente informativos.
@@ -41,7 +42,7 @@ function StripLatency({ subscribe, getInitial }) {
   return <Item label="LAT" value={`${Math.round(ms)}ms`} />;
 }
 
-export function StatusStrip({ vault, memoryNoteCount, onOpenMemory, focusMode, speech, contextPct, subscribeLatency, getLatency }) {
+export function StatusStrip({ vault, memoryNoteCount, onOpenMemory, focusMode, speech, contextPct, subscribeLatency, getLatency, indexStatus, indexProgress }) {
   const noteCount = vault.graph ? vault.graph.nodes.filter(n => !n.ghost).length : 0;
   const vaultActive = vault.status === 'ready' || vault.status === 'scanning';
   const vaultValue = vault.status === 'ready' ? `${noteCount.toLocaleString('pt-BR')} notas`
@@ -57,10 +58,18 @@ export function StatusStrip({ vault, memoryNoteCount, onOpenMemory, focusMode, s
   const voiceActive = speech.listening;
   const voiceValue = voiceName ? `EL · ${voiceName}` : (speech.voiceOut ? 'ativa' : 'muda');
 
+  // Fase A: ÍNDICE só aparece enquanto constrói (carregando modelo ou
+  // embutindo notas) — some quando pronto, mesma regra de sinal-ativo-agora
+  // que os demais itens. Não aparece se nunca indexou (idle) nem quando
+  // indisponível (unavailable) — nesses casos o fallback de recência já
+  // cobre silenciosamente, sem precisar de sinal na cinta.
+  const indexing = indexStatus === 'loading-model' || indexStatus === 'indexing';
+  const indexValue = indexStatus === 'loading-model' ? 'carregando modelo…' : `${indexProgress.done}/${indexProgress.total}`;
+
   // Ordem prioriza os 4 itens que precisam sobreviver a 375px sem depender de
   // scroll horizontal (vault, contexto, modelo, latência — o critério de
-  // pronto da Etapa 4); foco/memória/voz vêm depois, ainda alcançáveis via
-  // overflow-x na cinta, mas não competem pelos primeiros pixels visíveis.
+  // pronto da Etapa 4); foco/memória/índice/voz vêm depois, ainda alcançáveis
+  // via overflow-x na cinta, mas não competem pelos primeiros pixels visíveis.
   return (
     <div className="jv-strip" style={{ borderBottom: `1px solid ${C.line}`, background: 'rgba(5,10,20,0.92)', padding: '0 28px', height: 28, display: 'flex', alignItems: 'center', gap: 20, fontSize: 10, letterSpacing: '0.1em', overflowX: 'auto' }}>
       <Item label="VAULT" value={vaultValue} active={vaultActive} />
@@ -69,6 +78,7 @@ export function StatusStrip({ vault, memoryNoteCount, onOpenMemory, focusMode, s
       <StripLatency subscribe={subscribeLatency} getInitial={getLatency} />
       {focusMode && <Item label="◆ FOCO" value={focusMode.toUpperCase()} active />}
       {memoryNoteCount > 0 && <Item label="MEMÓRIA" value={memoryNoteCount} onClick={onOpenMemory} />}
+      {indexing && <Item label="ÍNDICE" value={indexValue} active />}
       {speech.speechSupported && <Item label="VOZ" value={voiceValue} active={voiceActive} className="jv-hide-sm" />}
     </div>
   );

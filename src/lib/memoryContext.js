@@ -1,9 +1,10 @@
-// Fase 2 do bloco de memória (ver jarvis-prompts.js, BLOCO 9): seleciona as
-// notas mais recentemente modificadas do grafo já escaneado e monta um
-// resumo narrativo em texto puro para o memoryContext do system prompt.
-// Recência simples sobre o vault inteiro, sem embeddings — Capture notes
-// recém-escritas (Fase 1) naturalmente sobem ao topo por terem o mtime mais
-// novo, e saem de cena assim que notas mais novas existirem.
+// Fase 2 do bloco de memória (ver jarvis-prompts.js, BLOCO 9): monta o texto
+// de memoryContext a partir de um conjunto de notas já selecionadas —
+// entries: [{ title, content, score? }]. Quem seleciona as entries mudou na
+// Fase A (docs/HYBRID_MEMORY_PLAN.md): busca semântica por padrão
+// (useVaultIndex.searchMemory), com selectRecentNotes como fallback de
+// recência quando o índice não está pronto (ver useVault.js). Este módulo
+// não sabe qual dos dois produziu as entries — só formata.
 
 const MAX_NOTES = 5;
 const MAX_EXCERPT_CHARS = 400;
@@ -35,22 +36,25 @@ function excerpt(text, max = MAX_EXCERPT_CHARS) {
 // Monta os pedaços que entram no prompt, aplicando o mesmo teto de
 // MAX_TOTAL_CHARS. Compartilhada por buildMemoryContext (o texto que
 // efetivamente vai pro modelo) e buildMemoryDetail (o detalhamento do
-// inspetor de memória) — garante que os dois nunca divirjam: o painel só
-// pode mostrar exatamente o que foi enviado.
+// inspetor de memória) — garante que os dois nunca divirjam. `score` é
+// opcional (presente quando as entries vêm de busca semântica, ausente no
+// fallback de recência) e só passa adiante para exibição — nunca influencia
+// o corte por caracteres nem o texto do prompt.
 function selectParts(entries) {
   const parts = [];
   let used = 0;
-  for (const { title, content } of entries) {
+  for (const { title, content, score } of entries) {
     const body = excerpt(content);
     const piece = `— ${title}: ${body}`;
     if (used + piece.length > MAX_TOTAL_CHARS) break;
-    parts.push({ title, excerpt: body, piece });
+    parts.push({ title, excerpt: body, piece, score });
     used += piece.length;
   }
   return parts;
 }
 
-// entries: [{ title, content }] — content já lido do disco via readNote()
+// entries: [{ title, content, score? }] — content já lido do disco via
+// readNote() ou vindo de um chunk já indexado.
 export function buildMemoryContext(entries) {
   const parts = selectParts(entries);
   if (parts.length === 0) return '';
@@ -58,8 +62,8 @@ export function buildMemoryContext(entries) {
 }
 
 // Detalhamento por nota do que está efetivamente no prompt agora — usado só
-// pelo MemoryPanel (Etapa 6, só leitura). Nenhuma chamada aqui muda o texto
-// produzido por buildMemoryContext.
+// pelo MemoryPanel (Etapa 6, só leitura; score exibido desde a Fase A).
+// Nenhuma chamada aqui muda o texto produzido por buildMemoryContext.
 export function buildMemoryDetail(entries) {
   const parts = selectParts(entries);
   const notes = parts.map(p => ({
@@ -67,6 +71,7 @@ export function buildMemoryDetail(entries) {
     excerpt: p.excerpt,
     chars: p.piece.length,
     tokens: Math.ceil(p.piece.length / CHARS_PER_TOKEN),
+    score: p.score,
   }));
   const totalChars = notes.reduce((sum, n) => sum + n.chars, 0);
   const totalTokens = notes.reduce((sum, n) => sum + n.tokens, 0);

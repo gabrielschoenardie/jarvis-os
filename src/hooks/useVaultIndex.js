@@ -65,8 +65,16 @@ export function useVaultIndex(graph, scanId, readNote) {
       const { toEmbed, toRemove } = diffIndex(graph, oldIndex);
 
       if (toEmbed.length === 0 && toRemove.length === 0) {
-        setStatus('ready');
-        warmup().catch(() => {}); // pré-aquece o worker em background — evita que o cold start do modelo fique no caminho da primeira busca do usuário
+        // 'ready' só depois do warmup resolver: se marcássemos 'ready' antes,
+        // a primeira mensagem da sessão travaria esperando o cold start
+        // (~118MB) inline no chat, e uma falha de warmup ficaria presa em
+        // 'ready' pra sempre (toda busca futura pagando o timeout inteiro
+        // antes do fallback de recência) — ver docs/HYBRID_MEMORY_PLAN.md.
+        setStatus('loading-model');
+        warmup().then(
+          () => { if (!cancelled && buildTokenRef.current === token) setStatus('ready'); },
+          () => { if (!cancelled && buildTokenRef.current === token) setStatus('unavailable'); }
+        );
         return;
       }
 
@@ -92,8 +100,12 @@ export function useVaultIndex(graph, scanId, readNote) {
         const next = { version: 1, model: MODEL_ID, dims: DIMS, updatedAt: Date.now(), notes: keptNotes, chunks: keptChunks, vectors };
         indexRef.current = next;
         try { await idbSet(INDEX_KEY, next); } catch (_) {}
-        setStatus('ready');
-        warmup().catch(() => {}); // mesmo motivo do branch acima
+        // mesmo motivo do branch acima — 'ready' só depois do warmup resolver.
+        setStatus('loading-model');
+        warmup().then(
+          () => { if (!cancelled && buildTokenRef.current === token) setStatus('ready'); },
+          () => { if (!cancelled && buildTokenRef.current === token) setStatus('unavailable'); }
+        );
         return;
       }
 

@@ -66,6 +66,7 @@ export function useVaultIndex(graph, scanId, readNote) {
 
       if (toEmbed.length === 0 && toRemove.length === 0) {
         setStatus('ready');
+        warmup().catch(() => {}); // pré-aquece o worker em background — evita que o cold start do modelo fique no caminho da primeira busca do usuário
         return;
       }
 
@@ -92,6 +93,7 @@ export function useVaultIndex(graph, scanId, readNote) {
         indexRef.current = next;
         try { await idbSet(INDEX_KEY, next); } catch (_) {}
         setStatus('ready');
+        warmup().catch(() => {}); // mesmo motivo do branch acima
         return;
       }
 

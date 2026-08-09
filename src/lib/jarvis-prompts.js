@@ -18,7 +18,6 @@
 //   const system = buildSystemPrompt({
 //     deep: true,
 //     tools: [analisarVideo, gerarComandoFfmpeg],
-//     memoryContext: 'Sessão anterior: trabalhando no encode VBV do projeto X...',
 //   });
 //
 // ═══════════════════════════════════════════════════════════════════════════
@@ -246,7 +245,10 @@ hud_display — exibe um vídeo do YouTube DENTRO da interface: janela flutuante
 
 // ───────────────────────────────────────────────────────────────────────────
 // BLOCO 9 · INTRODUÇÃO A MEMÓRIA (Fase 5)
-// Incluído quando memoryContext está presente. Apresenta contexto recuperado.
+// Não é incluído por buildSystemPrompt — o contexto de memória muda a cada
+// mensagem (busca semântica por request), então api/chat.js monta este
+// bloco separadamente, FORA do bloco de system cacheado, pra não invalidar
+// o prompt cache a cada turno. Mesmo padrão de JARVIS_WEATHER_INTRO abaixo.
 // ───────────────────────────────────────────────────────────────────────────
 
 export const JARVIS_MEMORY_INTRO = `── CONTEXTO DE MEMÓRIA PERSISTENTE ──
@@ -304,7 +306,6 @@ SEMPRE responda como o JARVIS responderia: parceiro técnico sênior de Gabriel,
  * @param {Object} options
  * @param {boolean} [options.deep=false] - Ativa contexto de modo profundo (Opus 4.8)
  * @param {Array} [options.tools=[]] - Array de tools disponíveis (Fase 4+)
- * @param {string|null} [options.memoryContext=null] - Contexto recuperado da memória (Fase 5+)
  * @returns {string} System prompt completo pronto para uso na API
  *
  * EXEMPLOS:
@@ -314,13 +315,18 @@ SEMPRE responda como o JARVIS responderia: parceiro técnico sênior de Gabriel,
  *   // Modo profundo
  *   buildSystemPrompt({ deep: true })
  *
- *   // Com tools e memória (Fase 4+)
- *   buildSystemPrompt({ tools: [...], memoryContext: '...' })
+ *   // Com tools (Fase 4+)
+ *   buildSystemPrompt({ tools: [...] })
+ *
+ * NOTA (Fase 5+): memória (JARVIS_MEMORY_INTRO + contexto recuperado) NÃO é
+ * montada aqui — é composta como bloco de system separado e não-cacheado
+ * diretamente em api/chat.js, pra não invalidar o prompt cache a cada
+ * mensagem (busca semântica muda por request). Mesmo padrão de
+ * JARVIS_WEATHER_INTRO.
  */
 export function buildSystemPrompt({
   deep = false,
   tools = [],
-  memoryContext = null,
 } = {}) {
   const blocks = [
     JARVIS_IDENTITY,
@@ -338,11 +344,6 @@ export function buildSystemPrompt({
   if (tools && tools.length > 0) {
     blocks.push(JARVIS_TOOLS_INTRO);
     blocks.push(JARVIS_TOOLS_CATALOG);
-  }
-
-  if (memoryContext && memoryContext.trim().length > 0) {
-    blocks.push(JARVIS_MEMORY_INTRO);
-    blocks.push(memoryContext);
   }
 
   // Guardrails sempre por último — última coisa que o modelo lê antes de responder

@@ -210,8 +210,13 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onP
     // Fase A (docs/HYBRID_MEMORY_PLAN.md): busca de memória por mensagem,
     // sobre o texto real digitado — não mais uma string fixa por scan.
     // Calculada uma única vez por envio, fora do loop de retry de 429
-    // abaixo (não faz sentido buscar de novo a cada tentativa).
-    const memoryContext = searchMemory ? await searchMemory(cmd) : '';
+    // abaixo (não faz sentido buscar de novo a cada tentativa). Memória é
+    // best-effort: uma falha aqui nunca deve travar o chat (ver A7 em
+    // docs/HYBRID_MEMORY_PLAN.md).
+    let memoryContext = '';
+    try {
+      memoryContext = searchMemory ? await searchMemory(cmd) : '';
+    } catch (_) { /* segue sem memória nesta mensagem */ }
 
     // Coalesce dos deltas SSE: no máximo um setStreamText por frame de vídeo.
     // Muitos chunks chegam no mesmo frame; sem isso, cada um força um render.

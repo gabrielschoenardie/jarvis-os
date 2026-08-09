@@ -16,6 +16,7 @@
 import { pipeline, env } from '@huggingface/transformers';
 
 env.allowRemoteModels = false;
+env.allowLocalModels = true;
 env.localModelPath = '/models/';
 env.backends.onnx.wasm.wasmPaths = '/embedder-wasm/';
 

@@ -8,6 +8,7 @@ let worker = null;
 let nextId = 1;
 const pending = new Map();
 let onProgress = null;
+const CALL_TIMEOUT_MS = 15000;
 
 function getWorker() {
   if (!worker) {
@@ -24,6 +25,7 @@ function getWorker() {
     worker.onerror = (err) => {
       for (const { reject } of pending.values()) reject(err);
       pending.clear();
+      worker = null; // permite recriar o worker na próxima chamada
     };
   }
   return worker;
@@ -33,7 +35,14 @@ function call(message) {
   const id = nextId++;
   const w = getWorker();
   return new Promise((resolve, reject) => {
-    pending.set(id, { resolve, reject });
+    const timeout = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error('embedder: timeout aguardando resposta do worker'));
+    }, CALL_TIMEOUT_MS);
+    pending.set(id, {
+      resolve: (v) => { clearTimeout(timeout); resolve(v); },
+      reject: (e) => { clearTimeout(timeout); reject(e); },
+    });
     w.postMessage({ id, ...message });
   });
 }

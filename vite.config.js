@@ -13,6 +13,15 @@ export default defineConfig({
         { src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm', dest: '.' },
         { src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs', dest: '.' },
         { src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs', dest: '.' },
+        // @huggingface/transformers embute sua própria cópia (nightly pinned) do
+        // onnxruntime-web em node_modules/@huggingface/transformers/node_modules/,
+        // com os MESMOS nomes de arquivo mas versão diferente da raiz (usada pelo
+        // VAD). Copiadas pra uma pasta separada para não colidir com os arquivos
+        // do VAD em "/" — ver comentário em src/workers/embedder.worker.js.
+        { src: 'node_modules/@huggingface/transformers/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm', dest: 'embedder-wasm' },
+        { src: 'node_modules/@huggingface/transformers/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm', dest: 'embedder-wasm' },
+        { src: 'node_modules/@huggingface/transformers/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs', dest: 'embedder-wasm' },
+        { src: 'node_modules/@huggingface/transformers/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs', dest: 'embedder-wasm' },
       ],
     }),
   ],

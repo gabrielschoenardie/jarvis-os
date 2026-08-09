@@ -3,13 +3,15 @@ import { C, mono, z } from '../lib/constants.js';
 import { HoloPanel } from './hud/index.js';
 
 // Inspetor de memória (Etapa 6, só leitura) — a cinta mostra "MEMÓRIA: N"
-// desde a Etapa 4, mas até aqui sem onde clicar para ver o que esse número
-// significa. Isto expõe exatamente as notas que entraram no último prompt
-// e o custo estimado em tokens de cada uma. `detail` vem de
-// vault.memoryDetail (src/lib/memoryContext.js:buildMemoryDetail), calculado
-// pela mesma função que monta o texto efetivamente enviado — a lista aqui
-// nunca diverge do que foi pro modelo. Nada aqui muda o que é enviado;
-// fixar/excluir uma nota do contexto é um passo futuro, não este.
+// desde a Etapa 4. Isto expõe exatamente as notas que entraram no último
+// prompt, o custo estimado em tokens, e — desde a Fase A
+// (docs/HYBRID_MEMORY_PLAN.md) — o score de relevância quando a origem foi
+// busca semântica (`detail.mode === 'semantic'`; ausente/undefined no
+// fallback de recência). `detail` vem de vault.memoryDetail
+// (src/lib/memoryContext.js:buildMemoryDetail), calculado pela mesma função
+// que monta o texto efetivamente enviado — a lista aqui nunca diverge do que
+// foi pro modelo. Nada aqui muda o que é enviado; fixar/excluir uma nota do
+// contexto é um passo futuro, não este.
 export function MemoryPanel({ detail, onClose }) {
   const closeBtnRef = useRef(null);
   const restoreFocusRef = useRef(null);
@@ -26,7 +28,8 @@ export function MemoryPanel({ detail, onClose }) {
     };
   }, [onClose]);
 
-  const { notes, totalChars, totalTokens } = detail;
+  const { notes, totalChars, totalTokens, mode } = detail;
+  const footerLabel = mode === 'semantic' ? 'busca semântica + recência' : 'recência pura, sem busca';
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: z.overlay, pointerEvents: 'none' }}>
@@ -53,7 +56,9 @@ export function MemoryPanel({ detail, onClose }) {
                 <div key={n.title} style={{ borderLeft: `2px solid ${C.line}`, paddingLeft: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 11, color: C.text }}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
-                    <span style={{ ...mono, color: C.quiet, whiteSpace: 'nowrap' }}>≈{n.tokens} tok</span>
+                    <span style={{ ...mono, color: C.quiet, whiteSpace: 'nowrap' }}>
+                      ≈{n.tokens} tok{n.score != null ? ` · ${n.score.toFixed(2)}` : ''}
+                    </span>
                   </div>
                   <div style={{ fontSize: 10, color: C.muted, marginTop: 3, lineHeight: 1.5 }}>
                     {n.excerpt.length > 140 ? n.excerpt.slice(0, 140) + '…' : n.excerpt}
@@ -64,7 +69,7 @@ export function MemoryPanel({ detail, onClose }) {
           )}
 
           <div style={{ marginTop: 14, paddingTop: 10, borderTop: `1px solid ${C.line}`, display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.muted, letterSpacing: '0.08em' }}>
-            <span>{notes.length} nota{notes.length === 1 ? '' : 's'} · recência pura, sem busca</span>
+            <span>{notes.length} nota{notes.length === 1 ? '' : 's'} · {footerLabel}</span>
             <span style={{ ...mono, color: C.quiet }}>≈{totalTokens} tok · {totalChars}/2000 car.</span>
           </div>
         </HoloPanel>

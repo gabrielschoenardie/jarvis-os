@@ -18,7 +18,7 @@ export default defineConfig({
   ],
   optimizeDeps: {
     include: ['three', 'd3-force-3d'],
-    exclude: ['@ricky0123/vad-react', '@ricky0123/vad-web', 'onnxruntime-web'],
+    exclude: ['@ricky0123/vad-react', '@ricky0123/vad-web', 'onnxruntime-web', '@huggingface/transformers'],
   },
   build: {
     chunkSizeWarningLimit: 2000,

@@ -8,7 +8,7 @@
     "preview": "vite preview",
     "lint:design": "node scripts/design-lint.mjs",
     "postinstall": "node scripts/fetch-embedding-model.mjs",
-    "test": "node --test src/lib"
+    "test": "node --test"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.0.0",

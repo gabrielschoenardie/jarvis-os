@@ -606,14 +606,19 @@ export default function JarvisOS() {
             )}
             {/* Cockpit: única superfície projetada da barra de comando (cantoneiras +
                 glass legítimos aqui — é o que a regra de profundidade da Etapa 3/4
-                reserva pra superfícies projetadas). O gutter de 88px antes do campo
-                herda a largura do rótulo SIR · GABRIEL/J.A.R.V.I.S. da conversa
-                acima, alinhando onde o texto digitado começa com onde o texto da
-                conversa começa. */}
+                reserva pra superfícies projetadas). O ícone de status tinha um
+                gutter de 88px (herdando a largura do rótulo SIR · GABRIEL/
+                J.A.R.V.I.S. da conversa acima, pra alinhar onde o texto digitado
+                começa com onde o texto da conversa começa) — removido: reportado
+                duas vezes como espaço morto (um glifo isolado nunca preenche
+                88px, então sobra vazio de um lado ou do outro dele, não importa
+                o alinhamento). O campo agora começa logo após o ícone; a
+                alinhação com a conversa acima foi trocada por um cockpit sem
+                buraco visível. */}
             <div style={{ position: 'relative', padding: '10px 16px', ...glass }}>
               <Corners />
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 10, gap: 12 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 88, color: chat.thinking ? C.warn : C.accent, fontSize: 13 }}>{chat.thinking ? '⟳' : '⟢'}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', color: chat.thinking ? C.warn : C.accent, fontSize: 13 }}>{chat.thinking ? '⟳' : '⟢'}</span>
                 <input
                   ref={inputRef}
                   className="jv-input"

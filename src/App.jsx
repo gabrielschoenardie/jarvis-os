@@ -613,7 +613,7 @@ export default function JarvisOS() {
             <div style={{ position: 'relative', padding: '10px 16px', ...glass }}>
               <Corners />
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 10, gap: 12 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', minWidth: 88, color: chat.thinking ? C.warn : C.accent, fontSize: 13 }}>{chat.thinking ? '⟳' : '⟢'}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 88, color: chat.thinking ? C.warn : C.accent, fontSize: 13 }}>{chat.thinking ? '⟳' : '⟢'}</span>
                 <input
                   ref={inputRef}
                   className="jv-input"

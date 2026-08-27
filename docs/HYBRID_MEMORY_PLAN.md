@@ -129,129 +129,267 @@ Se o índice não existe, está incompleto, o modelo falhou ao carregar ou o vau
 
 **Só começa depois da Fase A mergeada e rodando (PR #68 ✅).**
 
-### B1. Arquitetura — por que Cloudflare R2
+> **Revisão v3.** A v2 deste documento tinha defeitos que já vazaram para o
+> código (`api/memory-sync.js` foi commitado direto na `main` em `0344d97`,
+> com `Buffer` sob `runtime: 'edge'` e funções de hash/HMAC *placeholder* —
+> ver B0). Esta revisão corrige a arquitetura antes de qualquer nova linha.
 
-| Feature | Vercel Blob (original) | Cloudflare R2 (v2) |
-|---------|---|---|
-| **Free tier** | ❌ Nenhum | ✅ 10 GB/mês |
-| **Egress** | Pago (~$0,08/GB) | ✅ FREE |
-| **API** | Proprietária | ✅ S3-compatible |
-| **Ideal pra JARVIS** | Locked-in | ✅ Open |
+### B0. Passo zero — o que já está na `main` e está quebrado
 
-**Cálculo de custo:**
-- Índice de vault típico = 8 MB
-- Free tier = 10 GB/mês = 1.250 syncs mensais
-- Uso real = 2-5 syncs/dia (várias devices)
-- Conclusão: **FREE forever pra maioria dos usuários**
+`api/memory-sync.js` **já existe** e não funciona. Não é "criar", é
+**substituir**. Três defeitos, todos fatais:
 
-Após sair do free tier (100 GB/mês), R2 cobra $0,015/GB — 200× mais barato que egress de outras CDNs e melhor que o resto dos concorrentes.
+1. Declara `export const config = { runtime: 'edge' }` mas usa `Buffer` —
+   que não existe no Edge Runtime (isolate V8, não Node). `ReferenceError`
+   na primeira chamada.
+2. `hashSHA256()` devolve um hex falso e `hmacSHA256()` devolve a string
+   literal `'xxxxxxxx'` — os próprios comentários admitem. A assinatura
+   AWS SigV4 nunca seria válida; o R2 rejeitaria tudo.
+3. Roteia o blob inteiro pelo servidor (ver B1) — o que não cabe.
+
+Nada no `src/` importa esse arquivo, então ele é código morto e o app segue
+funcionando. Mas ele **não deve ser usado como base**: começar dele é
+herdar os três problemas.
+
+### B1. Arquitetura — R2 com URLs pré-assinadas (não proxy)
+
+R2 continua sendo a escolha certa (free tier 10 GB/mês, egress grátis,
+S3-compatible, sem lock-in). O que muda é **como** o navegador chega nele.
+
+**O desenho da v2 não fecha.** Ele mandava os ~8 MB do índice no corpo de um
+`PUT /api/memory-sync`, mas funções da Vercel têm teto de corpo de
+requisição na ordem de ~4–4,5 MB (Edge e Node). O `PUT` falharia sempre. E
+comprimir não resolve: o grosso do índice são vetores `Float32` normalizados,
+que comprimem mal — o texto dos chunks encolhe, os vetores quase não.
+
+**Correção — a função só assina, o navegador transfere:**
+
+```
+1. Browser  → GET  /api/memory-sync/sign?op=put   (função Vercel, ~1 KB de resposta)
+2. Função   → devolve URL R2 pré-assinada, expira em 5 min
+3. Browser  → PUT  <url-r2>  (8 MB vão DIRETO pro R2, sem passar pela Vercel)
+```
+
+Isso resolve três coisas de uma vez: some o teto de tamanho, some o egress
+pela Vercel (o R2 não cobra egress), e as credenciais R2 continuam só no
+servidor — o navegador nunca as vê.
+
+**Runtime: Edge.** Com o proxy fora do caminho, a função só faz assinatura —
+trabalho pequeno, sem `Buffer`, sem streaming de corpo grande. Edge serve
+bem. A regra que isso impõe: **nada de API de Node** nesse arquivo.
+
+**Dependência nova, deliberada.** O B9 da v2 exigia "nenhuma dependência
+nova — usa WebCrypto nativo", e foi exatamente essa restrição que produziu o
+SigV4 falso. Assinar SigV4 na mão são ~80 linhas de canonicalização
+traiçoeira que precisariam dos próprios testes. **`aws4fetch`** (~6 KB, feito
+para edge/Workers, usa WebCrypto, suporta `signQuery: true` para
+pré-assinatura) elimina essa classe inteira de bug. Vale a dependência.
+
+**Cálculo de custo** (inalterado): índice típico 8 MB · free tier 10 GB/mês
+≈ 1.250 syncs/mês · uso real 2–5 syncs/dia → **grátis na prática**. Acima do
+free tier, R2 cobra $0,015/GB de armazenamento e nada de egress.
 
 ### B2. Criptografia — WebCrypto, cliente-side
 
-O servidor (R2) **nunca vê dados em claro**. Fluxo:
+O servidor **nunca vê dados em claro**. Fluxo:
 
 ```
-Browser (A): { índice JSON } → gzip → AES-GCM(passphrase, IV aleatório) → ciphertext
-                ↓
-          R2: armazena blob opaco (ciphertext)
-                ↓
-Browser (B): GET ciphertext → AES-GCM_decrypt(passphrase) → índice JSON
+Browser (A): índice → serializa → AES-GCM(chave, IV aleatório) → ciphertext
+                ↓  (PUT direto, URL pré-assinada)
+          R2: blob opaco
+                ↓  (GET direto, URL pré-assinada)
+Browser (B): ciphertext → AES-GCM_decrypt(chave) → índice
 ```
 
-- **Derivação de chave**: PBKDF2 (WebCrypto, SHA-256, 600k iterações, salt aleatório de 16 bytes)
-- **Cifra**: AES-GCM (IV novo a cada push, auth tag automático)
-- **Salt**: persistido no navegador (`localStorage: jarvis-index-salt`) — mesmo salt, messmos iterations, mesma passphrase = mesma chave
-- **Passphrase**: entrada do usuário (não é a do Obsidian Sync, é uma adicional pra Fase B)
+**Derivação — uma passagem de PBKDF2, dois usos:**
 
-**Nota de segurança:** Passphrase fica em RAM e localStorage (que é local-only, não sai do device). Tão segura quanto uma senha do próprio Obsidian.
+```
+salt      = SHA-256("jarvis-os/v1" + passphrase)      // determinístico
+material  = PBKDF2(passphrase, salt, 600_000, SHA-256) → 64 bytes
+chaveAES  = material[0..31]      // AES-256-GCM
+objectId  = hex(material[32..63]) // nome do objeto no R2
+```
 
-### B3. Arquivos novos
+Por que o `objectId` sai da mesma derivação: **é isso que autentica o
+endpoint** (ver B3). Quem não tem a passphrase não consegue nem nomear o
+objeto, então não consegue ler nem sobrescrever. Os 32 bytes usados como
+nome não enfraquecem a chave AES — são metade distinta do mesmo material, e
+o custo de força bruta continua sendo os 600k de iterações.
+
+**Por que o salt é determinístico** (e não aleatório como na v2): um
+dispositivo novo só tem a passphrase. Se o salt fosse aleatório e guardado no
+`localStorage` do primeiro device, o segundo não teria como derivar a mesma
+chave nem descobrir o nome do objeto — o sync nunca bootstrapa. O preço é
+perder a proteção contra rainbow tables *entre passphrases diferentes*;
+mitigado pelas 600k iterações e por exigir uma passphrase forte. Trade-off
+consciente, não descuido.
+
+⚠️ **Correções sobre a v2:**
+- **Sem campo `authTag`.** O WebCrypto já devolve a tag **anexada ao
+  ciphertext** no AES-GCM — não existe API para obtê-la separada. A v2
+  listava `authTag` como campo próprio no B4; isso não é implementável.
+- **Passphrase nunca é persistida.** A v2 dizia "fica em RAM e
+  localStorage". Guardar a passphrase no `localStorage` deixa o material da
+  chave em repouso no navegador e anula boa parte da criptografia. Ela vive
+  **só em estado React, na sessão** — o operador redigita a cada sessão, por
+  design. (Salt e IV não precisam ser guardados: o salt é derivado, o IV
+  viaja junto do blob.)
+
+### B3. Autenticação do endpoint
+
+A v2 expunha `GET`/`PUT` sem autenticação nenhuma e com
+`Access-Control-Allow-Origin: '*'`. O ciphertext protege a
+**confidencialidade**, mas não a **integridade** nem a **disponibilidade**:
+qualquer um que descobrisse a URL poderia sobrescrever o índice, apagá-lo, ou
+encher o bucket até estourar o free tier.
+
+Um segredo compartilhado não resolve — o cliente é um navegador, então
+qualquer token embutido no bundle é público. A autenticação real vem do
+`objectId` derivado da passphrase (B2):
+
+- A função de assinatura recebe o `objectId` e assina uma URL **escopada
+  àquele objeto**, com expiração de 5 minutos.
+- Sem a passphrase não há `objectId` válido → não há URL → não há acesso.
+- A função valida o formato (`^[0-9a-f]{64}$`) antes de assinar, para não
+  virar um assinador genérico de caminhos arbitrários no bucket.
+- `Access-Control-Allow-Origin` restrito à origem do app, não `*`.
+
+Isso não é autenticação de usuário (o app é pessoal, não tem contas) — é
+capability-based: **conhecer o nome do objeto é a credencial**, e o nome só
+existe para quem tem a passphrase.
+
+### B4. Formato do objeto no R2
+
+Corpo **binário puro** (`application/octet-stream`), sem JSON envolvendo:
+
+```
+[ 12 bytes: IV ][ N bytes: ciphertext + auth tag (AES-GCM) ]
+```
+
+Metadados em headers S3 (`x-amz-meta-*`, incluídos na assinatura):
+
+```
+x-amz-meta-updated-at: <epoch>
+x-amz-meta-device-id:  <uuid>
+x-amz-meta-version:    1
+```
+
+⚠️ **Correção sobre a v2:** ela especificava `ciphertext: Uint8Array` dentro
+de um JSON. `JSON.stringify` de um `Uint8Array` produz
+`{"0":12,"1":45,...}` — várias vezes o tamanho original. Para 8 MB isso é
+proibitivo. Binário puro não infla nada; base64 (se algum dia for
+necessário) inflaria 33%, ainda muito melhor que a forma da v2.
+
+**Checar frescor sem baixar 8 MB:** os metadados em header permitem um
+`HEAD` na URL pré-assinada para ler `updated-at` e decidir se vale a pena
+puxar o blob. Sem isso, todo check de conflito custaria um download inteiro.
+
+**Conflitos:** last-write-wins por `updatedAt` + `deviceId`. Se o remoto for
+mais novo que o local, o `MemoryPanel` oferece `CARREGAR DO CLOUD` — nunca
+sobrescreve automaticamente.
+
+### B5. Arquivos novos
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `src/lib/indexCrypto.js` | PBKDF2 key derivation, AES-GCM encrypt/decrypt, testes. |
-| `src/lib/indexSync.js` | `push()` / `pull()` contra R2, last-write-wins por `updatedAt` + `deviceId`, progress. |
-| `src/lib/deviceId.js` | UUID persistido em localStorage, pra resolver conflitos (qual device ganhou a escrita). |
-| `api/memory-sync.js` | Node.js Edge Function, proxy pra Cloudflare R2. `GET /api/memory-sync` → index ciphertext, `PUT` → armazena (sem validar conteúdo). |
-| `src/hooks/useIndexSync.js` | Coordena pull() no mount, push() debounced a cada scan bem-sucedido + ação manual SINCRONIZAR do MemoryPanel. |
+| `src/lib/indexCrypto.js` | Derivação (B2) + AES-GCM encrypt/decrypt. Puro, testável em Node. |
+| `src/lib/indexSerialize.js` | Índice ↔ bytes. `Float32Array` não é JSON-serializável; converte para `ArrayBuffer` e de volta. Puro. |
+| `src/lib/indexSync.js` | `push()` / `pull()` / `peek()` (HEAD) contra as URLs pré-assinadas. |
+| `src/lib/deviceId.js` | UUID persistido em `localStorage` (não é segredo — só identifica quem escreveu). |
+| `api/memory-sync.js` | **Substitui o arquivo quebrado.** Edge. Valida `objectId`, assina URL R2 com `aws4fetch`, devolve. Não vê bytes do índice. |
+| `src/hooks/useIndexSync.js` | Coordena `peek()` no mount, `push()` debounced, e a ação manual do painel. |
 
-### B4. Formato de sync
+### B6. Integração — o invariante que protege a Fase A
 
-Blob armazenado em R2 (opaco ao servidor):
+**Regra dura: sem as env vars do R2, nenhuma linha da Fase B executa e o
+comportamento é idêntico ao de hoje.** A v2 dizia isso em prosa (B8); aqui
+vira contrato verificável:
 
-```js
-{
-  version: 1,
-  createdAt: <epoch>,
-  updatedAt: <epoch>,
-  deviceId: <uuid>,     // qual device fez último push
-  ciphertext: Uint8Array,
-  salt: Uint8Array,
-  iv: Uint8Array,
-  authTag: Uint8Array   // AES-GCM authentication
-}
-```
+- `useIndexSync` retorna `{ status: 'disabled' }` e não registra efeito
+  algum quando `import.meta.env.VITE_MEMORY_SYNC_ENABLED` não está ligado.
+- `useVaultIndex` **não muda** — o sync lê e escreve o índice pelas mesmas
+  funções de `idb.js` já usadas, sem tocar no caminho de busca.
+- Teste dedicado: com a flag desligada, `searchMemory` produz exatamente o
+  mesmo resultado de antes da Fase B, e nenhum `fetch` é disparado.
 
-**Conflitos**: last-write-wins por `updatedAt` + `deviceId`. Quando browser B faz pull e vê que remote é mais novo, oferece ação `CARREGAR DO CLOUD` no MemoryPanel.
-
-### B5. Integração com useVault
-
-- `useVault.js` importa `useIndexSync`
-- No mount: `useIndexSync` faz pull() (sem avisar se é pull ou local) e diferencia
-- A cada scan bem-sucedido em `useVaultIndex`: `indexSync.push()` agendado (debounce 30s)
-- MemoryPanel ganha ação `SINCRONIZAR` (manual) + status badge `cloud` quando conectado
-
-### B6. Env vars (Cloudflare R2)
-
-Em `vercel.json` + `.env.production`:
-
-```
-CLOUDFLARE_ACCOUNT_ID=<seu-account-id>
-CLOUDFLARE_R2_KEY=<application key com permissão s3>
-CLOUDFLARE_R2_SECRET=<application key secret>
-CLOUDFLARE_R2_BUCKET=jarvis-memory-index
-```
-
-**Como gerar:**
-1. Dashboard Cloudflare → R2 → criar bucket `jarvis-memory-index`
-2. Settings → API Tokens → Create API Token → S3 Client
-3. Copiar Access Key ID (CLOUDFLARE_R2_KEY) + Secret
-4. Account ID está no dashboard R2, URL raiz
+Ligado:
+- Mount: `peek()` → se remoto mais novo, oferece carregar (não baixa sozinho).
+- Após cada scan bem-sucedido: `push()` com debounce **longo** (≥5 min, não
+  os 30 s da v2 — são 8 MB por escrita) ou pela ação manual.
 
 ### B7. Fluxo de UI
 
-**MemoryPanel** (já existe, só adiciona ações):
-- Badge `CLOUD` azul enquanto conectado e sincronizando
-- Botão `SINCRONIZAR` manual (visível quando `indexStatus === 'ready'` e `indexSyncStatus === 'idle'`)
-- Aviso `⚠ INDEX REMOTO MAIS NOVO — CARREGAR?` quando `remoteUpdatedAt > localUpdatedAt`
-- Log de último sync (`"sincronizado há 2 minutos"`)
+**MemoryPanel** (superfície de memória, já existe):
+- Campo de passphrase (só sessão) quando o sync está ligado e destrancado.
+- Ação `SINCRONIZAR` manual.
+- Aviso `⚠ ÍNDICE REMOTO MAIS NOVO — CARREGAR?` quando `peek()` detecta.
+- Última sincronização em texto (`"sincronizado há 2 minutos"`).
+- Erro de passphrase: decrypt falha → aviso + retry, sem apagar nada local.
 
-**StatusStrip** (já tem item ÍNDICE):
-- Trocar item para duplo: `ÍNDICE` (local) + `CLOUD` (status remoto)
-- `CLOUD` fica ciano/`ok` quando conectado, cinzento/muted quando offline
+**StatusStrip** — ⚠️ **correção sobre a v2**, que propunha um item `CLOUD`
+ciano permanente enquanto conectado. Isso reintroduz exatamente o que o
+PR #67 removeu: brilho gasto para dizer "nada mudou". O item `CLOUD` segue a
+mesma regra do `ÍNDICE` — **aparece só enquanto sincroniza**, e some quando
+termina. Em repouso, a cinta não ganha item nenhum.
 
-### B8. Degradação e fallback
+### B8. Env vars
 
-- **Sem credenciais R2**: desativa sync silenciosamente, continua usando índice local (Fase A standalone)
-- **Sem internet**: push fica pendente, pull foi feito no mount (índice continua pronto)
-- **R2 offline**: log de erro, continua usando índice local
-- **Passphrase errada**: decrypt falha, aviso no MemoryPanel, oferece retry
+Servidor (Vercel, nunca no bundle):
+```
+CLOUDFLARE_ACCOUNT_ID=<account id>
+CLOUDFLARE_R2_KEY=<S3 access key id>
+CLOUDFLARE_R2_SECRET=<S3 secret>
+CLOUDFLARE_R2_BUCKET=jarvis-memory-index
+```
+Cliente (build-time, só liga/desliga a feature):
+```
+VITE_MEMORY_SYNC_ENABLED=1
+```
 
-### B9. Arquivos tocados na Fase B
+Como gerar: Dashboard Cloudflare → R2 → criar bucket `jarvis-memory-index`
+(privado) → API Tokens → Create API Token → S3 Client → copiar Access Key ID
+e Secret. O Account ID está na URL do dashboard R2. Já documentado em
+`.env.example`.
 
-**Novos**: os 5 de B3.
-**Modificados**: `src/hooks/useVault.js` · `src/components/MemoryPanel.jsx` · `src/components/StatusStrip.jsx` · `vercel.json` · `api/chat.js` (nenhuma mudança, só recebe índice sincronizado) · `.env.example` · `package.json` (nenhuma nova dependência — usa WebCrypto nativo).
+### B9. Degradação e fallback
 
-### B10. Implementação — TDD
+- **Sem env vars / flag desligada**: sync inerte, Fase A intacta (B6).
+- **Sem internet**: `push` fica pendente; o índice local segue servindo.
+- **R2 fora do ar / URL expirada**: loga, mostra estado no painel, não bloqueia o chat.
+- **Passphrase errada**: `decrypt` falha na tag de autenticação → aviso, retry, nada local é destruído.
+- **Objeto inexistente (primeiro device)**: `peek()` devolve 404 → estado normal, não é erro.
 
-Mesma abordagem da Fase A:
+### B10. Arquivos tocados
 
-1. **Tests primeiro**: `indexCrypto.test.js` (round-trip encrypt/decrypt, passphrase errada falha, salt/IV aleatórios)
-2. **Puro Node**: chunker, vectorIndex, deviceId, indexSync — tudo testável sem browser
-3. **Integration tests**: Playwright contra build prod, injetar índice remoto via mock R2, conferir UI
-4. **Aceitação**: conectar Cloudflare R2 real, sincronizar vault entre 2 browsers
+**Novos/substituídos**: os 6 de B5.
+**Modificados**: `src/hooks/useVault.js` · `src/components/MemoryPanel.jsx` ·
+`src/components/StatusStrip.jsx` · `.env.example` · `package.json`
+(`aws4fetch`) · `README.md` (nota de privacidade: o índice cifrado passa a
+sair da máquina).
+**Não tocados**: `jarvis-prompts.js`, `api/chat.js`, `useVaultIndex.js`,
+`memoryContext.js` — o contrato de `memoryContext` não muda nesta fase.
 
----
+### B11. Implementação — TDD, dois PRs
+
+Mesma disciplina das etapas 1–6: branch → PR, `build` + `lint:design` +
+`npm test` verdes antes de avançar. **Não commitar direto na `main`** — foi
+assim que o arquivo quebrado do B0 escapou de revisão.
+
+**PR 1 — núcleo puro (sem UI, sem rede real):**
+1. `indexCrypto.test.js` primeiro: round-trip encrypt/decrypt; passphrase
+   errada falha na tag; IV diferente a cada chamada; derivação determinística
+   (mesma passphrase → mesmo `objectId` em execuções distintas).
+2. `indexSerialize.test.js`: round-trip preserva `Float32Array` bit a bit.
+3. `indexCrypto.js`, `indexSerialize.js`, `deviceId.js`.
+
+**PR 2 — rede e UI:**
+4. `api/memory-sync.js` substituído (Edge + `aws4fetch`), com validação de
+   `objectId` e CORS restrito.
+5. `indexSync.js` + `useIndexSync.js` atrás da flag.
+6. Wiring no `MemoryPanel`/`StatusStrip`.
+7. Playwright contra o build de produção (não o dev server — foi o dev
+   server que deixou passar o bug de layout do PR #69).
+8. Aceitação real: dois navegadores, mesma passphrase, índice atravessa.
 
 ## Fora de escopo
 
@@ -260,6 +398,8 @@ Mesma abordagem da Fase A:
 - Fine-tuning ou qualquer "aprendizado" de pesos — memória aqui é recuperação + injeção de contexto.
 - Mudanças em `jarvis-prompts.js` / `api/chat.js` — o BLOCO 9 já está pronto e o contrato de `memoryContext` continua o mesmo.
 - Delta sync por chunk (v1: full blob, ~8MB reescrito). Otimizar após uso real.
+- Quantização dos vetores para `int8` (384 bytes/chunk em vez de 1.536 — 4× menor, custo pequeno de recall). Com URLs pré-assinadas o tamanho deixou de ser bloqueio, então virou otimização, não requisito.
+- Contas/multiusuário: a autenticação da Fase B é capability-based (quem tem a passphrase tem acesso), não um sistema de login.
 - Compartilhamento de vault entre usuários (fora do escopo de "memória pessoal").
 
 ---
@@ -267,11 +407,11 @@ Mesma abordagem da Fase A:
 ## Roadmap
 
 - **Fase A**: ✅ Mergeada (PR #68)
-- **Fase B**: 🔄 Planejada (este documento, v2 com R2)
-  - B-crypto: TDD `indexCrypto.js`
-  - B-sync: TDD `indexSync.js`
-  - B-integration: Wire em `useVault.js`, `MemoryPanel.jsx`
-  - B-deploy: Configurar R2, testar com Vercel
+- **Fase B**: 🔄 Planejada (este documento, **v3** — R2 com URLs pré-assinadas)
+  - ⚠️ `api/memory-sync.js` na `main` (`0344d97`) está quebrado e **não serve de base** — ver B0
+  - PR 1 · núcleo puro: TDD `indexCrypto.js` + `indexSerialize.js` + `deviceId.js`
+  - PR 2 · rede e UI: substituir `api/memory-sync.js`, `indexSync.js`, `useIndexSync.js`, wiring no painel/cinta
+  - Deploy: criar bucket R2, configurar env vars, aceitação com dois navegadores
 
 ---
 

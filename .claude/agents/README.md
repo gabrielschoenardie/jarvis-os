@@ -56,8 +56,8 @@ reference.
 | `calcular` parser never gains `eval`/`Function` | Key library files § `jarvis-tools.js` | `security-reviewer` |
 | `hud_display` ID validation + oEmbed timeout semantics | Tool use § `hud_display` | `security-reviewer`, `architecture-guardian` |
 | Vault privacy boundary: local scan/index/embeddings; only retrieval-selected excerpts (≤2000 chars) or the explicit analyze flow leave the browser | Obsidian vault brain § privacy + Vault Semantic Memory § privacy invariant | `security-reviewer`, `architecture-guardian` |
-| Embedding model identity: `Xenova/multilingual-e5-small`, `q8`, 384 dims | Vault Semantic Memory (Fase A) | `architecture-guardian` |
-| E5 `query:`/`passage:` prefixes, mean pooling, `normalize: true` | Vault Semantic Memory (Fase A) | `architecture-guardian` |
+| Embedding model identity: `Xenova/multilingual-e5-small`, `q8`, 384 dims | Vault Semantic Memory (Fase A) | `architecture-guardian`, `ai_ml_worker` |
+| E5 `query:`/`passage:` prefixes, mean pooling, `normalize: true` | Vault Semantic Memory (Fase A) | `architecture-guardian`, `ai_ml_worker` |
 | Index schema `{version, model, dims}` guarded; incompatible index discarded and rebuilt | Vault Semantic Memory § `useVaultIndex.js` | `architecture-guardian` |
 | Indexing stays incremental (diff by `mtime`), never a full re-embed per scan | Vault Semantic Memory § `vectorIndex.js` / `useVaultIndex.js` | `architecture-guardian`, `performance-monitor` |
 | Recency fallback always reachable; memory failures never break chat | Vault Semantic Memory § graceful degradation | `architecture-guardian`, `performance-monitor` |
@@ -69,8 +69,3 @@ reference.
 | `executeTool` stays `async`/awaited | Tool use, closing paragraph | `architecture-guardian` |
 | COOP/COEP headers present in both `vite.config.js` and `vercel.json` | VAD & WASM assets | `architecture-guardian`, `performance-monitor` |
 | three.js scene hygiene (`scene.background`, symmetric `dispose()`, Bloom+OutputPass) | Obsidian vault brain § `brain-scene.js` | `architecture-guardian` |
-
-The "Checked by" column lists **reviewers**. `ai_ml_worker` is an implementer,
-not a checker: it must *preserve* every semantic-memory row above while
-executing an Orchestrator spec, and report back rather than deciding to change
-one on its own.

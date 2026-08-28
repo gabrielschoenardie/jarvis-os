@@ -1,10 +1,11 @@
 # Plano de Implementação — JARVIS OS
+
 ## Fase A.1 — Retrieval Refinement: contexto semântico preciso, rastreável e sem regressões
 
-> **Executor:** Claude Code no VS Code  
-> **Repositório:** `gabrielschoenardie/jarvis-os`  
-> **Branch alvo:** `main`  
-> **Objetivo:** melhorar a qualidade do retrieval semântico atualmente implementado, preservando toda a arquitetura existente.
+> - **Executor:** Claude Code no VS Code
+> - **Repositório:** `gabrielschoenardie/jarvis-os`
+> - **Branch alvo:** `main`
+> - **Objetivo:** melhorar a qualidade do retrieval semântico atualmente implementado, preservando toda a arquitetura existente.
 >
 > **IMPORTANTE:** este plano NÃO troca o modelo de embeddings, NÃO implementa o Plano B/R2 e NÃO deve alterar a arquitetura de sync. O modelo permanece definitivamente nesta fase como:
 >
@@ -14,7 +15,7 @@
 
 ---
 
-# 1. Contexto atual — NÃO REFAZER
+## 1. Contexto atual — NÃO REFAZER
 
 Antes de alterar qualquer coisa, leia e entenda a implementação atual dos arquivos:
 
@@ -53,7 +54,7 @@ chat
 
 e leia o `CLAUDE.md` antes de modificar o projeto.
 
-### Não faça uma reimplementação da memória.
+### Não faça uma reimplementação da memória
 
 A Fase A já existe e está funcionando.
 
@@ -91,7 +92,7 @@ Essa arquitetura deve permanecer.
 
 ---
 
-# 2. Decisões arquiteturais congeladas
+## 2. Decisões arquiteturais congeladas
 
 NÃO alterar:
 
@@ -177,7 +178,7 @@ O Plano B continuará apenas como planejamento futuro.
 
 ---
 
-# 3. Problema que esta fase deve corrigir
+## 3. Problema que esta fase deve corrigir
 
 A implementação atual recupera corretamente um chunk por similaridade semântica, mas existe uma perda de informação no momento em que o conteúdo recuperado é transformado em contexto para o Claude.
 
@@ -211,19 +212,19 @@ E o MemoryPanel deve refletir exatamente isso.
 
 ---
 
-# 4. Objetivos da Fase A.1
+## 4. Objetivos da Fase A.1
 
 Implementar:
 
-## A. Preservar o trecho relevante
+### A. Preservar o trecho relevante
 
 Não truncar cegamente sempre pelos primeiros 400 caracteres.
 
-## B. Preservar contexto
+### B. Preservar contexto
 
 Ao selecionar um chunk semântico, manter o máximo de contexto útil dentro do orçamento atual.
 
-## C. Preservar compatibilidade
+### C. Preservar compatibilidade
 
 Não aumentar indiscriminadamente o payload enviado ao Claude.
 
@@ -235,15 +236,15 @@ MAX_TOTAL_CHARS = 2000
 
 deve continuar existindo.
 
-## D. Melhorar o contexto sem mudar o modelo
+### D. Melhorar o contexto sem mudar o modelo
 
 Nenhuma alteração no E5 Small.
 
-## E. Melhorar metadata sem quebrar o índice existente
+### E. Melhorar metadata sem quebrar o índice existente
 
 Os chunks devem passar a carregar contexto estrutural suficiente para melhorar retrieval futuro.
 
-## F. Tornar retrieval observável
+### F. Tornar retrieval observável
 
 Ser possível descobrir:
 
@@ -255,13 +256,13 @@ qual seção/heading estava associada
 qual texto realmente foi enviado ao Claude
 ```
 
-## G. MemoryPanel deve representar o prompt real
+### G. MemoryPanel deve representar o prompt real
 
 O painel não pode mostrar um conteúdo diferente daquele enviado ao Claude.
 
 ---
 
-# 5. Regra crítica: compatibilidade com o índice existente
+## 5. Regra crítica: compatibilidade com o índice existente
 
 O projeto possui índice persistido no IndexedDB:
 
@@ -287,7 +288,7 @@ A implementação deve ser retrocompatível o suficiente para não causar crash 
 
 Como haverá mudança no formato dos chunks/metadados, é aceitável invalidar e reconstruir o índice.
 
-### Recomendo:
+### Recomendo
 
 alterar:
 
@@ -323,13 +324,13 @@ descartar índice
 reindexar com segurança
 ```
 
-### Não apagar o banco IndexedDB inteiro.
+### Não apagar o banco IndexedDB inteiro
 
 Invalidar apenas o índice do JARVIS.
 
 ---
 
-# 6. Melhoria 1 — Structural Metadata nos chunks
+## 6. Melhoria 1 — Structural Metadata nos chunks
 
 O atual `chunker.js` trabalha essencialmente sobre texto linear.
 
@@ -380,7 +381,7 @@ Não tornar o parser Markdown excessivamente complexo nesta fase.
 
 ---
 
-# 7. Atenção ao chunking
+## 7. Atenção ao chunking
 
 Não destrua o comportamento existente de:
 
@@ -414,7 +415,7 @@ Evitar:
 
 ---
 
-# 8. Melhoria 2 — embedding com contexto estrutural
+## 8. Melhoria 2 — embedding com contexto estrutural
 
 Atualmente o embedding recebe essencialmente:
 
@@ -469,7 +470,7 @@ Exemplo:
 
 ---
 
-# 9. Não quebrar E5
+## 9. Não quebrar E5
 
 Continue usando o mesmo worker:
 
@@ -494,7 +495,7 @@ A única evolução deve ser o conteúdo entregue ao `passage:`.
 
 ---
 
-# 10. Melhoria 3 — Retrieval deve preservar o chunk real
+## 10. Melhoria 3 — Retrieval deve preservar o chunk real
 
 No `vectorIndex.js`, `search()` atualmente retorna:
 
@@ -522,13 +523,13 @@ Evoluir para retornar metadata suficiente:
 
 Sem remover nenhum campo atual que outros componentes utilizem.
 
-### Regra:
+### Regra
 
 Não quebrar consumidores existentes.
 
 ---
 
-# 11. Melhoria 4 — Não usar mais `slice(0, 400)` cegamente
+## 11. Melhoria 4 — Não usar mais `slice(0, 400)` cegamente
 
 O `memoryContext.js` possui:
 
@@ -582,7 +583,7 @@ Não inventar uma falsa localização semântica dentro do chunk, já que o embe
 
 ---
 
-# 12. Regra importante para chunks pequenos
+## 12. Regra importante para chunks pequenos
 
 Se o chunk tem:
 
@@ -604,7 +605,7 @@ O sistema deve maximizar a informação relevante dentro dele.
 
 ---
 
-# 13. Novo algoritmo de montagem do contexto
+## 13. Novo algoritmo de montagem do contexto
 
 Reestruturar `selectParts()` para:
 
@@ -637,7 +638,7 @@ A regra é:
 
 ---
 
-# 14. Melhorar o rótulo do contexto
+## 14. Melhorar o rótulo do contexto
 
 Atualmente o texto pode dizer:
 
@@ -665,7 +666,7 @@ Não mencionar "recentes" quando a origem for semanticamente recuperada.
 
 ---
 
-# 15. MemoryContext deve saber o modo
+## 15. MemoryContext deve saber o modo
 
 Evoluir de modo compatível:
 
@@ -685,7 +686,7 @@ deve continuar funcionando.
 
 ---
 
-# 16. MemoryDetail deve refletir o mesmo conteúdo real
+## 16. MemoryDetail deve refletir o mesmo conteúdo real
 
 A boa propriedade atual de compartilhar a lógica entre:
 
@@ -696,7 +697,7 @@ buildMemoryContext()
 
 deve ser preservada.
 
-### Regra absoluta:
+### Regra absoluta
 
 Não duplicar lógica de seleção.
 
@@ -712,7 +713,7 @@ Assim o MemoryPanel é uma representação visual do que realmente foi enviado.
 
 ---
 
-# 17. MemoryPanel — melhorar observabilidade
+## 17. MemoryPanel — melhorar observabilidade
 
 O `MemoryPanel` já mostra:
 
@@ -751,7 +752,7 @@ Isso será útil para depuração.
 
 ---
 
-# 18. Melhorar `useVault.searchMemory()`
+## 18. Melhorar `useVault.searchMemory()`
 
 A função deve continuar:
 
@@ -798,7 +799,7 @@ Isso mantém compatibilidade.
 
 ---
 
-# 19. Score híbrido — NÃO alterar agressivamente
+## 19. Score híbrido — NÃO alterar agressivamente
 
 Hoje existe aproximadamente:
 
@@ -822,7 +823,7 @@ com os valores atuais.
 
 ---
 
-# 20. Retrieval candidates
+## 20. Retrieval candidates
 
 Não trocar imediatamente o mecanismo por ANN, reranker externo ou banco vetorial.
 
@@ -844,7 +845,7 @@ sem alterar desnecessariamente o comportamento atual.
 
 ---
 
-# 21. Privacidade
+## 21. Privacidade
 
 Não introduzir novos envios externos.
 
@@ -865,7 +866,7 @@ A única informação do Vault que sai do browser continua sendo o contexto sele
 
 ---
 
-# 22. Memory Trace — observabilidade segura
+## 22. Memory Trace — observabilidade segura
 
 Criar observabilidade suficiente para depuração, sem expor conteúdo sensível.
 
@@ -899,7 +900,7 @@ Preferencialmente manter o trace em memória ou expô-lo por uma interface futur
 
 ---
 
-# 23. Testes obrigatórios
+## 23. Testes obrigatórios
 
 Criar/atualizar testes para:
 
@@ -959,7 +960,7 @@ Garantir que o detalhe represente o mesmo conteúdo usado no contexto.
 
 ---
 
-# 24. Validação obrigatória — respeitar os scripts reais do projeto
+## 24. Validação obrigatória — respeitar os scripts reais do projeto
 
 Antes de executar comandos, leia `CLAUDE.md` e confirme os scripts disponíveis no `package.json`.
 
@@ -981,7 +982,7 @@ Não considerar concluído se o build falhar ou se `git diff --check` detectar p
 
 ---
 
-# 25. Verificação funcional manual
+## 25. Verificação funcional manual
 
 Após implementar:
 
@@ -1000,7 +1001,7 @@ Após implementar:
 
 ---
 
-# 26. Cenários reais
+## 26. Cenários reais
 
 Testar perguntas como:
 
@@ -1046,7 +1047,7 @@ Claude
 
 ---
 
-# 27. Não implementar funcionalidades futuras
+## 27. Não implementar funcionalidades futuras
 
 Nesta tarefa NÃO implementar:
 
@@ -1066,7 +1067,7 @@ alteração do modelo Claude
 
 ---
 
-# 28. Não quebrar Capture e Chat
+## 28. Não quebrar Capture e Chat
 
 Preservar:
 
@@ -1092,7 +1093,7 @@ A melhoria do retrieval não deve alterar o mecanismo de captura ou o fluxo norm
 
 ---
 
-# 29. Não alterar `api/chat.js` desnecessariamente
+## 29. Não alterar `api/chat.js` desnecessariamente
 
 A menos que seja estritamente necessário para receber o `memoryContext` melhor formado, manter o servidor intacto.
 
@@ -1109,7 +1110,7 @@ testes
 
 ---
 
-# 30. Resultado esperado
+## 30. Resultado esperado
 
 A arquitetura final deverá permanecer:
 
@@ -1162,7 +1163,7 @@ A arquitetura final deverá permanecer:
 
 ---
 
-# 31. Critério de sucesso principal
+## 31. Critério de sucesso principal
 
 A implementação só está correta se:
 
@@ -1170,7 +1171,7 @@ A implementação só está correta se:
 
 ---
 
-# 32. Critério de segurança contra regressão
+## 32. Critério de segurança contra regressão
 
 Continuar funcionando quando:
 
@@ -1195,12 +1196,14 @@ fallback recência
 
 ---
 
-# 33. Ordem obrigatória de execução
+## 33. Ordem obrigatória de execução
 
 ### Etapa 1
+
 Ler `CLAUDE.md` e todos os arquivos mencionados.
 
 ### Etapa 2
+
 Mapear contratos entre:
 
 ```text
@@ -1214,44 +1217,56 @@ MemoryPanel
 ```
 
 ### Etapa 3
+
 Criar/ajustar testes antes da alteração principal sempre que possível.
 
 ### Etapa 4
+
 Implementar metadata estrutural nos chunks.
 
 ### Etapa 5
+
 Implementar invalidation/versionamento do índice.
 
 ### Etapa 6
+
 Atualizar embedding para usar contexto estrutural.
 
 ### Etapa 7
+
 Atualizar retrieval para devolver metadata.
 
 ### Etapa 8
+
 Corrigir `memoryContext` para preservar melhor o conteúdo recuperado.
 
 ### Etapa 9
+
 Garantir que MemoryPanel e prompt usam exatamente a mesma fonte.
 
 ### Etapa 10
+
 Adicionar observabilidade segura.
 
 ### Etapa 11
+
 Executar testes.
 
 ### Etapa 12
+
 Executar build.
 
 ### Etapa 13
+
 Executar lint/design lint.
 
 ### Etapa 14
+
 Revisar diff procurando regressões e alterações fora do escopo.
 
 ---
 
-# 34. Regra de implementação importante
+## 34. Regra de implementação importante
 
 Não faça uma grande refatoração de uma vez.
 
@@ -1275,7 +1290,7 @@ Não fazer cleanup fora do escopo.
 
 ---
 
-# 35. Antes de finalizar
+## 35. Antes de finalizar
 
 Apresente um resumo técnico contendo:
 
@@ -1311,7 +1326,7 @@ preservado
 
 ---
 
-# 36. Commit
+## 36. Commit
 
 Não faça commit automaticamente sem antes apresentar:
 
@@ -1330,7 +1345,158 @@ feat(memory): refine semantic retrieval context
 
 ---
 
-# 37. Integração com a Metodologia Gabriel e os agents existentes\n\nO repositório já possui uma arquitetura de agentes em:\n\n```text\n.claude/agents/\n```\n\nNão criar novos agents para esta tarefa.\n\nConsulte primeiro:\n\n```text\n.claude/agents/README.md\nCLAUDE.md\n```\n\nA metodologia de orquestração existente deve ser respeitada.\n\n## Ordem de agentes recomendada para esta tarefa\n\n### 1. `scout_worker` — análise inicial, somente leitura\n\nAntes de modificar qualquer arquivo, use o `scout_worker` para mapear:\n\n```text\nuseVault.js\nuseVaultIndex.js\nchunker.js\nvectorIndex.js\nembedder.js\nembedder.worker.js\nmemoryContext.js\nuseChat.js\nMemoryPanel.jsx\nanthropic.js\napi/chat.js\n```\n\nO objetivo é confirmar contratos, dependências e pontos de risco.\n\nO `scout_worker` NÃO deve escrever código.\n\n### 2. Orchestrator — consolidação\n\nO Orchestrator deve consolidar:\n\n```text\nanálise do scout\n+\nCLAUDE.md\n+\neste plano\n+\nestado real da working tree\n```\n\ne produzir o plano concreto de implementação antes de delegar código.\n\n### 3. `ai_ml_worker` — implementação\n\nA implementação de:\n\n```text\nchunker\nvectorIndex\nembedder\nuseVaultIndex\nmemoryContext\n```\n\ne qualquer integração relacionada a embeddings/ONNX deve ser delegada ao `ai_ml_worker`, seguindo o desenho definido pelo Orchestrator.\n\nEsse agent atualmente está configurado no projeto como:\n\n```text\nmodel: sonnet\neffort: low\n```\n\nNão tente alterar a configuração do agent durante esta tarefa apenas para aumentar effort.\n\n### 4. Reviewers\n\nDespachar os reviewers somente quando os respectivos gatilhos forem realmente acionados:\n\n```text\nsecurity-reviewer\narchitecture-guardian\nperformance-monitor\n```\n\nNão usar reviewers genéricos fora do escopo deles.\n\n## Regra de não duplicação\n\nO `.md` é a especificação específica desta tarefa.\n\nOs agents fornecem:\n\n```text\nmetodologia\npapel\nescopo\ninvariantes\n```\n\nNão duplique dentro deste plano todas as instruções gerais do `CLAUDE.md` ou de cada agent.\n\nQuando houver conflito, seguir esta prioridade:\n\n```text\nCLAUDE.md\n    ↓\narquitetura/agentes existentes\n    ↓\neste plano específico\n    ↓\ndecisão do Orchestrator baseada no código real\n```\n\nPorém, se uma regra do `CLAUDE.md` parecer desatualizada em relação à Fase A já mergeada, não reverter comportamento existente silenciosamente. Verifique o código, o plano da Fase A e os commits recentes antes de decidir.\n\n## Atenção especial ao agente `architecture-guardian`\n\nO `architecture-guardian` contém uma verificação de privacidade que menciona que corpos de notas não devem sair do browser exceto pelo fluxo explícito de análise.\n\nA Fase A já implementada alterou esse contrato de propósito: o retrieval semântico seleciona pequenos trechos de notas para compor `memoryContext` e esses trechos podem ser enviados ao Claude.\n\nPortanto, nesta Fase A.1:\n\n- não reintroduzir a arquitetura pré-Fase-A;\n- não remover o retrieval semântico;\n- não bloquear `memoryContext` selecionado;\n- manter a regra de que **indexação/embeddings permanecem locais**;\n- manter o limite de contexto e o princípio de enviar somente os trechos selecionados para o prompt.\n\nSe o `architecture-guardian` sinalizar esse ponto por causa de uma regra histórica/desatualizada, o Orchestrator deve comparar o texto com o código atual e documentar a divergência em vez de desfazer a Fase A.\n\n## Não alterar a configuração dos agents\n\nNão editar nesta tarefa:\n\n```text\n.claude/agents/*.md\n```\n\na menos que uma mudança específica de infraestrutura de agents seja descoberta como requisito real e seja apresentada separadamente ao usuário.\n\nEsta Fase A.1 é sobre retrieval da memória, não sobre redesenhar o sistema de agentes.\n\n# 38. Definição final da tarefa
+## 37. Integração com a Metodologia Gabriel e os agents existentes
+
+O repositório já possui uma arquitetura de agentes em:
+
+```text
+.claude/agents/
+```
+
+Não criar novos agents para esta tarefa.
+
+Consulte primeiro:
+
+```text
+.claude/agents/README.md
+CLAUDE.md
+```
+
+A metodologia de orquestração existente deve ser respeitada.
+
+### Ordem de agentes recomendada para esta tarefa
+
+#### 1. `scout_worker` — análise inicial, somente leitura
+
+Antes de modificar qualquer arquivo, use o `scout_worker` para mapear:
+
+```text
+useVault.js
+useVaultIndex.js
+chunker.js
+vectorIndex.js
+embedder.js
+embedder.worker.js
+memoryContext.js
+useChat.js
+MemoryPanel.jsx
+anthropic.js
+api/chat.js
+```
+
+O objetivo é confirmar contratos, dependências e pontos de risco.
+
+O `scout_worker` NÃO deve escrever código.
+
+#### 2. Orchestrator — consolidação
+
+O Orchestrator deve consolidar:
+
+```text
+análise do scout
++
+CLAUDE.md
++
+este plano
++
+estado real da working tree
+```
+
+e produzir o plano concreto de implementação antes de delegar código.
+
+#### 3. `ai_ml_worker` — implementação
+
+A implementação de:
+
+```text
+chunker
+vectorIndex
+embedder
+useVaultIndex
+memoryContext
+```
+
+e qualquer integração relacionada a embeddings/ONNX deve ser delegada ao `ai_ml_worker`, seguindo o desenho definido pelo Orchestrator.
+
+Esse agent atualmente está configurado no projeto como:
+
+```text
+model: sonnet
+effort: low
+```
+
+Não tente alterar a configuração do agent durante esta tarefa apenas para aumentar effort.
+
+#### 4. Reviewers
+
+Despachar os reviewers somente quando os respectivos gatilhos forem realmente acionados:
+
+```text
+security-reviewer
+architecture-guardian
+performance-monitor
+```
+
+Não usar reviewers genéricos fora do escopo deles.
+
+### Regra de não duplicação
+
+O `.md` é a especificação específica desta tarefa.
+
+Os agents fornecem:
+
+```text
+metodologia
+papel
+escopo
+invariantes
+```
+
+Não duplique dentro deste plano todas as instruções gerais do `CLAUDE.md` ou de cada agent.
+
+Quando houver conflito, seguir esta prioridade:
+
+```text
+CLAUDE.md
+    ↓
+arquitetura/agentes existentes
+    ↓
+este plano específico
+    ↓
+decisão do Orchestrator baseada no código real
+```
+
+Porém, se uma regra do `CLAUDE.md` parecer desatualizada em relação à Fase A já mergeada, não reverter comportamento existente silenciosamente. Verifique o código, o plano da Fase A e os commits recentes antes de decidir.
+
+### Atenção especial ao agente `architecture-guardian`
+
+O `architecture-guardian` contém uma verificação de privacidade que menciona que corpos de notas não devem sair do browser exceto pelo fluxo explícito de análise.
+
+A Fase A já implementada alterou esse contrato de propósito: o retrieval semântico seleciona pequenos trechos de notas para compor `memoryContext` e esses trechos podem ser enviados ao Claude.
+
+Portanto, nesta Fase A.1:
+
+- não reintroduzir a arquitetura pré-Fase-A;
+- não remover o retrieval semântico;
+- não bloquear `memoryContext` selecionado;
+- manter a regra de que **indexação/embeddings permanecem locais**;
+- manter o limite de contexto e o princípio de enviar somente os trechos selecionados para o prompt.
+
+Se o `architecture-guardian` sinalizar esse ponto por causa de uma regra histórica/desatualizada, o Orchestrator deve comparar o texto com o código atual e documentar a divergência em vez de desfazer a Fase A.
+
+### Não alterar a configuração dos agents
+
+Não editar nesta tarefa:
+
+```text
+.claude/agents/*.md
+```
+
+a menos que uma mudança específica de infraestrutura de agents seja descoberta como requisito real e seja apresentada separadamente ao usuário.
+
+Esta Fase A.1 é sobre retrieval da memória, não sobre redesenhar o sistema de agentes.
+
+## 38. Definição final da tarefa
 
 Você não está construindo uma nova memória.
 
@@ -1376,4 +1542,20 @@ Apresente primeiro:
 5. a sequência de implementação que você pretende executar.
 
 Depois disso, implemente a Fase A.1 seguindo este plano.
-\n\n# 45. Modelo e nível de effort do Claude Code\n\nA escolha do modelo e do nível de effort é uma configuração da sessão do Claude Code, não uma parte da arquitetura do repositório.\n\nPara esta tarefa, o operador pode usar:\n\n```text\nClaude Opus 5\nEffort: High\n```\n\nPara preservar o limite do plano Claude Pro.\n\nNão adicionar lógica ao projeto para detectar ou controlar o modelo de conversa usado pelo Claude Code.\n\nOs agents existentes têm seus próprios modelos/effort definidos nos respectivos frontmatters. Não alterá-los nesta tarefa.\n
+
+## 39. Modelo e nível de effort do Claude Code
+
+A escolha do modelo e do nível de effort é uma configuração da sessão do Claude Code, não uma parte da arquitetura do repositório.
+
+Para esta tarefa, o operador pode usar:
+
+```text
+Claude Opus 5
+Effort: High
+```
+
+Para preservar o limite do plano Claude Pro.
+
+Não adicionar lógica ao projeto para detectar ou controlar o modelo de conversa usado pelo Claude Code.
+
+Os agents existentes têm seus próprios modelos/effort definidos nos respectivos frontmatters. Não alterá-los nesta tarefa.

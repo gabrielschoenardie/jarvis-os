@@ -26,7 +26,10 @@ function walk(dir, out = []) {
   return out;
 }
 
-const files = walk(SRC).map(p => ({ path: p, rel: p.slice(ROOT.length), lines: readFileSync(p, 'utf8').split('\n') }));
+// `rel` sempre com barra normal, inclusive no Windows — as regras comparam
+// sufixo de caminho (ver Regra 5), então o separador nativo faria a isenção
+// falhar só num SO.
+const files = walk(SRC).map(p => ({ path: p, rel: p.slice(ROOT.length).replace(/\\/g, '/'), lines: readFileSync(p, 'utf8').split('\n') }));
 
 // ── Contraste WCAG 2.1 ───────────────────────────────────────────────────
 

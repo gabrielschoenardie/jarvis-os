@@ -964,21 +964,19 @@ Garantir que o detalhe represente o mesmo conteúdo usado no contexto.
 
 Antes de executar comandos, leia `CLAUDE.md` e confirme os scripts disponíveis no `package.json`.
 
-Na `main` atual, o `CLAUDE.md` informa que **não existem scripts de lint ou test**. Portanto, não inventar comandos como `npm test` ou `npm run lint:design`.
+Os scripts de teste e de lint **existem** na `main` e são obrigatórios nesta fase — `npm test` (`node --test`, cobrindo `chunker`, `memoryContext` e `vectorIndex`) e `npm run lint:design` (`scripts/design-lint.mjs`). Os testes da §23 devem entrar nos `*.test.js` já colocados em `src/lib/`, na mesma estrutura dos existentes.
 
 Executar obrigatoriamente:
 
 ```bash
+npm test
+npm run lint:design
 npm run build
 git diff --check
 git status
 ```
 
-Se existirem testes Node independentes já presentes no repositório, executá-los conforme a estrutura real encontrada.
-
-Se o projeto passar a ter scripts de teste/lint durante esta tarefa, usar os scripts reais definidos no `package.json`.
-
-Não considerar concluído se o build falhar ou se `git diff --check` detectar problemas.
+Não considerar concluído se qualquer um deles falhar ou se `git diff --check` detectar problemas.
 
 ---
 

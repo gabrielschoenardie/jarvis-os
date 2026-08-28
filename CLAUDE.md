@@ -5,12 +5,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev      # Vite dev server on port 5173
-npm run build    # Production build → dist/
-npm run preview  # Preview prod build locally
+npm run dev          # Vite dev server on port 5173
+npm run build        # Production build → dist/
+npm run preview      # Preview prod build locally
+npm test             # node --test — the pure lib modules (see below)
+npm run lint:design  # scripts/design-lint.mjs — headless HUD design rules
 ```
 
-No lint or test scripts exist in this project.
+`npm test` runs Node's built-in runner over the `*.test.js` files colocated in
+`src/lib/` (`chunker`, `memoryContext`, `vectorIndex`). There is no test
+framework and no DOM/component testing — only the pure, dependency-free
+modules are covered. `npm run lint:design` enforces the five HUD rules from
+`docs/HUD_AUDIT_PLAN.md` (see `scripts/design-lint.mjs`); a rule not yet
+closed by its phase runs in informative mode instead of failing the script.
+
+Both are validation gates, not optional: run them alongside `npm run build`
+before committing.
 
 ## Orchestration — Metodologia Gabriel
 

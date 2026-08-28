@@ -32,14 +32,29 @@ checklist.
 8. `pruneGraph` caps rendering at 1500 nodes (top-800 by degree + neighbors).
    Large vaults depend on this — don't render the full graph.
 
-## Privacy invariant (hard boundary)
+## Privacy invariants (hard boundary)
 
-9. The scan keeps **metadata + link targets only** — note bodies are discarded
-   after parsing. Note content is 100% client-side and may leave the browser
-   **only** through the explicit "ANALISAR COM JARVIS" flow (`handleAnalyzeNote`
-   in `App.jsx`, truncated at `MAX_TEXT_CHARS`). Never add a path that sends note
-   bodies to any endpoint outside that flow. `readNote(path)` re-reads a single
-   file on demand — use it instead of retaining bodies in memory.
+See `CLAUDE.md` § "Vault Semantic Memory (Fase A)" → **Privacy invariant
+(normative)** for the authoritative text. Summarized:
+
+9. **The graph scan keeps metadata + link targets only** — `walkVault` discards
+   note bodies after parsing wikilinks. `readNote(path)` re-reads a single file
+   on demand; use it instead of retaining bodies in memory. (The semantic index
+   is separate and *does* persist chunk text — see item 10.)
+10. **Everything local stays local.** Chunking, embedding, and the semantic
+    index (`jarvis-vault-index` in IndexedDB, which persists chunk text +
+    vectors) run entirely in the browser. The model is self-hosted
+    (`env.allowRemoteModels = false`) — **embeddings never leave the browser**
+    for any external service.
+11. **Note content reaches the network through exactly two sanctioned paths**:
+    (a) the explicit "ANALISAR COM JARVIS" flow (`handleAnalyzeNote` in
+    `App.jsx`, truncated at `MAX_TEXT_CHARS`); (b) short, retrieval-selected
+    excerpts riding along with an explicit chat request to `/api/chat`, capped
+    at the global 2000-char budget in `src/lib/memoryContext.js`. Full note
+    bodies are **never** sent automatically.
+12. **Never add a third path.** No sending the whole vault, whole note bodies,
+    unselected notes, or the index itself to any endpoint — and never write full
+    note bodies into persistent logs or telemetry.
 
 ## External three.js / d3-force-3d API questions
 
@@ -55,5 +70,10 @@ scene breaks.
   settle then freeze.
 - Watch for GPU/memory growth across a few mode switches (dev StrictMode makes
   leaks obvious) — a climbing memory profile means an asymmetric `dispose()`.
-- Confirm no network request carries note bodies except on "ANALISAR COM JARVIS".
-- Expect the `architecture-guardian` subagent to review — it checks items 1–3.
+- Confirm no network request carries **full** note bodies. Expected traffic:
+  retrieval-selected excerpts inside the `/api/chat` request body on each
+  message (bounded by the 2000-char budget — cross-check against what
+  `MemoryPanel` shows), plus one note's text on "ANALISAR COM JARVIS". Anything
+  beyond those two is a regression; **the per-message excerpts are not**.
+- Expect the `architecture-guardian` subagent to review — it checks items 1–3,
+  and the Fase A semantic-memory invariants if your change touches the pipeline.

@@ -52,19 +52,33 @@ export function MemoryPanel({ detail, onClose }) {
             <div style={{ fontSize: 11, color: C.quiet, letterSpacing: '0.06em' }}>nenhuma nota recente do vault entrou no contexto.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {notes.map(n => (
-                <div key={n.title} style={{ borderLeft: `2px solid ${C.line}`, paddingLeft: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 11, color: C.text }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
-                    <span style={{ ...mono, color: C.quiet, whiteSpace: 'nowrap' }}>
-                      ≈{n.tokens} tok{n.score != null ? ` · ${n.score.toFixed(2)}` : ''}
-                    </span>
+              {notes.map(n => {
+                const headingLabel = n.headingPath || n.heading || null;
+                const chunkLabel = (n.chunkIndex != null && n.chunkCount != null)
+                  ? `chunk ${n.chunkIndex + 1}/${n.chunkCount}`
+                  : null;
+                return (
+                  <div key={n.path || n.title} style={{ borderLeft: `2px solid ${C.line}`, paddingLeft: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 11, color: C.text }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
+                      <span style={{ ...mono, color: C.quiet, whiteSpace: 'nowrap' }}>
+                        ≈{n.tokens} tok{n.score != null ? ` · ${n.score.toFixed(2)}` : ''}{chunkLabel ? ` · ${chunkLabel}` : ''}
+                      </span>
+                    </div>
+                    {headingLabel && (
+                      <div
+                        title={headingLabel}
+                        style={{ fontSize: 10, color: C.quiet, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      >
+                        {headingLabel}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 10, color: C.muted, marginTop: 3, lineHeight: 1.5 }}>
+                      {n.excerpt.length > 140 ? n.excerpt.slice(0, 140) + '…' : n.excerpt}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 10, color: C.muted, marginTop: 3, lineHeight: 1.5 }}>
-                    {n.excerpt.length > 140 ? n.excerpt.slice(0, 140) + '…' : n.excerpt}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

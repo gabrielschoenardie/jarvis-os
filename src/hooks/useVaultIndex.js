@@ -9,11 +9,12 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { idbGet, idbSet } from '../lib/idb.js';
-import { chunkText } from '../lib/chunker.js';
-import { diffIndex, packVectors, unpackVector, search as vectorSearch } from '../lib/vectorIndex.js';
+import { chunkNote } from '../lib/chunker.js';
+import { diffIndex, packVectors, unpackVector, search as vectorSearch, isIndexCompatible } from '../lib/vectorIndex.js';
 import { embedTexts, warmup, setProgressListener } from '../lib/embedder.js';
 
 const INDEX_KEY = 'jarvis-vault-index';
+const INDEX_VERSION = 2;
 const MODEL_ID = 'multilingual-e5-small';
 const DIMS = 384;
 const EMBED_BATCH = 16;
@@ -24,7 +25,7 @@ const RECENCY_HALFLIFE_DAYS = 30;
 const DAY_MS = 86400000;
 
 function emptyIndex() {
-  return { version: 1, model: MODEL_ID, dims: DIMS, updatedAt: 0, notes: {}, chunks: [], vectors: new Float32Array(0) };
+  return { version: INDEX_VERSION, model: MODEL_ID, dims: DIMS, updatedAt: 0, notes: {}, chunks: [], vectors: new Float32Array(0) };
 }
 
 export function useVaultIndex(graph, scanId, readNote) {
@@ -38,12 +39,13 @@ export function useVaultIndex(graph, scanId, readNote) {
   }, []);
 
   // Carrega o índice salvo uma única vez (mount). Índice de versão de
-  // modelo/dims diferente é descartado — reindexação completa, não corrompe.
+  // índice, modelo ou dims diferente é descartado — reindexação completa,
+  // não corrompe (isIndexCompatible em vectorIndex.js).
   useEffect(() => {
     (async () => {
       try {
         const saved = await idbGet(INDEX_KEY);
-        indexRef.current = saved && saved.dims === DIMS && saved.model === MODEL_ID ? saved : emptyIndex();
+        indexRef.current = isIndexCompatible(saved, { version: INDEX_VERSION, model: MODEL_ID, dims: DIMS }) ? saved : emptyIndex();
       } catch (_) {
         indexRef.current = emptyIndex();
       }
@@ -97,7 +99,7 @@ export function useVaultIndex(graph, scanId, readNote) {
 
       if (toEmbed.length === 0) {
         const vectors = packVectors(keptVectorList, DIMS);
-        const next = { version: 1, model: MODEL_ID, dims: DIMS, updatedAt: Date.now(), notes: keptNotes, chunks: keptChunks, vectors };
+        const next = { version: INDEX_VERSION, model: MODEL_ID, dims: DIMS, updatedAt: Date.now(), notes: keptNotes, chunks: keptChunks, vectors };
         indexRef.current = next;
         try { await idbSet(INDEX_KEY, next); } catch (_) {}
         // mesmo motivo do branch acima — 'ready' só depois do warmup resolver.
@@ -138,15 +140,15 @@ export function useVaultIndex(graph, scanId, readNote) {
             setProgress({ done, total: toEmbed.length });
             continue; // nota sumiu entre o scan e agora
           }
-          const pieces = chunkText(content);
+          const pieces = chunkNote(content, { path: entry.path, title: entry.title });
           if (pieces.length > 0) {
             const chunkStart = finalChunks.length;
             for (let i = 0; i < pieces.length; i += EMBED_BATCH) {
               if (cancelled || buildTokenRef.current !== token) return;
               const batch = pieces.slice(i, i + EMBED_BATCH);
-              const vectors = await embedTexts(batch, 'passage');
-              batch.forEach((text, j) => {
-                finalChunks.push({ path: entry.path, text });
+              const vectors = await embedTexts(batch.map(c => c.embeddingText), 'passage');
+              batch.forEach((piece, j) => {
+                finalChunks.push({ path: piece.path, title: piece.title, heading: piece.heading, headingPath: piece.headingPath, chunkIndex: piece.chunkIndex, text: piece.text });
                 finalVectorList.push(vectors[j]);
               });
             }
@@ -165,7 +167,7 @@ export function useVaultIndex(graph, scanId, readNote) {
       if (cancelled || buildTokenRef.current !== token) return;
 
       const vectors = packVectors(finalVectorList, DIMS);
-      const next = { version: 1, model: MODEL_ID, dims: DIMS, updatedAt: Date.now(), notes: finalNotes, chunks: finalChunks, vectors };
+      const next = { version: INDEX_VERSION, model: MODEL_ID, dims: DIMS, updatedAt: Date.now(), notes: finalNotes, chunks: finalChunks, vectors };
       indexRef.current = next;
       try { await idbSet(INDEX_KEY, next); } catch (_) {}
       setStatus('ready');
@@ -193,7 +195,16 @@ export function useVaultIndex(graph, scanId, readNote) {
         const score = COSINE_WEIGHT * hit.score + RECENCY_WEIGHT * recency;
         const existing = byNote.get(hit.path);
         if (!existing || score > existing.score) {
-          byNote.set(hit.path, { title: note?.title || hit.path, content: hit.text, score });
+          byNote.set(hit.path, {
+            title: note?.title || hit.path,
+            path: hit.path,
+            heading: hit.heading,
+            headingPath: hit.headingPath,
+            chunkIndex: hit.chunkIndex,
+            chunkCount: note?.chunkCount,
+            content: hit.text,
+            score,
+          });
         }
       }
       return [...byNote.values()].sort((a, b) => b.score - a.score).slice(0, MAX_HITS);

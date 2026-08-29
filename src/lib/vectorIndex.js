@@ -36,6 +36,18 @@ export function unpackVector(packed, i, dims) {
   return packed.subarray(i * dims, (i + 1) * dims);
 }
 
+// Um índice salvo é reutilizável só se version/model/dims baterem exatamente
+// com o esperado agora. Qualquer divergência (dims mudou, modelo trocou, ou
+// INDEX_VERSION subiu por causa de uma mudança de formato — ex.: metadata de
+// heading nova) é descartada e o índice reconstrói do zero na próxima
+// varredura. Isso é seguro porque o índice é inteiramente derivável do vault
+// a qualquer momento — mas a invalidação apaga só a chave do índice do
+// JARVIS (jarvis-vault-index) em IndexedDB, nunca o banco inteiro.
+export function isIndexCompatible(saved, { version, model, dims }) {
+  if (!saved || typeof saved !== 'object') return false;
+  return saved.version === version && saved.model === model && saved.dims === dims;
+}
+
 function dot(a, b) {
   let sum = 0;
   for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
@@ -49,6 +61,10 @@ export function search(index, queryVec, k = 8) {
   const { dims, vectors, chunks } = index;
   const scored = chunks.map((chunk, i) => ({
     path: chunk.path,
+    title: chunk.title,
+    heading: chunk.heading,
+    headingPath: chunk.headingPath,
+    chunkIndex: chunk.chunkIndex,
     text: chunk.text,
     score: dot(unpackVector(vectors, i, dims), queryVec),
   }));

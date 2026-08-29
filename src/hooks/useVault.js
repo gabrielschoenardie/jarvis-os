@@ -82,6 +82,9 @@ export function useVault() {
 
   const handleRef = useRef(null);
   const scanTokenRef = useRef(0);
+  // Trace de depuração de memória (§22) — só metadata, nunca conteúdo de
+  // nota. useRef pra não provocar re-render do App a cada searchMemory().
+  const memoryTraceRef = useRef(null);
   // Cache de posições do layout 3D — a cena grava aqui no unmount para que
   // voltar ao modo VAULT não re-rode a simulação inteira.
   const layoutCacheRef = useRef({ scanId: -1, positions: null });
@@ -206,13 +209,35 @@ export function useVault() {
       for (const node of candidates) {
         try {
           const { content } = await readNote(node.path);
-          entries.push({ title: node.title, content });
+          entries.push({ title: node.title, path: node.path, content });
         } catch (_) { /* nota sumiu entre o scan e agora — ignora */ }
       }
     }
 
-    setMemoryDetail({ ...buildMemoryDetail(entries), mode });
-    return buildMemoryContext(entries);
+    const detail = buildMemoryDetail(entries, { mode });
+    // Trace de depuração em memória (§22): apenas metadata — nunca excerpt/
+    // conteúdo de nota. Fica em useRef pra não disparar re-render do App a
+    // cada mensagem, e nunca é persistido (localStorage/IndexedDB) nem
+    // enviado pela rede.
+    memoryTraceRef.current = {
+      at: Date.now(),
+      mode,
+      query: queryText,
+      candidates: entries.length,
+      selected: detail.notes.map((n) => ({
+        path: n.path,
+        title: n.title,
+        score: n.score,
+        chunkIndex: n.chunkIndex,
+        chunkCount: n.chunkCount,
+        chars: n.chars,
+        tokens: n.tokens,
+      })),
+      totalChars: detail.totalChars,
+      totalTokens: detail.totalTokens,
+    };
+    setMemoryDetail({ ...detail, mode });
+    return buildMemoryContext(entries, { mode });
   }, [graph, indexStatus, semanticSearch, readNote]);
 
   // Grava (cria ou sobrescreve) uma nota de Captura em 00-Inbox/ — usado pela
@@ -230,7 +255,7 @@ export function useVault() {
 
   return {
     status, graph, progress, truncatedScan, error, scanId, canWrite,
-    searchMemory, memoryDetail, indexStatus, indexProgress,
+    searchMemory, memoryDetail, memoryTrace: memoryTraceRef, indexStatus, indexProgress,
     connectVault, reconnectVault, rescanVault, readNote, writeCaptureNote,
     layoutCacheRef,
   };

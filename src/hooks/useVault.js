@@ -253,10 +253,27 @@ export function useVault() {
     await writable.close();
   }, []);
 
+  // A nota de captura ainda está em 00-Inbox/? Se sumiu, o operador já a triou
+  // (moveu para 03-Notes/, arquivou ou apagou) — recriá-la ali ressuscitaria no
+  // inbox algo já processado, e o triage nunca "grudaria". `create: false` é o
+  // ponto todo: consultar sem materializar o arquivo.
+  const captureNoteExists = useCallback(async (filename) => {
+    const handle = handleRef.current;
+    if (!handle) return false;
+    try {
+      const inboxDir = await handle.getDirectoryHandle('00-Inbox');
+      await inboxDir.getFileHandle(filename);
+      return true;
+    } catch (err) {
+      if (err?.name === 'NotFoundError') return false;
+      throw err; // permissão revogada e afins sobem — quem chama decide
+    }
+  }, []);
+
   return {
     status, graph, progress, truncatedScan, error, scanId, canWrite,
     searchMemory, memoryDetail, memoryTrace: memoryTraceRef, indexStatus, indexProgress,
-    connectVault, reconnectVault, rescanVault, readNote, writeCaptureNote,
+    connectVault, reconnectVault, rescanVault, readNote, writeCaptureNote, captureNoteExists,
     layoutCacheRef,
   };
 }

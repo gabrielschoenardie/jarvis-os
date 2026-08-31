@@ -105,6 +105,7 @@ export default function JarvisOS() {
     apiHistoryRef,
     speakChunks: speech.speakChunks,
     onPersistTurns: vault.canWrite ? vault.writeCaptureNote : null,
+    onCaptureExists: vault.canWrite ? vault.captureNoteExists : null,
     searchMemory: vault.searchMemory,
   });
 

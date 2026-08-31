@@ -205,9 +205,20 @@ Forma real do objeto em IndexedDB sob `jarvis-vault-index`:
 ```
 
 **Consequência normativa para B5:** o serializer serializa **exatamente esta
-forma** e nada mais. Não reintroduz `embeddingText`, não reintroduz `deviceId`
-dentro do índice, e o `version` que ele grava no envelope é o `INDEX_VERSION`
-corrente lido de `useVaultIndex.js` — não uma constante duplicada.
+forma** e nada mais. Não reintroduz `embeddingText` e não reintroduz `deviceId`
+dentro do índice — `deviceId` entra no `meta` do envelope, vindo por parâmetro.
+
+**De onde vêm `version`, `model` e `dims`.** De lugar nenhum novo: o próprio
+objeto de índice já os carrega (ver a forma acima), então `serializeIndex` lê os
+três **do índice que recebeu**. Na leitura, `deserializeIndex` recebe os valores
+esperados **por parâmetro**, do chamador — que é quem conhece `INDEX_VERSION`,
+`MODEL_ID` e `DIMS`.
+
+O serializer, portanto, **não declara nenhuma constante de modelo ou de versão e
+não importa `useVaultIndex.js`**. Importar o hook arrastaria React para dentro de
+um módulo que precisa rodar puro sob `node --test`; duplicar as constantes criaria
+uma segunda fonte da verdade que sairia de sincronia no próximo bump de
+`INDEX_VERSION`. As duas saídas erradas se evitam pela mesma decisão.
 
 #### B0.1 Etapa obrigatória — remover o `api/memory-sync.js` legado
 
@@ -459,7 +470,9 @@ payload:
 
 **Validação na leitura — ordem e falha explícita.** Qualquer item abaixo que
 falhe rejeita o blob inteiro com um erro tipado; **nunca** se constrói um
-índice parcial a partir de bytes suspeitos:
+índice parcial a partir de bytes suspeitos. `INDEX_VERSION`, `MODEL_ID` e `DIMS`
+na tabela são os valores **esperados, recebidos por parâmetro** do chamador — o
+serializer não os declara nem os importa (B0.0):
 
 | Checagem | Falha significa |
 | --- | --- |

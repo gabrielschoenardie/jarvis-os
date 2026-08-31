@@ -3,15 +3,16 @@ import { callClaude, splitIntoSpeakableChunks } from '../lib/anthropic.js';
 import { isWeatherQuery } from '../lib/weather.js';
 import { stripImageAttachment } from '../lib/attachments.js';
 import { MODEL } from '../lib/constants.js';
-import { buildCaptureFilename, buildCaptureMarkdown } from '../lib/chatCapture.js';
+import { buildCaptureFilename, buildCaptureMarkdown, captureSignature } from '../lib/chatCapture.js';
 
 const CAPTURE_DEBOUNCE_MS = 2000;
+const CAPTURE_STATE_KEY = 'jarvis-capture';
 
 const BACKOFF_MS = [2000, 4000, 8000];
 
 const TOOL_LABELS = { web_search: 'BUSCA WEB', calcular: 'CÁLCULO', abrir_site: 'NAVEGADOR', hud_display: 'HUD DISPLAY' };
 
-export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onPersistTurns, searchMemory }) {
+export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onPersistTurns, onCaptureExists, searchMemory }) {
   const [history, setHistory] = useState([]);
   const [apiHistory, setApiHistory] = useState([]);
   const [captureSaved, setCaptureSaved] = useState(false);
@@ -29,12 +30,30 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onP
   // {type:'hud'} no history é o registro durável que sobrevive a F5).
   const [hudMedia, setHudMedia] = useState(null);
 
-  // Vault Capture: uma nota por sessão (mesmo arquivo sobrescrito conforme a
-  // conversa cresce), não uma nota por turno. Ver efeito de debounce abaixo.
+  // Vault Capture: uma nota por conversa (mesmo arquivo sobrescrito conforme a
+  // conversa cresce), não uma nota por turno nem por sessão do browser. Ver
+  // efeito de debounce abaixo.
   const captureSessionStartRef = useRef(null);
   const captureTimeoutRef = useRef(null);
   const captureDisabledRef = useRef(false);
   const captureFlashedRef = useRef(false);
+  const captureSignatureRef = useRef(null); // conteúdo da última gravação
+  const captureBaseRef = useRef(0);         // 1º turno pertencente à nota atual
+  const captureLastLenRef = useRef(0);      // tamanho do histórico na última gravação
+
+  // Identidade da captura persistida ao lado do histórico: os dois têm de ter o
+  // mesmo tempo de vida, senão o reload restaura a conversa mas perde o nome do
+  // arquivo dela e grava tudo de novo num arquivo novo.
+  const persistCaptureState = useCallback(() => {
+    try {
+      localStorage.setItem(CAPTURE_STATE_KEY, JSON.stringify({
+        startedAt: captureSessionStartRef.current?.toISOString() || null,
+        signature: captureSignatureRef.current,
+        base: captureBaseRef.current,
+        lastLen: captureLastLenRef.current,
+      }));
+    } catch (_) {}
+  }, []);
 
   // useCallback → referências estáveis, pra o TerminalView memoizar as linhas
   // do histórico sem quebrar quando o onOpenHud muda de identidade a cada render.
@@ -43,7 +62,9 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onP
   }, []);
   const closeHudMedia = useCallback(() => setHudMedia(null), []);
 
-  // Fase 10: restaurar histórico no mount
+  // Fase 10: restaurar histórico no mount. A identidade da captura volta junto
+  // e ANTES do efeito de captura rodar (este efeito é declarado primeiro), pra
+  // que a conversa restaurada continue na mesma nota em vez de abrir outra.
   useEffect(() => {
     try {
       const saved = localStorage.getItem('jarvis-history');
@@ -53,6 +74,15 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onP
         setApiHistory(restoredApi);
         if (apiHistoryRef) apiHistoryRef.current = restoredApi;
         setHistory(ui || []);
+      }
+      const savedCapture = localStorage.getItem(CAPTURE_STATE_KEY);
+      if (savedCapture) {
+        const { startedAt, signature, base, lastLen } = JSON.parse(savedCapture);
+        const parsed = startedAt ? new Date(startedAt) : null;
+        if (parsed && !Number.isNaN(parsed.getTime())) captureSessionStartRef.current = parsed;
+        captureSignatureRef.current = signature ?? null;
+        captureBaseRef.current = Number.isInteger(base) && base >= 0 ? base : 0;
+        captureLastLenRef.current = Number.isInteger(lastLen) && lastLen >= 0 ? lastLen : 0;
       }
     } catch (_) {}
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -78,28 +108,67 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onP
   // concedida — ver useVault.js). Uma falha de escrita desativa novas
   // tentativas nesta sessão; o localStorage continua sendo a fonte de
   // verdade em qualquer caso, então nada se perde.
+  //
+  // A gravação é idempotente por CONTEÚDO. Este efeito dispara sempre que há
+  // histórico, e o histórico volta do localStorage a cada reload — antes, abrir
+  // o app sem dizer nada de novo carimbava `new Date()` como início e gravava a
+  // mesma conversa num arquivo novo (o inbox acumulava capturas byte a byte
+  // idênticas). Agora `startedAt` e a assinatura do último conteúdo gravado
+  // persistem junto do histórico, então identidade e conteúdo têm o mesmo tempo
+  // de vida: reload sem turno novo não toca no disco.
   useEffect(() => {
     if (!onPersistTurns || captureDisabledRef.current || history.length === 0) return;
-    if (!captureSessionStartRef.current) captureSessionStartRef.current = new Date();
+    if (!captureSessionStartRef.current) {
+      captureSessionStartRef.current = new Date();
+      persistCaptureState();
+    }
 
     if (captureTimeoutRef.current) clearTimeout(captureTimeoutRef.current);
-    captureTimeoutRef.current = setTimeout(() => {
+    captureTimeoutRef.current = setTimeout(async () => {
+      // `base` = turnos já entregues a notas anteriores desta conversa (só é
+      // > 0 depois de uma continuação). Se o corte de 60 turnos do localStorage
+      // deixou o índice para trás, voltamos a zero: repetir alguns turnos é
+      // preferível a parar de capturar em silêncio.
+      let base = captureBaseRef.current;
+      if (base >= history.length) base = 0;
+      const build = (at) => buildCaptureMarkdown({ startedAt: at, turns: history.slice(base) });
+
       const startedAt = captureSessionStartRef.current;
-      const filename = buildCaptureFilename(startedAt);
-      const content = buildCaptureMarkdown({ startedAt, turns: history });
-      onPersistTurns(filename, content).then(() => {
+      let filename = buildCaptureFilename(startedAt);
+      let content = build(startedAt);
+      if (captureSignature(content) === captureSignatureRef.current) return; // nada novo
+
+      try {
+        // Já gravamos antes e o arquivo sumiu do inbox → o operador triou a
+        // nota. Não recriamos ali: a conversa continua numa nota nova contendo
+        // só os turnos daqui pra frente. Nada se perde e nada é duplicado.
+        if (captureSignatureRef.current && onCaptureExists && !(await onCaptureExists(filename))) {
+          // A continuação começa onde a nota triada parou — não no último turno.
+          // Entre a última gravação e a detecção do triage pode ter chegado mais
+          // de um turno, e nenhum deles está na nota que saiu do inbox.
+          base = Math.min(captureLastLenRef.current, history.length - 1);
+          const resumedAt = new Date();
+          captureSessionStartRef.current = resumedAt;
+          filename = buildCaptureFilename(resumedAt);
+          content = build(resumedAt);
+        }
+        await onPersistTurns(filename, content);
+        captureBaseRef.current = base;
+        captureLastLenRef.current = history.length;
+        captureSignatureRef.current = captureSignature(content);
+        persistCaptureState();
         if (!captureFlashedRef.current) {
           captureFlashedRef.current = true;
           setCaptureSaved(true);
           setTimeout(() => setCaptureSaved(false), 6000);
         }
-      }).catch(() => {
+      } catch (_) {
         captureDisabledRef.current = true;
-      });
+      }
     }, CAPTURE_DEBOUNCE_MS);
 
     return () => { if (captureTimeoutRef.current) clearTimeout(captureTimeoutRef.current); };
-  }, [history, onPersistTurns]);
+  }, [history, onPersistTurns, onCaptureExists, persistCaptureState]);
 
   const handleLocalCommand = (cmd, currentApiHistory) => {
     const lower = cmd.trim().toLowerCase();
@@ -384,11 +453,17 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onP
     setSessionTokens(0);
     if (apiHistoryRef) apiHistoryRef.current = [];
     localStorage.removeItem('jarvis-history');
+    localStorage.removeItem(CAPTURE_STATE_KEY);
     // Próxima mensagem inicia uma nova sessão de Captura (novo arquivo em
     // 00-Inbox/), e uma falha antiga não deve mais bloquear a nova sessão.
+    // A assinatura e a base voltam ao zero junto: sem isso, a conversa nova
+    // seria comparada com o conteúdo da antiga.
     captureSessionStartRef.current = null;
     captureDisabledRef.current = false;
     captureFlashedRef.current = false;
+    captureSignatureRef.current = null;
+    captureBaseRef.current = 0;
+    captureLastLenRef.current = 0;
     setCaptureSaved(false);
   };
 

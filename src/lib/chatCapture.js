@@ -33,6 +33,28 @@ export function buildCaptureFilename(startedAt) {
   return `Capture ${formatDateTime(startedAt)}.md`;
 }
 
+// Assinatura de conteúdo da captura. A gravação é idempotente por CONTEÚDO, não
+// por tempo: o efeito de captura dispara sempre que há histórico, e o histórico
+// é restaurado do localStorage a cada reload — sem esta comparação, abrir o app
+// sem dizer nada de novo reescrevia a conversa inteira num arquivo novo.
+//
+// Cobre só os turnos. Ignora de propósito o frontmatter (`created`/`updated`
+// viram outro dia sem que a conversa mude) e o heading (carrega o `startedAt`):
+// se qualquer um dos dois entrasse na conta, um reload que recarimbasse o
+// horário pareceria conteúdo novo e gravaria outro arquivo — que é exatamente o
+// que estamos corrigindo. Só os turnos definem se há algo novo a gravar.
+export function captureSignature(markdown) {
+  const end = markdown.indexOf('\n---\n');
+  const afterFrontmatter = end === -1 ? markdown : markdown.slice(end + 5);
+  const body = afterFrontmatter.replace(/^\s*#[^\n]*\n/, '');
+  // djb2: determinístico, sem dependência e estável entre sessões (o índice
+  // persiste no localStorage). Colisão aqui só custaria uma gravação a menos
+  // numa conversa que mudou — e o próximo turno já corrige.
+  let h = 5381;
+  for (let i = 0; i < body.length; i++) h = ((h << 5) + h + body.charCodeAt(i)) | 0;
+  return `${body.length}:${(h >>> 0).toString(36)}`;
+}
+
 export function buildCaptureMarkdown({ startedAt, turns }) {
   const today = formatDate(new Date());
   const frontmatter = [

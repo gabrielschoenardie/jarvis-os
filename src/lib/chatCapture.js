@@ -33,16 +33,6 @@ export function buildCaptureFilename(startedAt) {
   return `Capture ${formatDateTime(startedAt)}.md`;
 }
 
-// Assinatura de conteúdo da captura. A gravação é idempotente por CONTEÚDO, não
-// por tempo: o efeito de captura dispara sempre que há histórico, e o histórico
-// é restaurado do localStorage a cada reload — sem esta comparação, abrir o app
-// sem dizer nada de novo reescrevia a conversa inteira num arquivo novo.
-//
-// Cobre só os turnos. Ignora de propósito o frontmatter (`created`/`updated`
-// viram outro dia sem que a conversa mude) e o heading (carrega o `startedAt`):
-// se qualquer um dos dois entrasse na conta, um reload que recarimbasse o
-// horário pareceria conteúdo novo e gravaria outro arquivo — que é exatamente o
-// que estamos corrigindo. Só os turnos definem se há algo novo a gravar.
 // Qual fatia do histórico a próxima gravação cobre. Pura de propósito: é aqui
 // que mora a regra que impede reescrever conversa já registrada — a que deixava
 // o 00-Inbox acumular a mesma conversa a cada reload.
@@ -57,6 +47,16 @@ export function resolveCaptureSlice(base, historyLength) {
   return { base: safe, skip: historyLength - safe === 0 };
 }
 
+// Assinatura de conteúdo da captura. A gravação é idempotente por CONTEÚDO, não
+// por tempo: o efeito de captura dispara sempre que há histórico, e o histórico
+// é restaurado do localStorage a cada reload — sem esta comparação, abrir o app
+// sem dizer nada de novo reescrevia a conversa inteira num arquivo novo.
+//
+// Cobre só os turnos. Ignora de propósito o frontmatter (`created`/`updated`
+// viram outro dia sem que a conversa mude) e o heading (carrega o `startedAt`):
+// se qualquer um dos dois entrasse na conta, um reload que recarimbasse o
+// horário pareceria conteúdo novo e gravaria outro arquivo — que é exatamente o
+// que estamos corrigindo. Só os turnos definem se há algo novo a gravar.
 export function captureSignature(markdown) {
   const end = markdown.indexOf('\n---\n');
   const afterFrontmatter = end === -1 ? markdown : markdown.slice(end + 5);

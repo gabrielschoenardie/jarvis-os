@@ -384,8 +384,6 @@ export function createBrainScene(container, { onSelect } = {}) {
     syncBuffers(true);
   }
 
-  const accent = new Color(ACCENT);
-
   function refreshHighlights() {
     if (!points || !lines) return;
     const intAttr = points.geometry.getAttribute('aIntensity');

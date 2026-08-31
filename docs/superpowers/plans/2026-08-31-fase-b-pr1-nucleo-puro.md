@@ -9,10 +9,12 @@
 **Base:** `main` @ `c4632d7` ou posterior · **Branch a criar:** `feat/fase-b-pr1-nucleo`
 **Executor:** `ai_ml_worker`
 
-> ⚠️ `docs/superpowers/plans/2026-08-09-vault-index-sync-phase-b.md` é **anterior
-> à revisão v4 e está superado**: descreve Vercel Blob, proxy pelo servidor e
-> nomes de módulo que a v4 abandonou. Não usar como fonte. A Fase B é definida
-> por `docs/HYBRID_MEMORY_PLAN.md` e por este handoff.
+> ⚠️ O plano de Fase B anterior (`2026-08-09-vault-index-sync-phase-b.md`) foi
+> **removido no mesmo commit que criou este arquivo**. Era pré-v4 — descrevia
+> Vercel Blob com proxy pelo servidor —, e o cabeçalho dirigido a agentic
+> workers ainda parecia instrução válida para quem o encontrasse. Segue no
+> histórico do git. A Fase B é definida **só** por `docs/HYBRID_MEMORY_PLAN.md`
+> e por este handoff.
 
 ## Ler antes de escrever qualquer linha
 

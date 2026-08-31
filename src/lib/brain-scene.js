@@ -61,6 +61,11 @@ const TUNING = {
   IDLE_FPS: 30,            // fps em repouso (throttle)
 };
 
+// Intervalo do throttle de repouso, com ~1/4 de frame de tolerância: sem ela o
+// jitter do vsync faz 33,3ms cair sistematicamente para 3 frames (≈20fps) num
+// display de 60Hz, em vez dos 30fps pedidos por TUNING.IDLE_FPS.
+const IDLE_INTERVAL_MS = 1000 / TUNING.IDLE_FPS - 4;
+
 const NODE_VERT = `
   attribute float aSize;
   attribute float aIntensity;
@@ -186,11 +191,16 @@ export function createBrainScene(container, { onSelect } = {}) {
   controls.maxDistance = 320;
   mediaQuery?.addEventListener?.('change', onReducedMotionChange);
 
+  // EffectComposer.dispose() só descarta os render targets e o copyPass — os
+  // passes adicionados ficam por conta de quem os criou, então guardamos as
+  // referências para o dispose() simétrico. OutputPass permanece o último.
   const composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
+  const renderPass = new RenderPass(scene, camera);
+  composer.addPass(renderPass);
   const bloomPass = new UnrealBloomPass(new Vector2(width, height), 1.2, 0.7, 0.1);
   composer.addPass(bloomPass);
-  composer.addPass(new OutputPass());
+  const outputPass = new OutputPass();
+  composer.addPass(outputPass);
 
   // ── Núcleo arc reactor ────────────────────────────────────────────────
   const nucleus = new Group();
@@ -477,10 +487,15 @@ export function createBrainScene(container, { onSelect } = {}) {
     }
   }
 
+  // Tamanho do viewport via renderer.getSize (mantido em dia pelo
+  // ResizeObserver) em vez de getBoundingClientRect: screenPos roda a cada
+  // frame e o rect forçaria um reflow logo depois da escrita de style do
+  // label — layout thrash em loop.
+  const viewSize = new Vector2();
   function screenPos(node) {
     const v = new Vector3(node.x, node.y, node.z).project(camera);
-    const rect = renderer.domElement.getBoundingClientRect();
-    return { x: ((v.x + 1) / 2) * rect.width, y: ((1 - v.y) / 2) * rect.height };
+    renderer.getSize(viewSize);
+    return { x: ((v.x + 1) / 2) * viewSize.x, y: ((1 - v.y) / 2) * viewSize.y };
   }
 
   function doRaycast() {
@@ -523,7 +538,8 @@ export function createBrainScene(container, { onSelect } = {}) {
   renderer.domElement.addEventListener('pointerdown', onPointerDown);
   renderer.domElement.addEventListener('pointerup', onPointerUp);
   // Usuário pegou a câmera → cancela o tween de foco
-  controls.addEventListener('start', () => { focusTarget = null; dollyCancelled = true; });
+  const onControlsStart = () => { focusTarget = null; dollyCancelled = true; };
+  controls.addEventListener('start', onControlsStart);
 
   const resizeObserver = new ResizeObserver(() => {
     const w = container.clientWidth, h = container.clientHeight;
@@ -535,10 +551,27 @@ export function createBrainScene(container, { onSelect } = {}) {
   });
   resizeObserver.observe(container);
 
+  // ── Perda / retorno do contexto WebGL ─────────────────────────────────
+  // `preventDefault()` no lost autoriza o navegador a restaurar o contexto; o
+  // RAF já para sozinho (animate() sai enquanto `contextLost`). No restored a
+  // cena NÃO se reconstrói sozinha: recriar toda a resource graph aqui
+  // duplicaria buffers/materiais e exigiria um segundo loop. Apenas sinalizamos
+  // — a camada consumidora (VaultBrain) decide remontar via `resetKey`, que
+  // passa por dispose() e cria uma cena limpa.
+  const opts = { onContextLost: null, onContextRestored: null };
   let contextLost = false;
-  const onContextLost = (e) => { e.preventDefault(); contextLost = true; opts.onContextLost?.(); };
-  const opts = { onContextLost: null };
+  const onContextLost = (e) => {
+    e.preventDefault();
+    if (disposed || contextLost) return; // não re-notifica nem revive nada
+    contextLost = true;
+    opts.onContextLost?.();
+  };
+  const onContextRestored = () => {
+    if (disposed || !contextLost) return;
+    opts.onContextRestored?.();
+  };
   renderer.domElement.addEventListener('webglcontextlost', onContextLost);
+  renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
 
   // ── Loop ──────────────────────────────────────────────────────────────
   const t0 = performance.now();
@@ -553,14 +586,21 @@ export function createBrainScene(container, { onSelect } = {}) {
     const frameMs = now - lastFrameStamp;
     lastFrameStamp = now;
 
-    // pixelRatio adaptativo com histerese
+    // pixelRatio adaptativo com histerese. O intervalo entre frames é limitado
+    // por baixo pelo vsync (~16,7ms a 60Hz), então o limiar de recuperação tem
+    // de ficar ACIMA disso — com o antigo BUDGET*0.6 (12ms) a cena degradada
+    // nunca voltava a full-res num display de 60Hz. A histerese vem da
+    // assimetria das contagens (30 frames pra cair, 120 pra subir) e do reset
+    // dos contadores em qualquer frame contrário, não de uma banda mais
+    // apertada — assim o throttle de repouso (que mantém o intervalo amostrado
+    // em ~16,7ms) não faz a qualidade oscilar.
     if (!lowRatio && frameMs > TUNING.FRAME_BUDGET_MS) {
       if (++slowFrames > 30) {
         lowRatio = true; slowFrames = 0;
         renderer.setPixelRatio(TUNING.PIXEL_RATIO_LOW);
         composer.setPixelRatio(renderer.getPixelRatio());
       }
-    } else if (lowRatio && frameMs < TUNING.FRAME_BUDGET_MS * 0.6) {
+    } else if (lowRatio && frameMs < TUNING.FRAME_BUDGET_MS * 0.9) {
       if (++fastFrames > 120) {
         lowRatio = false; fastFrames = 0;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -568,10 +608,10 @@ export function createBrainScene(container, { onSelect } = {}) {
       }
     } else { slowFrames = 0; fastFrames = 0; }
 
-    // Throttle 30fps em repouso (settled, sem interação/foco/fala/pensamento)
+    // Throttle ~30fps em repouso (settled, sem interação/foco/fala/pensamento)
     const idle = settled && hoveredIndex < 0 && !downPos && !focusTarget
       && !pulse.thinking && !pulse.speaking;
-    if (idle && now - lastRenderStamp < 1000 / TUNING.IDLE_FPS) return;
+    if (idle && now - lastRenderStamp < IDLE_INTERVAL_MS) return;
     lastRenderStamp = now;
 
     // Física: budget de 8ms/frame enquanto quente — assentamento orgânico
@@ -630,50 +670,76 @@ export function createBrainScene(container, { onSelect } = {}) {
 
     if (pointerDirty) { pointerDirty = false; doRaycast(); }
 
+    controls.update();
+    composer.render();
+
+    // Label do hover DEPOIS de controls.update()/render: usa a mesma matriz de
+    // câmera do frame recém-desenhado, então acompanha o nó durante o
+    // autoRotate sem o frame de atraso que havia ao posicionar antes.
     if (hoveredIndex >= 0 && hoverLabel.style.display !== 'none') {
       const sp = screenPos(simNodes[hoveredIndex]);
       hoverLabel.style.left = sp.x + 'px';
       hoverLabel.style.top = sp.y + 'px';
     }
-
-    controls.update();
-    composer.render();
   }
   animate();
 
   function dispose() {
+    if (disposed) return; // idempotente: a 2ª chamada é no-op
     disposed = true;
     cancelAnimationFrame(rafId);
+    rafId = 0;
     renderer.domElement.removeEventListener('pointermove', updatePointer);
     renderer.domElement.removeEventListener('pointerdown', onPointerDown);
     renderer.domElement.removeEventListener('pointerup', onPointerUp);
     renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
+    renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
+    controls.removeEventListener('start', onControlsStart);
     mediaQuery?.removeEventListener?.('change', onReducedMotionChange);
     resizeObserver.disconnect();
     controls.dispose();
-    clearGraphObjects();
+    clearGraphObjects(); // points, lines e a simulação d3
+    // Núcleo (core/coreInner/rings/ripple) — geometrias e materiais.
     scene.traverse(obj => {
       obj.geometry?.dispose?.();
       if (obj.material) (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach(m => m.dispose());
     });
+    // composer.dispose() cobre só os render targets + copyPass; cada pass
+    // adicionado é descartado explicitamente.
+    renderPass.dispose?.();
     bloomPass.dispose?.();
+    outputPass.dispose?.();
     composer.dispose?.();
     renderer.dispose();
+    // Libera o contexto WebGL na hora: o navegador limita ~16 contextos vivos e
+    // alternar TERMINAL↔VAULT (mais o double-mount do StrictMode) esgotaria a
+    // cota esperando o GC. Os listeners de contexto já saíram acima, então isso
+    // não dispara onContextLost.
+    renderer.forceContextLoss?.();
+    opts.onContextLost = null;
+    opts.onContextRestored = null;
     if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
     if (hoverLabel.parentNode === container) container.removeChild(hoverLabel);
   }
 
+  // Métodos públicos são no-op depois do dispose — nada pode reativar o loop
+  // nem tocar em recursos já descartados (StrictMode/context-loss chamam
+  // dispose enquanto callbacks tardios ainda podem estar na fila).
   return {
-    setGraph,
-    setPulse: p => { pulse = { ...pulse, ...p }; },
-    focusNode,
-    clearFocus,
+    setGraph: (graph, cachedPositions) => { if (!disposed) setGraph(graph, cachedPositions); },
+    setPulse: p => { if (!disposed) pulse = { ...pulse, ...p }; },
+    focusNode: id => { if (!disposed) focusNode(id); },
+    clearFocus: () => { if (!disposed) clearFocus(); },
     getPositions: () => {
       const arr = new Float32Array(simNodes.length * 3);
       simNodes.forEach((n, i) => { arr[i * 3] = n.x; arr[i * 3 + 1] = n.y; arr[i * 3 + 2] = n.z; });
       return arr;
     },
     onContextLost: fn => { opts.onContextLost = fn; },
+    // Avisa que o navegador devolveu o contexto. A cena continua parada: cabe
+    // ao consumidor remontá-la (dispose + createBrainScene) se quiser voltar.
+    onContextRestored: fn => { opts.onContextRestored = fn; },
+    isContextLost: () => contextLost,
     dispose,
   };
 }

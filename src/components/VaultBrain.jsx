@@ -74,6 +74,10 @@ export default function VaultBrain({ vault, history, thinking, speaking, listeni
       },
     });
     scene.onContextLost(() => setContextLost(true));
+    // O navegador devolveu o contexto: a cena antiga fica parada de propósito,
+    // então remontamos (o resetKey passa pelo dispose e cria uma cena limpa).
+    // O botão REINICIAR continua valendo para quando o restore nunca vem.
+    scene.onContextRestored(() => { setContextLost(false); setResetKey(k => k + 1); });
     sceneRef.current = scene;
 
     const cache = vault.layoutCacheRef.current;

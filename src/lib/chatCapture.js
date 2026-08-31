@@ -43,6 +43,20 @@ export function buildCaptureFilename(startedAt) {
 // se qualquer um dos dois entrasse na conta, um reload que recarimbasse o
 // horário pareceria conteúdo novo e gravaria outro arquivo — que é exatamente o
 // que estamos corrigindo. Só os turnos definem se há algo novo a gravar.
+// Qual fatia do histórico a próxima gravação cobre. Pura de propósito: é aqui
+// que mora a regra que impede reescrever conversa já registrada — a que deixava
+// o 00-Inbox acumular a mesma conversa a cada reload.
+//
+// `base` é o primeiro turno que pertence à nota atual. Igual ao tamanho do
+// histórico significa "tudo que existe já foi registrado" → não grava. Maior
+// que o tamanho só acontece quando o corte de 60 turnos do localStorage tornou
+// o índice obsoleto; aí zera, porque repetir turnos é melhor que parar de
+// capturar em silêncio.
+export function resolveCaptureSlice(base, historyLength) {
+  const safe = base > historyLength ? 0 : base;
+  return { base: safe, skip: historyLength - safe === 0 };
+}
+
 export function captureSignature(markdown) {
   const end = markdown.indexOf('\n---\n');
   const afterFrontmatter = end === -1 ? markdown : markdown.slice(end + 5);

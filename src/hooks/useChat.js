@@ -3,7 +3,7 @@ import { callClaude, splitIntoSpeakableChunks } from '../lib/anthropic.js';
 import { isWeatherQuery } from '../lib/weather.js';
 import { stripImageAttachment } from '../lib/attachments.js';
 import { MODEL } from '../lib/constants.js';
-import { buildCaptureFilename, buildCaptureMarkdown, captureSignature } from '../lib/chatCapture.js';
+import { buildCaptureFilename, buildCaptureMarkdown, captureSignature, resolveCaptureSlice } from '../lib/chatCapture.js';
 
 const CAPTURE_DEBOUNCE_MS = 2000;
 const CAPTURE_STATE_KEY = 'jarvis-capture';
@@ -67,13 +67,16 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onP
   // que a conversa restaurada continue na mesma nota em vez de abrir outra.
   useEffect(() => {
     try {
+      let restoredLen = 0;
       const saved = localStorage.getItem('jarvis-history');
       if (saved) {
         const { api, ui } = JSON.parse(saved);
         const restoredApi = api || [];
+        const restoredUi = ui || [];
+        restoredLen = restoredUi.length;
         setApiHistory(restoredApi);
         if (apiHistoryRef) apiHistoryRef.current = restoredApi;
-        setHistory(ui || []);
+        setHistory(restoredUi);
       }
       const savedCapture = localStorage.getItem(CAPTURE_STATE_KEY);
       if (savedCapture) {
@@ -83,6 +86,15 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onP
         captureSignatureRef.current = signature ?? null;
         captureBaseRef.current = Number.isInteger(base) && base >= 0 ? base : 0;
         captureLastLenRef.current = Number.isInteger(lastLen) && lastLen >= 0 ? lastLen : 0;
+      } else if (restoredLen > 0) {
+        // Conversa restaurada sem estado de captura: ou já foi capturada por uma
+        // versão anterior (numa nota cujo nome não temos mais), ou a permissão de
+        // escrita só chegou agora. Nos dois casos, reescrevê-la criaria um
+        // arquivo com conteúdo que já existe — foi assim que o 00-Inbox acumulou
+        // a mesma conversa onze vezes. Adotamos o que veio como já registrado: a
+        // captura recomeça do próximo turno novo.
+        captureBaseRef.current = restoredLen;
+        persistCaptureState();
       }
     } catch (_) {}
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -125,12 +137,11 @@ export function useChat({ speakChunks, startTimer, stopTimer, apiHistoryRef, onP
 
     if (captureTimeoutRef.current) clearTimeout(captureTimeoutRef.current);
     captureTimeoutRef.current = setTimeout(async () => {
-      // `base` = turnos já entregues a notas anteriores desta conversa (só é
-      // > 0 depois de uma continuação). Se o corte de 60 turnos do localStorage
-      // deixou o índice para trás, voltamos a zero: repetir alguns turnos é
-      // preferível a parar de capturar em silêncio.
-      let base = captureBaseRef.current;
-      if (base >= history.length) base = 0;
+      // Fatia a gravar (ver resolveCaptureSlice): `skip` cobre tanto a conversa
+      // restaurada e adotada no mount quanto o caso de nada ter mudado.
+      const slice = resolveCaptureSlice(captureBaseRef.current, history.length);
+      if (slice.skip) return;
+      let base = slice.base;
       const build = (at) => buildCaptureMarkdown({ startedAt: at, turns: history.slice(base) });
 
       const startedAt = captureSessionStartRef.current;

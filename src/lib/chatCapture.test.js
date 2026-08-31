@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCaptureFilename, buildCaptureMarkdown, captureSignature } from './chatCapture.js';
+import {
+  buildCaptureFilename, buildCaptureMarkdown, captureSignature, resolveCaptureSlice,
+} from './chatCapture.js';
 
 const turns = (...pairs) => pairs.map(([role, content]) => ({ role, content }));
 
@@ -59,6 +61,31 @@ test('assinatura de conversa vazia é estável', () => {
   const a = buildCaptureMarkdown({ startedAt: started, turns: [] });
   const b = buildCaptureMarkdown({ startedAt: started, turns: [] });
   assert.equal(captureSignature(a), captureSignature(b));
+});
+
+// A regressão relatada: recarregar sem dizer nada fazia nascer um arquivo. A
+// conversa restaurada é adotada com base = tamanho do histórico, e daí em
+// diante nada é gravado até chegar um turno novo.
+test('conversa restaurada e adotada não grava nada', () => {
+  assert.deepEqual(resolveCaptureSlice(6, 6), { base: 6, skip: true });
+});
+
+test('um turno novo depois da adoção grava só o turno novo', () => {
+  assert.deepEqual(resolveCaptureSlice(6, 7), { base: 6, skip: false });
+});
+
+test('conversa nova (base zero) grava tudo', () => {
+  assert.deepEqual(resolveCaptureSlice(0, 3), { base: 0, skip: false });
+});
+
+test('histórico vazio não grava', () => {
+  assert.deepEqual(resolveCaptureSlice(0, 0), { base: 0, skip: true });
+});
+
+// O corte de 60 turnos do localStorage pode deixar o índice para trás; nesse
+// caso é melhor repetir turnos do que parar de capturar em silêncio.
+test('índice obsoleto pelo corte do histórico volta a zero', () => {
+  assert.deepEqual(resolveCaptureSlice(80, 60), { base: 0, skip: false });
 });
 
 test('markdown sem frontmatter não quebra a assinatura', () => {

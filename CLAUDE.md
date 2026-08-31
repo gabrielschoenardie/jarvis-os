@@ -51,7 +51,7 @@ All API keys (`ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`) live server-side only �
 
 | Hook | Role |
 |------|------|
-| `useChat` | Conversation history (API + UI), `submitCommand`, 429 retry backoff, `sessionTokens` accumulator, `localStorage` persistence |
+| `useChat` | Conversation history (API + UI), `submitCommand`, 429 retry backoff, `sessionTokens` accumulator, `localStorage` persistence, the debounced Vault Capture effect (see below) |
 | `useTelemetry` | Live latency counter (`startTimer`/`stopTimer` at 100ms) with EMA smoothing |
 | `useSpeechInput` | VAD via `@ricky0123/vad-react` + ONNX WASM → ElevenLabs Scribe WebSocket (PT-BR) |
 | `useSpeech` | Orchestrates `useSpeechInput` + `useElevenLabsTTS`, exposes unified speech API to `App` |
@@ -132,6 +132,19 @@ Local semantic search over the vault, so `memoryContext` picks notes by relevanc
   4. The explicit "ANALISAR COM JARVIS" flow (`handleAnalyzeNote` in `App.jsx`) remains permitted under its own `MAX_TEXT_CHARS` limit.
   5. No new code path may send the whole vault, whole note bodies, unselected notes, or the index to the network — and full note bodies must never be written to persistent logs or telemetry.
 - `npm test` (`node --test`) covers the three pure modules — `chunker.js`, `vectorIndex.js`, `memoryContext.js` — the project's first automated test coverage (49 tests as of Fase A.1). The load-time index guard is unit-tested through `isIndexCompatible` rather than through the hook, which is why that check lives in `vectorIndex.js`.
+
+### Vault Capture (conversation → note)
+
+The only path in the app that **writes** to the user's vault. Each conversation is mirrored as one Markdown note in `00-Inbox/`, the Capture stage of the vault's Knowledge Lifecycle — still untriaged, so no domain/hub/alias is assigned. Debounced 2s (`CAPTURE_DEBOUNCE_MS`), and entirely optional: `localStorage` remains the source of truth, so a write failure just disables capture for the session and nothing is lost.
+
+- **`src/lib/chatCapture.js`** — pure/Node-testable. `buildCaptureMarkdown` renders frontmatter + heading + `**Operador:**`/`**Jarvis:**` turns, escaping literal `[[`/`]]` so an untriaged note can't inject ghost nodes into the Vault Brain graph. `buildCaptureFilename(startedAt)` → `Capture YYYY-MM-DD HHMM.md`, built **only** from zero-padded `Date` getters — no conversation text or model-supplied string may ever reach a path position. `captureSignature` and `resolveCaptureSlice` carry the idempotency rules below; they live here, rather than inline in the effect, precisely so `npm test` can cover them.
+- **`writeCaptureNote` / `captureNoteExists`** (`src/hooks/useVault.js`) — both gated on `vault.canWrite` (a `readwrite` handle, distinct from the `read` the scan and the semantic index use) and both confined to `00-Inbox/`. `captureNoteExists` calls `getFileHandle` **without** `create`: it is an existence probe, and `create: true` there would silently resurrect a note the operator already triaged out of the inbox.
+- **Idempotent by content, never by time** — this is load-bearing, not an optimization. The capture effect fires whenever `history` is non-empty, and `history` is restored from `localStorage` on every reload; a time-based identity therefore wrote the same conversation to a fresh `Capture <now>.md` on each page load (the inbox once held eleven files that were two conversations). Three rules hold it together:
+  1. `captureSignature` covers **only the turns** — never the frontmatter (`created`/`updated` roll over on their own) and never the heading (it carries `startedAt`). Either one inside the hash makes a re-stamped reload look like new content.
+  2. The capture identity (`startedAt`, signature, `base`, `lastLen`) persists in `localStorage['jarvis-capture']`, so identity and content share a lifetime — their mismatched lifetimes were the original bug. `clearHistory` must clear it alongside `jarvis-history`, or a new conversation gets compared against the old one's content.
+  3. `resolveCaptureSlice` returns `skip` when a restored conversation has gained no new turn. A conversation restored with **no** persisted capture state is *adopted* as already recorded (`base` = restored length) rather than rewritten: it was either captured by an earlier version under a filename that is no longer known, or write permission arrived only now. Without this, the very first load after a fresh install rewrites a conversation that already has a note — the fix would need one duplicate write to start working.
+- **Triage is never undone** — if the note has left `00-Inbox/`, the operator moved, archived or deleted it. Instead of recreating it there (which would stop triage from ever sticking), the conversation continues in a new note holding only the turns since the triaged one ended (`captureLastLenRef`). Nothing is lost and nothing is duplicated.
+- Conversation content written here **stays local** — this is a File System Access API write, not a network path, and it is unrelated to the `/api/chat` excerpt budget in the privacy invariant above.
 
 ### VAD & WASM assets
 

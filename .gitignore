@@ -2,3 +2,10 @@
 node_modules/
 dist/
 public/models/
+
+# Configuração de editor — local-only por decisão, não por acidente.
+# O workspace multi-root (este repo + ../jarvis-os-vault) e o settings.json
+# que aponta git.scanRepositories para o vault descrevem o layout de trabalho
+# da máquina, e não o projeto. Cada máquina monta o seu.
+.vscode/
+*.code-workspace

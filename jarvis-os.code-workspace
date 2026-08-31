@@ -1,0 +1,29 @@
+{
+  "folders": [
+    {
+      "name": "jarvis-os",
+      "path": "."
+    },
+    {
+      "name": "VAULT",
+      "path": "../jarvis-os-vault"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.obsidian": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/public/models": true,
+      "**/.obsidian": true,
+      "**/99-Archive": true
+    },
+    "search.useIgnoreFiles": true,
+    "files.watcherExclude": {
+      "**/.obsidian/**": true,
+      "**/99-Archive/**": true
+    }
+  }
+}

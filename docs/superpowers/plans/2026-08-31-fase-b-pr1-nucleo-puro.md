@@ -96,6 +96,8 @@ payload: jsonLen uint32 BE (4) · meta JSON {notes, chunks, deviceId}
 `useIndexSync.js`, CORS do bucket, presigned URLs, `MemoryPanel`,
 `StatusStrip`, `.env.example`, `aws4fetch`.
 **Nenhuma dependência nova em `package.json` neste PR.**
+O handoff do PR 2 está em
+`docs/superpowers/plans/2026-09-01-fase-b-pr2-rede-e-ui.md`.
 
 ## Gates antes do PR
 

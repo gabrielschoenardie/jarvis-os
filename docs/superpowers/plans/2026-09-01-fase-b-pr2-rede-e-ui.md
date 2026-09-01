@@ -50,18 +50,56 @@ opaco, sem status e sem corpo.
 
 ### Etapa 0 — infraestrutura, feita pelo **operador**, fora do repo (B7, B12, B13)
 
-Nada disto é trabalho de agente: envolve credenciais e o dashboard da
-Cloudflare. O worker **não pede, não recebe e não lê** `CLOUDFLARE_R2_KEY` ou
-`CLOUDFLARE_R2_SECRET` em momento nenhum deste PR.
+Nada disto é trabalho de agente, por duas razões — e só a segunda é dura.
+A primeira é acesso: o dashboard da Cloudflare está autenticado na conta do
+operador. A segunda é que o passo do token **produz uma credencial**. Ela vai do
+dashboard direto para o gerenciador de senhas e para o painel da Vercel — nunca
+para o repo, nunca para o contexto de um agente, nunca colada num transcript de
+conversa. Uma chave que aparece num transcript deixou de ser secreta. O worker
+**não pede, não recebe e não lê** `CLOUDFLARE_R2_KEY` ou `CLOUDFLARE_R2_SECRET`
+em momento nenhum deste PR; é por isso que o script do spike lê `process.env` e
+quem o executa é o operador.
 
-Checklist para o operador executar antes da Etapa 2:
+**A etapa vai em duas metades, e a ordem tem razão.** A política de CORS precisa
+do **alias de branch deste PR**, que só existe depois do primeiro deploy de
+preview — aplicá-la antes obriga a voltar lá. E o token é um segredo: criá-lo
+perto do uso encurta a janela em que fica parado sem função. O que **não** pode
+esperar é a ativação do R2 na conta, que depende de billing e é o único item
+capaz de travar tudo.
 
-- [ ] Bucket R2 **privado** `jarvis-memory-index` criado.
-- [ ] **Versionamento desligado** (B13 — ligado, cada `PUT` retém ~8 MB e o custo deixa de ser zero).
-- [ ] Token S3 criado, restrito a esse bucket. Guardar Access Key ID e Secret.
-- [ ] As 4 vars de servidor (B12) na Vercel, em Production **e** Preview.
-- [ ] `VITE_MEMORY_SYNC_ENABLED` na Vercel — **só depois** que o cliente existir; enquanto ausente, a feature é inerte por contrato (B11) e é assim que se quer que a `main` fique até o fim do PR.
-- [ ] Política de CORS do bucket aplicada (o JSON de B7, ao pé da letra).
+#### Metade 1 — pode ser feita já, inclusive antes do PR 1. Nenhum segredo envolvido.
+
+- [ ] **R2 ativado na conta.** Exige **método de pagamento vinculado, mesmo para
+      uso dentro do free tier** — é o único item capaz de bloquear a fase, e
+      descobrir isso no dia do spike é o pior momento possível. Há relato na
+      comunidade de uma cobrança de $5 na ativação. O uso deste app cabe no free
+      tier com três ordens de grandeza de folga (B13: ~8 MB contra 10 GB-month,
+      ~150 `PUT`/mês contra 1 milhão).
+- [ ] **Bucket privado `jarvis-memory-index` criado** — sem domínio público, sem
+      acesso público.
+- [ ] **Account ID copiado** (está na URL do dashboard R2 e em R2 → Overview).
+      Não é segredo, mas é entrada do signer.
+- [ ] **Versionamento conferido e desligado** (B13 — ligado, cada `PUT` retém
+      ~8 MB e o custo deixa de ser zero). Versionamento de bucket não aparece
+      como configuração de R2 na documentação: se não houver toggle nenhum, o
+      item é uma **confirmação**, não uma configuração. Registrar qual dos dois
+      foi, para o checklist de deploy não ficar cobrando algo inexistente.
+
+#### Metade 2 — no dia do spike, depois que a branch deste PR tiver o primeiro deploy de preview.
+
+- [ ] **Token S3** criado em API Tokens → Create API Token → **Object Read &
+      Write**, restrito ao bucket `jarvis-memory-index`. O Secret aparece **uma
+      única vez**: gerenciador de senhas, na hora.
+- [ ] **As 4 vars de servidor** (B12) na Vercel, em Production **e** Preview — a
+      validação acontece em preview, e faltando lá o signer devolve `501`.
+- [ ] **Política de CORS do bucket** aplicada (o JSON de B7, ao pé da letra),
+      com `AllowedOrigins` = origem de produção + alias de branch +
+      `http://localhost:5173`.
+
+`VITE_MEMORY_SYNC_ENABLED` **não é da Etapa 0**: ela liga a feature e só entra
+quando o cliente existir e o PR estiver pronto. Enquanto ausente, o sync é
+inerte por contrato (B11), e é assim que se quer que a `main` fique até lá —
+está no checklist de deploy, no fim deste documento.
 
 **A origem de produção é entrada do operador, não do worker.** O repo não a
 registra em lugar nenhum — o `README.md` só tem o placeholder
